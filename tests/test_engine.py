@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.agent_definition import AgentDefinition
 from models.floor_plan import FloorPlan
-from models.chat import AgentResult
+from models.chat import AgentResult, ChatMessage
 from engine.runner import AgentRunner
 from engine.prompt_builder import PromptBuilder
 from engine.conversation import ConversationManager
@@ -264,17 +264,20 @@ def test_l2_vs_l3_contrast():
 
     assert "single-shot" in l2_template.lower() or "cannot ask" in l2_template.lower()
     assert "do not have access to computational tools" in l2_template.lower() or "cannot" in l2_template.lower()
+    assert "do not use json" in l2_template.lower()
 
     assert "SCOPE BOUNDARIES" in l3_prompt
     assert "CONVERSATION GUIDELINES" in l3_prompt
+    assert "CONVERSATION BEHAVIOR" in l3_prompt
     assert "CONSTRAINTS" in l3_prompt
     assert "EXPECTED OUTPUTS" in l3_prompt
+    assert "```json" in l3_prompt.lower() or "json" in l3_prompt.lower()
 
     assert agent.conversational is True
     assert len(agent.tools) >= 2
     assert len(agent.constraints) >= 4
 
-    print("PASS: test_l2_vs_l3_contrast (L2=single-shot/no-tools, L3=conversational/tools/structured)")
+    print("PASS: test_l2_vs_l3_contrast (L2=plain-prose/no-tools, L3=structured-JSON/tools/conversational)")
 
 
 def test_all_agents_have_valid_tools():
@@ -295,6 +298,73 @@ def test_evacuation_diagnoser_uses_metrics():
     assert "metrics" in agent.tools
     assert "gemini_text" not in agent.tools
     print("PASS: test_evacuation_diagnoser_uses_metrics")
+
+
+def test_scope_boundaries():
+    """Verify each agent's prompt contains explicit scope boundaries with redirects."""
+    from engine.prompt_builder import AGENT_SCOPE_MAP
+
+    agents = AgentDefinition.load_all_from_directory("data/agents")
+    for agent in agents:
+        prompt = PromptBuilder.build_system_prompt(agent)
+
+        assert "SCOPE BOUNDARIES" in prompt, f"{agent.id} missing SCOPE BOUNDARIES"
+
+        if agent.id in AGENT_SCOPE_MAP:
+            scope = AGENT_SCOPE_MAP[agent.id]
+            for item in scope["in_scope"]:
+                assert item in prompt, f"{agent.id} missing in-scope: {item}"
+            for topic, redirect_agent in scope["out_of_scope"].items():
+                assert redirect_agent in prompt, f"{agent.id} missing redirect to {redirect_agent}"
+            assert "OUT OF SCOPE" in prompt
+
+    assert len(AGENT_SCOPE_MAP) == 4
+    print(f"PASS: test_scope_boundaries ({len(agents)} agents with explicit scope + redirects)")
+
+
+def test_conversation_behavior_instructions():
+    """Verify L3 prompts include proactive flagging and pushback handling."""
+    agent = AgentDefinition.load_from_json("data/agents/egress_validator.json")
+    prompt = PromptBuilder.build_system_prompt(agent)
+
+    assert "CONVERSATION BEHAVIOR" in prompt
+    assert "PROACTIVE" in prompt
+    assert "pushes back" in prompt.lower() or "push back" in prompt.lower()
+    assert "alternatives" in prompt.lower()
+    assert "coherent" in prompt.lower()
+    print("PASS: test_conversation_behavior_instructions")
+
+
+def test_conversation_turn_limit():
+    """Verify conversation manager enforces a turn limit."""
+    agent = AgentDefinition.load_from_json("data/agents/egress_validator.json")
+    cm = ConversationManager(agent)
+    cm.initialize("system", "initial response", inputs={"x": "y"})
+
+    assert cm.MAX_TURNS == 10
+
+    for i in range(cm.MAX_TURNS):
+        cm.history.append(ChatMessage(role="user", content=f"q{i}"))
+        cm.history.append(ChatMessage(role="agent", content=f"a{i}"))
+
+    assert cm.turn_count == cm.MAX_TURNS
+    response = cm.followup("one more question")
+    assert "limit" in response.lower()
+    print("PASS: test_conversation_turn_limit")
+
+
+def test_l2_templates_enforce_plain_text():
+    """Verify all L2 templates explicitly forbid JSON/structured output."""
+    import glob
+    templates = glob.glob("prompts/v1_*.md")
+    assert len(templates) >= 4
+
+    for path in templates:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        assert "do not use json" in content.lower(), f"{path} missing 'no JSON' instruction"
+        assert "single-shot" in content.lower() or "cannot" in content.lower(), f"{path} missing L2 limitation"
+    print(f"PASS: test_l2_templates_enforce_plain_text ({len(templates)} templates)")
 
 
 def test_full_pipeline_with_llm():
@@ -377,6 +447,14 @@ if __name__ == "__main__":
     test_evacuation_diagnoser_uses_metrics()
 
     print()
+    print("--- Phase 3 Tests (Person B) ---")
+    print()
+    test_scope_boundaries()
+    test_conversation_behavior_instructions()
+    test_conversation_turn_limit()
+    test_l2_templates_enforce_plain_text()
+
+    print()
     print("-" * 60)
     print("LLM Integration Tests (requires API key)")
     print("-" * 60)
@@ -386,5 +464,5 @@ if __name__ == "__main__":
 
     print()
     print("=" * 60)
-    print("All Phase 2 tests passed!")
+    print("All Phase 2 + Phase 3 (Person B) tests passed!")
     print("=" * 60)

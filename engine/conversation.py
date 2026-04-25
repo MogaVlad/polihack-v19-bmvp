@@ -14,6 +14,8 @@ class ConversationManager:
     responses when the API is unavailable.
     """
 
+    MAX_TURNS = 10
+
     def __init__(
         self,
         definition: AgentDefinition,
@@ -45,7 +47,17 @@ class ConversationManager:
         """Send a follow-up message and get the agent's response.
 
         Falls back to cached follow-up responses when the API fails.
+        Enforces max conversation depth to keep context coherent.
         """
+        if self.turn_count >= self.MAX_TURNS:
+            limit_msg = (
+                f"We have reached the conversation limit ({self.MAX_TURNS} follow-ups). "
+                f"Please start a new session if you have more questions."
+            )
+            self.history.append(ChatMessage(role="user", content=user_message))
+            self.history.append(ChatMessage(role="agent", content=limit_msg))
+            return limit_msg
+
         self.history.append(ChatMessage(role="user", content=user_message))
 
         history_dicts = [

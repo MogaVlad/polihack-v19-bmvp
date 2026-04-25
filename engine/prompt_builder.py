@@ -2,6 +2,62 @@ from models.agent_definition import AgentDefinition
 from typing import Dict, Optional
 
 
+AGENT_SCOPE_MAP = {
+    "floor_plan_parser": {
+        "in_scope": [
+            "Parsing floor plan images into structured data",
+            "Identifying rooms, corridors, doors, exits, stairs",
+            "Classifying room types and estimating occupancy",
+            "Flagging ambiguous or unusual features in the plan",
+        ],
+        "out_of_scope": {
+            "compliance checking or P118 validation": "Egress Validator",
+            "violation explanation or safety impact": "Evacuation Diagnoser",
+            "fix proposals or exit placement": "Exit Placement Advisor",
+        },
+    },
+    "egress_validator": {
+        "in_scope": [
+            "Checking floor plans against P118 fire safety regulations",
+            "Reporting violations with severity, location, and rule reference",
+            "Explaining which rules were checked and borderline cases",
+            "Answering questions about specific violations found",
+        ],
+        "out_of_scope": {
+            "parsing floor plan images": "Floor Plan Parser",
+            "plain-language diagnosis or safety impact ranking": "Evacuation Diagnoser",
+            "fix proposals or exit placement suggestions": "Exit Placement Advisor",
+        },
+    },
+    "evacuation_diagnoser": {
+        "in_scope": [
+            "Explaining violations in plain language for non-specialists",
+            "Ranking violations by real-world safety impact",
+            "Describing what would happen in an actual fire",
+            "Comparing to similar buildings or common scenarios",
+        ],
+        "out_of_scope": {
+            "running P118 validation or finding new violations": "Egress Validator",
+            "parsing floor plan images": "Floor Plan Parser",
+            "proposing fixes or exit placement": "Exit Placement Advisor",
+        },
+    },
+    "exit_placement_advisor": {
+        "in_scope": [
+            "Suggesting optimal exit locations to resolve violations",
+            "Proposing plan modifications ranked by impact-to-effort",
+            "Discussing trade-offs and alternative approaches",
+            "Adjusting proposals when the engineer pushes back",
+        ],
+        "out_of_scope": {
+            "running P118 validation or diagnosing new violations": "Egress Validator",
+            "parsing floor plan images": "Floor Plan Parser",
+            "plain-language diagnosis or safety impact analysis": "Evacuation Diagnoser",
+        },
+    },
+}
+
+
 class PromptBuilder:
     """Assembles LLM prompts from agent definitions, inputs, and tool results."""
 
@@ -12,7 +68,6 @@ class PromptBuilder:
     ) -> str:
         lines = []
 
-        # 1. Identity & Role
         lines.append(f"You are the '{definition.name}' agent on the AgentArchitect platform.")
         lines.append(f"Your goal: {definition.goal}")
         lines.append("")
@@ -68,11 +123,32 @@ class PromptBuilder:
             lines.append("")
 
         if definition.conversational:
+            scope = AGENT_SCOPE_MAP.get(definition.id)
             lines.append("SCOPE BOUNDARIES:")
-            lines.append("  - Stay within your defined goal. Do not perform tasks outside your scope.")
-            lines.append("  - If the user asks about something outside your scope, politely redirect them")
-            lines.append("    to the appropriate agent (mention the agent by name if possible).")
-            lines.append("  - Be proactive: flag issues, ask clarifying questions about ambiguities.")
+            if scope:
+                lines.append("  You are responsible for:")
+                for item in scope["in_scope"]:
+                    lines.append(f"    - {item}")
+                lines.append("")
+                lines.append("  OUT OF SCOPE — If the user asks about any of the following,")
+                lines.append("  politely explain it is outside your role and redirect them:")
+                for topic, agent in scope["out_of_scope"].items():
+                    lines.append(f'    - {topic} → redirect to the "{agent}" agent')
+            else:
+                lines.append("  - Stay within your defined goal. Do not perform tasks outside your scope.")
+                lines.append("  - If the user asks about something outside your scope, politely redirect them")
+                lines.append("    to the appropriate agent (mention the agent by name if possible).")
+            lines.append("")
+
+            lines.append("CONVERSATION BEHAVIOR:")
+            lines.append("  - Be PROACTIVE: after your initial analysis, flag the most important finding")
+            lines.append("    and ask if the engineer wants to explore it further.")
+            lines.append("  - When the engineer pushes back or disagrees, acknowledge their point,")
+            lines.append("    explain your reasoning with specific data, and offer alternatives.")
+            lines.append("  - Keep follow-up answers coherent with prior turns — reference what was")
+            lines.append("    already discussed, do not repeat your full initial analysis.")
+            lines.append("  - If the engineer provides new information, incorporate it and update")
+            lines.append("    your assessment accordingly.")
             lines.append("")
 
         lines.append("Provide structured, actionable output.")

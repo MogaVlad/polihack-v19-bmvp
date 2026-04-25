@@ -22,6 +22,8 @@ Provide a plain text description listing:
 - All doors and what they connect
 - Any unusual features or ambiguities
 
-Be thorough but concise. Use plain language. Provide your output as unstructured text.
+Be thorough but concise. Use plain language.
+
+**Output as plain prose paragraphs. Do NOT use JSON, code blocks, or structured data formats.** This is a human-readable description, not machine-parseable output.
 
 Note: This is a single-shot analysis. You cannot ask the engineer clarifying questions. If something is ambiguous, note it but make your best guess.

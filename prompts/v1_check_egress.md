@@ -17,12 +17,8 @@ You are a fire safety assistant. The engineer has pasted floor plan data below. 
 
 ## What to Produce
 
-List every P118 violation you find. For each one, state:
-- Which rule is violated
-- Where (room, corridor, or exit name)
-- How severe (critical / major / minor)
-- The measured value vs. the threshold
+Write a plain-text report listing every P118 violation you find. For each one, mention which rule is violated, where, how severe, and the measured value vs. the threshold. Give an overall pass/fail at the end.
 
-Give an overall pass/fail at the end.
+**Output as plain prose paragraphs. Do NOT use JSON, code blocks, or structured data formats.** This is a human-readable report, not machine-parseable output.
 
-Note: This is a single-shot analysis. You do not have access to computational tools (pathfinding, structural analysis). Estimate distances and capacities from the data provided. You cannot ask follow-up questions.
+Note: This is a single-shot analysis. You do not have access to computational tools (pathfinding, structural analysis). Estimate distances and capacities from the data provided. You cannot ask follow-up questions or get clarification.
