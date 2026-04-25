@@ -49,7 +49,7 @@ class AdoptionPanel:
         wrapper = ctk.CTkScrollableFrame(
             self.parent,
             fg_color="transparent",
-            scrollbar_button_color=("#bbb", "#2a3f60"),
+            scrollbar_button_color=("#543520", "#92817A"),
         )
         wrapper.pack(fill="both", expand=True, padx=4, pady=4)
 
@@ -58,18 +58,18 @@ class AdoptionPanel:
             wrapper,
             text="📊  L2 vs L3 — Side-by-Side Comparison",
             font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            text_color=("gray15", "#e0e0e0"),
+            text_color=("#543520", "#F1DABF"),
         ).pack(anchor="w", padx=12, pady=(8, 6))
 
         # ── Summary banner ──────────────────────────────────────
-        banner = ctk.CTkFrame(wrapper, fg_color=("#d4edda", "#1a3a2a"), corner_radius=8)
+        banner = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=8)
         banner.pack(fill="x", padx=8, pady=(0, 10))
 
         ctk.CTkLabel(
             banner,
             text="Same task. L2 = copy-paste + raw text. L3 = structured agents with tools and conversation.",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#155724", "#4caf50"),
+            text_color=("#543520", "#92817A"),
             wraplength=750,
             justify="left",
         ).pack(padx=14, pady=10)
@@ -81,7 +81,7 @@ class AdoptionPanel:
         ctk.CTkLabel(
             selector, text="Select pair:",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("gray30", "#8899aa"),
+            text_color=("#543520", "#92817A"),
         ).pack(side="left", padx=(4, 8))
 
         pair_names = [p[0].replace(".json", "").replace("_", " ").title() for p in AGENT_PROMPT_PAIRS]
@@ -93,12 +93,12 @@ class AdoptionPanel:
             height=30,
             corner_radius=6,
             state="readonly",
-            fg_color=("gray96", "#0e1117"),
-            border_color=("gray75", "#2a3f60"),
-            button_color=("gray75", "#1e4a8a"),
-            button_hover_color=("gray60", "#3a5f90"),
-            text_color=("gray10", "#e0e0e0"),
-            dropdown_fg_color=("gray96", "#162d50"),
+            fg_color=("#e5e5e5", "#000500"),
+            border_color=("#543520", "#92817A"),
+            button_color=("#543520", "#5c4a3a"),
+            button_hover_color=("#6b4428", "#5c4030"),
+            text_color=("#543520", "#F1DABF"),
+            dropdown_fg_color=("#e5e5e5", "#2d1a0e"),
             font=ctk.CTkFont(family="Segoe UI", size=12),
             command=self._on_pair_selected,
         )
@@ -115,20 +115,20 @@ class AdoptionPanel:
         columns.grid_rowconfigure(0, weight=1)
 
         # L2 side
-        left_card = ctk.CTkFrame(columns, fg_color=("gray92", "#162d50"), corner_radius=10)
+        left_card = ctk.CTkFrame(columns, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         left_card.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
 
         ctk.CTkLabel(
             left_card, text="L2 — Prompt Template",
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            text_color=("gray30", "#ffc107"),
+            text_color=("#543520", "#ffc107"),
         ).pack(anchor="w", padx=12, pady=(10, 6))
 
         self.l2_text = ctk.CTkTextbox(
             left_card,
             corner_radius=8,
-            fg_color=("#fff8e1", "#1a1a10"),
-            text_color=("gray15", "#d4c088"),
+            fg_color=("#e5e5e5", "#000500"),
+            text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=10),
             wrap="word",
         )
@@ -142,49 +142,49 @@ class AdoptionPanel:
         ctk.CTkLabel(
             arrow_frame, text="→",
             font=ctk.CTkFont(family="Segoe UI", size=28, weight="bold"),
-            text_color=("gray50", "#4a9eff"),
+            text_color=("#92817A", "#92817A"),
         ).place(relx=0.5, rely=0.35, anchor="center")
 
         ctk.CTkLabel(
             arrow_frame, text="L2→L3",
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            text_color=("gray60", "#667788"),
+            text_color=("#543520", "#667788"),
         ).place(relx=0.5, rely=0.5, anchor="center")
 
         ctk.CTkLabel(
             arrow_frame, text="→",
             font=ctk.CTkFont(family="Segoe UI", size=28, weight="bold"),
-            text_color=("gray50", "#4a9eff"),
+            text_color=("#92817A", "#92817A"),
         ).place(relx=0.5, rely=0.65, anchor="center")
 
         # L3 side
-        right_card = ctk.CTkFrame(columns, fg_color=("gray92", "#162d50"), corner_radius=10)
+        right_card = ctk.CTkFrame(columns, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         right_card.grid(row=0, column=2, sticky="nsew", padx=(4, 0))
 
         ctk.CTkLabel(
             right_card, text="L3 — Agent Definition",
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            text_color=("gray30", "#4caf50"),
+            text_color=("#543520", "#92817A"),
         ).pack(anchor="w", padx=12, pady=(10, 6))
 
         self.l3_text = ctk.CTkTextbox(
             right_card,
             corner_radius=8,
-            fg_color=("#e8f5e9", "#0a1a10"),
-            text_color=("gray15", "#88d4a0"),
+            fg_color=("#e5e5e5", "#000500"),
+            text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=10),
             wrap="word",
         )
         self.l3_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
         # ── Annotations ─────────────────────────────────────────
-        self.ann_card = ctk.CTkFrame(wrapper, fg_color=("gray92", "#162d50"), corner_radius=10)
+        self.ann_card = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         self.ann_card.pack(fill="x", padx=8, pady=(8, 8))
 
         ctk.CTkLabel(
             self.ann_card, text="What Changed: L2 → L3",
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            text_color=("gray30", "#c0d0e0"),
+            text_color=("#543520", "#c0d0e0"),
         ).pack(anchor="w", padx=12, pady=(10, 6))
 
         self.ann_container = ctk.CTkFrame(self.ann_card, fg_color="transparent")
@@ -234,7 +234,7 @@ class AdoptionPanel:
             ctk.CTkLabel(
                 self.ann_container, text=f"  {a}",
                 font=ctk.CTkFont(family="Segoe UI", size=11),
-                text_color=("gray30", "#8899aa"),
+                text_color=("#543520", "#92817A"),
                 wraplength=750,
                 justify="left",
                 anchor="w",

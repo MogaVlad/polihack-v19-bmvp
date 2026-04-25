@@ -24,7 +24,7 @@ class App:
         self.root.minsize(960, 640)
 
         # Make the root use a deep navy background in dark mode
-        self.root.configure(fg_color=("#f0f0f0", "#0e1117"))
+        self.root.configure(fg_color=("#e5e5e5", "#000500"))
 
         self._build_layout()
 
@@ -39,7 +39,7 @@ class App:
             self.root,
             height=48,
             corner_radius=0,
-            fg_color=("#ffffff", "#16213e"),
+            fg_color=("#e5e5e5", "#2d1a0e"),
             border_width=0,
         )
         header.grid(row=0, column=0, columnspan=2, sticky="ew")
@@ -49,7 +49,7 @@ class App:
             header,
             text="⚡ AgentForge",
             font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            text_color=("#1a1a2e", "#4a9eff"),
+            text_color=("#543520", "#F1DABF"),
         )
         logo_label.pack(side="left", padx=16, pady=8)
 
@@ -57,7 +57,7 @@ class App:
             header,
             text="Engineering Agent Platform",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("gray50", "#8899aa"),
+            text_color=("#92817A", "#92817A"),
         )
         subtitle.pack(side="left", padx=(0, 16), pady=8)
 
@@ -70,9 +70,9 @@ class App:
             height=32,
             corner_radius=8,
             font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
-            fg_color=("#dde4ee", "#0f3460"),
-            hover_color=("#c8d0dd", "#1e4a8a"),
-            text_color=("gray20", "#c0d0e0"),
+            fg_color=("#e7d5a5", "#2d1a0e"),
+            hover_color=("#d4b896", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"),
             command=self._toggle_sidebar,
         )
         self.sidebar_toggle_btn.pack(side="left", padx=(4, 0), pady=8)
@@ -82,7 +82,7 @@ class App:
             self.root,
             width=260,
             corner_radius=0,
-            fg_color=("#e8ecf1", "#16213e"),
+            fg_color=("#e7d5a5", "#2d1a0e"),
             border_width=0,
         )
         self.sidebar_frame.grid(row=1, column=0, sticky="nsew")
@@ -92,7 +92,7 @@ class App:
         right = ctk.CTkFrame(
             self.root,
             corner_radius=0,
-            fg_color=("#f5f5f5", "#0e1117"),
+            fg_color=("#e5e5e5", "#000500"),
             border_width=0,
         )
         right.grid(row=1, column=1, sticky="nsew")
@@ -107,13 +107,13 @@ class App:
         self.tabview = ctk.CTkTabview(
             right_inner,
             corner_radius=10,
-            fg_color=("#ffffff", "#1a1a2e"),
-            segmented_button_fg_color=("#dde4ee", "#0f3460"),
-            segmented_button_selected_color="#4a9eff",
-            segmented_button_selected_hover_color="#3a89dd",
-            segmented_button_unselected_color=("#c8d0dd", "#162d50"),
-            segmented_button_unselected_hover_color=("#b0bccf", "#1e3a6a"),
-            text_color=("gray10", "#e0e0e0"),
+            fg_color=("#e5e5e5", "#1a0e05"),
+            segmented_button_fg_color=("#e7d5a5", "#2d1a0e"),
+            segmented_button_selected_color="#92817A",
+            segmented_button_selected_hover_color="#7a6a60",
+            segmented_button_unselected_color=("#d4b896", "#162d50"),
+            segmented_button_unselected_hover_color=("#c4a882", "#3d2510"),
+            text_color=("#543520", "#F1DABF"),
         )
         self.tabview.pack(fill="both", expand=True, padx=8, pady=(8, 4))
 
@@ -128,7 +128,7 @@ class App:
         # frame's background to match the tabview's fg_color so that
         # transparent children don't inherit a dark default.
         for tab_name in ("Agent Runner", "Agent Builder", "L2 Console", "L2 vs L3"):
-            self.tabview.tab(tab_name).configure(fg_color=("#ffffff", "#1a1a2e"))
+            self.tabview.tab(tab_name).configure(fg_color=("#e5e5e5", "#1a0e05"))
 
         # ── Canvas panel (below tabs) ───────────────────────────
         self.canvas_panel = CanvasPanel(right_inner)
@@ -187,29 +187,29 @@ class App:
     def _on_agent_selected(self, agent_def):
         self.runner_tab.load_agent(agent_def)
         self.tabview.set("Agent Runner")
-        self.status_bar.set_status(f"Loaded: {agent_def.name}", "#4a9eff")
+        self.status_bar.set_status(f"Loaded: {agent_def.name}", "#92817A")
 
     def _on_create_new(self):
         self.tabview.set("Agent Builder")
         self.builder_tab.reset_form()
-        self.status_bar.set_status("Creating new agent…", "#ff9800")
+        self.status_bar.set_status("Creating new agent…", "#c47b2a")
 
     def _on_agent_saved(self):
         """Called after the Agent Builder successfully saves a new agent."""
         self.agent_library.refresh()
         self.status_bar.set_agent_count(len(self.agent_library.agents))
-        self.status_bar.set_status("Agent saved ✓", "#4caf50")
+        self.status_bar.set_status("Agent saved ✓", "#92817A")
 
     def _on_save_and_run(self, agent_def):
         """Called after Save & Run — refresh library, then load the agent in the Runner."""
         self._on_agent_saved()
         self._on_agent_selected(agent_def)
-        self.status_bar.set_status(f"Agent '{agent_def.name}' saved and loaded", "#4caf50")
+        self.status_bar.set_status(f"Agent '{agent_def.name}' saved and loaded", "#92817A")
 
     def _refresh_library(self):
         self.agent_library.refresh()
         self.status_bar.set_agent_count(len(self.agent_library.agents))
-        self.status_bar.set_status("Library refreshed", "#4a9eff")
+        self.status_bar.set_status("Library refreshed", "#92817A")
 
     def _preload_example_plan(self):
         """Load the first example floor plan into the canvas on startup."""

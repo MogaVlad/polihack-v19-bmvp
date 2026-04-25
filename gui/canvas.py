@@ -45,34 +45,12 @@ class CanvasPanel:
             height=28,
             corner_radius=6,
             font=ctk.CTkFont(family="Segoe UI", size=11),
-            fg_color=("gray78", "#0f3460"),
-            hover_color=("gray68", "#1e4a8a"),
-            text_color=("gray10", "#c0d0e0"),
+            fg_color=("#543520", "#2d1a0e"),
+            hover_color=("#6b4428", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"),
             command=self.toggle,
         )
         self.toggle_btn.pack(side="left", padx=(0, 12))
-
-        # Example plan dropdown
-        ctk.CTkLabel(
-            self.toggle_frame, text="Load Example:",
-            font=ctk.CTkFont(size=11), text_color=("gray40", "#8899aa"),
-        ).pack(side="left", padx=(0, 4))
-
-        self.example_combo = ctk.CTkComboBox(
-            self.toggle_frame,
-            values=self._get_example_names(),
-            width=180, height=28, corner_radius=6,
-            state="readonly",
-            fg_color=("gray96", "#0e1117"),
-            border_color=("gray75", "#2a3f60"),
-            button_color=("gray75", "#1e4a8a"),
-            button_hover_color=("gray60", "#3a5f90"),
-            text_color=("gray10", "#e0e0e0"),
-            dropdown_fg_color=("gray96", "#162d50"),
-            font=ctk.CTkFont(size=11),
-            command=self._on_example_selected,
-        )
-        self.example_combo.pack(side="left", padx=(0, 12))
 
         # Layer checkboxes
         for text, var in [
@@ -84,30 +62,30 @@ class CanvasPanel:
                 self.toggle_frame, text=text, variable=var,
                 width=24, height=24,
                 font=ctk.CTkFont(size=11),
-                text_color=("gray30", "#8899aa"),
-                fg_color="#4a9eff", hover_color="#3a89dd",
-                border_color=("gray60", "#3a5070"),
+                text_color=("#543520", "#92817A"),
+                fg_color="#92817A", hover_color="#7a6a60",
+                border_color=("#543520", "#92817A"),
                 command=self._redraw,
             ).pack(side="left", padx=6)
 
         ctk.CTkButton(
             self.toggle_frame, text="Fit", width=50, height=28, corner_radius=6,
             font=ctk.CTkFont(size=11),
-            fg_color=("gray78", "#0f3460"), hover_color=("gray68", "#1e4a8a"),
-            text_color=("gray10", "#c0d0e0"), command=self.fit_to_window,
+            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"), command=self.fit_to_window,
         ).pack(side="right", padx=4)
 
         # ── Canvas panel (hidden initially) ─────────────────────
         self.panel_frame = ctk.CTkFrame(
             self.parent,
-            fg_color=("gray92", "#162d50"),
+            fg_color=("#e7d5a5", "#2d1a0e"),
             corner_radius=10,
         )
 
         # The tk.Canvas itself (no CTk equivalent)
         self.canvas = tk.Canvas(
             self.panel_frame,
-            bg="#0e1117",
+            bg="#000500",
             height=280,
             highlightthickness=0,
             cursor="crosshair",
@@ -126,21 +104,6 @@ class CanvasPanel:
         # Tooltip bindings
         self.canvas.tag_bind("violation", "<Enter>", self._on_violation_hover)
         self.canvas.tag_bind("violation", "<Leave>", self._on_violation_leave)
-
-    # ── Examples ─────────────────────────────────────────────────
-    def _get_example_names(self):
-        if os.path.exists(config.FLOOR_PLANS_DIR):
-            return [f for f in os.listdir(config.FLOOR_PLANS_DIR) if f.endswith(".json")]
-        return []
-
-    def _on_example_selected(self, selection):
-        if selection:
-            path = os.path.join(config.FLOOR_PLANS_DIR, selection)
-            plan = FloorPlan.load_from_json(path)
-            self.load_plan(plan)
-            self.fit_to_window()
-            if not self.visible:
-                self.toggle()
 
     # ── Toggle ───────────────────────────────────────────────────
     def toggle(self):
@@ -235,7 +198,7 @@ class CanvasPanel:
             if room.polygon:
                 coords = [coord for pt in room.polygon for coord in (pt[0] * s + ox, pt[1] * s + oy)]
                 self.canvas.create_polygon(
-                    coords, fill="#1a2744", outline="#4a9eff",
+                    coords, fill="#1a0e05", outline="#92817A",
                     width=2, tags="room",
                 )
 
@@ -261,7 +224,7 @@ class CanvasPanel:
             if corridor.polygon:
                 coords = [coord for pt in corridor.polygon for coord in (pt[0] * s + ox, pt[1] * s + oy)]
                 self.canvas.create_polygon(
-                    coords, fill="#111827", outline="#3a5070",
+                    coords, fill="#000500", outline="#3a5070",
                     width=1, dash=(4, 2), tags="corridor",
                 )
 
@@ -271,7 +234,7 @@ class CanvasPanel:
             # Background circle
             self.canvas.create_oval(
                 ex - 8, ey - 8, ex + 8, ey + 8,
-                fill="#4caf50", outline="#2e7d32", width=2, tags="exit",
+                fill="#92817A", outline="#5c4a3a", width=2, tags="exit",
             )
             # Arrow pointing up (exit direction)
             self.canvas.create_line(
@@ -282,7 +245,7 @@ class CanvasPanel:
             if self.show_labels_var.get():
                 self.canvas.create_text(
                     ex, ey - 18, text="EXIT",
-                    font=("Segoe UI", 7, "bold"), fill="#4caf50",
+                    font=("Segoe UI", 7, "bold"), fill="#92817A",
                 )
 
         # Doors — draw as arc (door swing)
@@ -292,13 +255,13 @@ class CanvasPanel:
             # Door frame line
             self.canvas.create_line(
                 dx - r * 0.5, dy, dx + r * 0.5, dy,
-                fill="#ff9800", width=2, tags="door",
+                fill="#c47b2a", width=2, tags="door",
             )
             # Door swing arc
             self.canvas.create_arc(
                 dx - r, dy - r, dx + r, dy + r,
                 start=0, extent=90,
-                style="arc", outline="#ff9800", width=2, tags="door",
+                style="arc", outline="#c47b2a", width=2, tags="door",
             )
 
         # Violations
@@ -313,7 +276,7 @@ class CanvasPanel:
                 else:
                     vx, vy = ox + 30 + (idx * 20), oy + 30
 
-                color = "#f44336" if v.severity == "critical" else "#ff9800" if v.severity == "major" else "#fdd835"
+                color = "#f44336" if v.severity == "critical" else "#c47b2a" if v.severity == "major" else "#fdd835"
                 tag_id = f"violation_{idx}"
 
                 item = self.canvas.create_oval(

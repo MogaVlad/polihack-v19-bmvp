@@ -9,7 +9,7 @@ class StatusBar:
             parent,
             height=36,
             corner_radius=0,
-            fg_color=("gray86", "#1a1a2e"),
+            fg_color=("#e7d5a5", "#1a0e05"),
             border_width=0,
         )
 
@@ -20,29 +20,29 @@ class StatusBar:
             inner,
             text="● Ready",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#4caf50", "#4caf50"),
+            text_color=("#92817A", "#92817A"),
         )
         self.status_label.pack(side="left")
 
-        sep1 = ctk.CTkLabel(inner, text="│", text_color=("gray60", "gray40"), font=ctk.CTkFont(size=12))
+        sep1 = ctk.CTkLabel(inner, text="│", text_color=("#543520", "#92817A"), font=ctk.CTkFont(size=12))
         sep1.pack(side="left", padx=12)
 
         self.agents_label = ctk.CTkLabel(
             inner,
             text="Agents: 0 loaded",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("gray30", "#8899aa"),
+            text_color=("#543520", "#92817A"),
         )
         self.agents_label.pack(side="left")
 
-        sep2 = ctk.CTkLabel(inner, text="│", text_color=("gray60", "gray40"), font=ctk.CTkFont(size=12))
+        sep2 = ctk.CTkLabel(inner, text="│", text_color=("#543520", "#92817A"), font=ctk.CTkFont(size=12))
         sep2.pack(side="left", padx=12)
 
         self.tools_label = ctk.CTkLabel(
             inner,
             text="Tools: 0 available",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("gray30", "#8899aa"),
+            text_color=("#543520", "#92817A"),
         )
         self.tools_label.pack(side="left")
 
@@ -54,7 +54,7 @@ class StatusBar:
             right_frame,
             text="☀",
             font=ctk.CTkFont(size=14),
-            text_color=("gray30", "#8899aa"),
+            text_color=("#543520", "#92817A"),
         )
         self.mode_label.pack(side="left", padx=(0, 6))
 
@@ -68,7 +68,7 @@ class StatusBar:
             command=self._toggle_theme,
             onvalue=1,
             offvalue=0,
-            progress_color="#4a9eff",
+            progress_color="#92817A",
         )
         self.theme_switch.pack(side="left")
         self.theme_switch.select()  # Start with dark mode ON
@@ -77,7 +77,7 @@ class StatusBar:
             right_frame,
             text="🌙",
             font=ctk.CTkFont(size=14),
-            text_color=("gray30", "#8899aa"),
+            text_color=("#543520", "#92817A"),
         )
         self.moon_label.pack(side="left", padx=(6, 0))
 
@@ -87,7 +87,7 @@ class StatusBar:
         else:
             ctk.set_appearance_mode("light")
 
-    def set_status(self, text: str, color: str = "#4caf50"):
+    def set_status(self, text: str, color: str = "#92817A"):
         self.status_label.configure(text=f"● {text}", text_color=(color, color))
 
     def set_agent_count(self, count: int):

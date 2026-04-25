@@ -30,9 +30,9 @@ class AgentBuilderTab:
         ctk.CTkLabel(
             frame, text=text,
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=("gray40", "#667788"),
+            text_color=("#92817A", "#92817A"),
         ).pack(side="left")
-        sep = ctk.CTkFrame(frame, height=1, fg_color=("gray80", "#2a3f60"))
+        sep = ctk.CTkFrame(frame, height=1, fg_color=("#543520", "#92817A"))
         sep.pack(side="left", fill="x", expand=True, padx=(10, 0), pady=1)
         return frame
 
@@ -41,7 +41,7 @@ class AgentBuilderTab:
         self.scroll = ctk.CTkScrollableFrame(
             self.parent,
             fg_color="transparent",
-            scrollbar_button_color=("#bbb", "#2a3f60"),
+            scrollbar_button_color=("#543520", "#92817A"),
         )
         self.scroll.pack(fill="both", expand=True, padx=4, pady=4)
 
@@ -50,7 +50,7 @@ class AgentBuilderTab:
             self.scroll,
             text="🔧  Create New Agent",
             font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            text_color=("gray15", "#e0e0e0"),
+            text_color=("#543520", "#F1DABF"),
         ).pack(anchor="w", padx=12, pady=(8, 12))
 
         # ── Validation error label (hidden by default) ──────────
@@ -69,7 +69,7 @@ class AgentBuilderTab:
         self.error_label.pack(anchor="w", padx=12, pady=8)
 
         # ── Basic info card ─────────────────────────────────────
-        basic_card = ctk.CTkFrame(self.scroll, fg_color=("gray92", "#162d50"), corner_radius=10)
+        basic_card = ctk.CTkFrame(self.scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         basic_card.pack(fill="x", padx=8, pady=4)
         self._section_header(basic_card, "BASIC INFO").pack(fill="x", padx=12, pady=(12, 8))
 
@@ -77,11 +77,11 @@ class AgentBuilderTab:
         row_name = ctk.CTkFrame(basic_card, fg_color="transparent")
         row_name.pack(fill="x", padx=12, pady=3)
         ctk.CTkLabel(row_name, text="Name: *", width=80, anchor="w",
-                     font=ctk.CTkFont(size=12), text_color=("gray30", "#8899aa")).pack(side="left")
+                     font=ctk.CTkFont(size=12), text_color=("#543520", "#92817A")).pack(side="left")
         self.name_entry = ctk.CTkEntry(
             row_name, height=30, corner_radius=6,
-            fg_color=("gray96", "#0e1117"), border_color=("gray75", "#2a3f60"),
-            text_color=("gray10", "#e0e0e0"), font=ctk.CTkFont(size=12),
+            fg_color=("#e5e5e5", "#000500"), border_color=("#543520", "#92817A"),
+            text_color=("#543520", "#F1DABF"), font=ctk.CTkFont(size=12),
         )
         self.name_entry.pack(side="left", fill="x", expand=True)
 
@@ -89,11 +89,11 @@ class AgentBuilderTab:
         row_cat = ctk.CTkFrame(basic_card, fg_color="transparent")
         row_cat.pack(fill="x", padx=12, pady=3)
         ctk.CTkLabel(row_cat, text="Category:", width=80, anchor="w",
-                     font=ctk.CTkFont(size=12), text_color=("gray30", "#8899aa")).pack(side="left")
+                     font=ctk.CTkFont(size=12), text_color=("#543520", "#92817A")).pack(side="left")
         self.category_entry = ctk.CTkEntry(
             row_cat, height=30, corner_radius=6,
-            fg_color=("gray96", "#0e1117"), border_color=("gray75", "#2a3f60"),
-            text_color=("gray10", "#e0e0e0"), font=ctk.CTkFont(size=12),
+            fg_color=("#e5e5e5", "#000500"), border_color=("#543520", "#92817A"),
+            text_color=("#543520", "#F1DABF"), font=ctk.CTkFont(size=12),
         )
         self.category_entry.pack(side="left", fill="x", expand=True)
         self.category_entry.insert(0, "Custom")
@@ -102,16 +102,16 @@ class AgentBuilderTab:
         row_goal = ctk.CTkFrame(basic_card, fg_color="transparent")
         row_goal.pack(fill="x", padx=12, pady=(3, 12))
         ctk.CTkLabel(row_goal, text="Goal: *", width=80, anchor="nw",
-                     font=ctk.CTkFont(size=12), text_color=("gray30", "#8899aa")).pack(side="left", anchor="n")
+                     font=ctk.CTkFont(size=12), text_color=("#543520", "#92817A")).pack(side="left", anchor="n")
         self.goal_text = ctk.CTkTextbox(
             row_goal, height=70, corner_radius=6,
-            fg_color=("gray96", "#0e1117"), text_color=("gray10", "#e0e0e0"),
+            fg_color=("#e5e5e5", "#000500"), text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Segoe UI", size=12), wrap="word",
         )
         self.goal_text.pack(side="left", fill="x", expand=True)
 
         # ── Inputs card ─────────────────────────────────────────
-        inputs_card = ctk.CTkFrame(self.scroll, fg_color=("gray92", "#162d50"), corner_radius=10)
+        inputs_card = ctk.CTkFrame(self.scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         inputs_card.pack(fill="x", padx=8, pady=4)
         self._section_header(inputs_card, "INPUTS").pack(fill="x", padx=12, pady=(12, 6))
 
@@ -121,12 +121,12 @@ class AgentBuilderTab:
         ctk.CTkButton(
             inputs_card, text="＋ Add Input", width=120, height=28, corner_radius=6,
             font=ctk.CTkFont(size=11),
-            fg_color=("gray78", "#0f3460"), hover_color=("gray68", "#1e4a8a"),
-            text_color=("gray10", "#c0d0e0"), command=self._add_input_row,
+            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"), command=self._add_input_row,
         ).pack(padx=12, pady=(4, 12))
 
         # ── Constraints card ────────────────────────────────────
-        constraints_card = ctk.CTkFrame(self.scroll, fg_color=("gray92", "#162d50"), corner_radius=10)
+        constraints_card = ctk.CTkFrame(self.scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         constraints_card.pack(fill="x", padx=8, pady=4)
         self._section_header(constraints_card, "CONSTRAINTS").pack(fill="x", padx=12, pady=(12, 6))
 
@@ -136,12 +136,12 @@ class AgentBuilderTab:
         ctk.CTkButton(
             constraints_card, text="＋ Add Constraint", width=140, height=28, corner_radius=6,
             font=ctk.CTkFont(size=11),
-            fg_color=("gray78", "#0f3460"), hover_color=("gray68", "#1e4a8a"),
-            text_color=("gray10", "#c0d0e0"), command=self._add_constraint_row,
+            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"), command=self._add_constraint_row,
         ).pack(padx=12, pady=(4, 12))
 
         # ── Outputs card ────────────────────────────────────────
-        outputs_card = ctk.CTkFrame(self.scroll, fg_color=("gray92", "#162d50"), corner_radius=10)
+        outputs_card = ctk.CTkFrame(self.scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         outputs_card.pack(fill="x", padx=8, pady=4)
         self._section_header(outputs_card, "OUTPUTS").pack(fill="x", padx=12, pady=(12, 6))
 
@@ -151,12 +151,12 @@ class AgentBuilderTab:
         ctk.CTkButton(
             outputs_card, text="＋ Add Output", width=130, height=28, corner_radius=6,
             font=ctk.CTkFont(size=11),
-            fg_color=("gray78", "#0f3460"), hover_color=("gray68", "#1e4a8a"),
-            text_color=("gray10", "#c0d0e0"), command=self._add_output_row,
+            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"), command=self._add_output_row,
         ).pack(padx=12, pady=(4, 12))
 
         # ── Tools card ──────────────────────────────────────────
-        tools_card = ctk.CTkFrame(self.scroll, fg_color=("gray92", "#162d50"), corner_radius=10)
+        tools_card = ctk.CTkFrame(self.scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         tools_card.pack(fill="x", padx=8, pady=4)
         self._section_header(tools_card, "TOOLS").pack(fill="x", padx=12, pady=(12, 8))
 
@@ -169,10 +169,10 @@ class AgentBuilderTab:
                 text=f"{info.name} — {info.description}",
                 variable=var,
                 font=ctk.CTkFont(family="Segoe UI", size=12),
-                text_color=("gray20", "#c0d0e0"),
-                fg_color="#4a9eff",
-                hover_color="#3a89dd",
-                border_color=("gray60", "#3a5070"),
+                text_color=("#543520", "#F1DABF"),
+                fg_color="#92817A",
+                hover_color="#7a6a60",
+                border_color=("#543520", "#92817A"),
             )
             cb.pack(anchor="w", padx=16, pady=3)
             self.tool_vars[key] = var
@@ -190,9 +190,9 @@ class AgentBuilderTab:
             text="Enable follow-up conversation",
             variable=self.conversational_var,
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("gray20", "#c0d0e0"),
-            fg_color="#4a9eff", hover_color="#3a89dd",
-            border_color=("gray60", "#3a5070"),
+            text_color=("#543520", "#F1DABF"),
+            fg_color="#92817A", hover_color="#7a6a60",
+            border_color=("#543520", "#92817A"),
         ).pack(anchor="w")
 
         # ── Action buttons ──────────────────────────────────────
@@ -202,21 +202,21 @@ class AgentBuilderTab:
         ctk.CTkButton(
             btn_frame, text="Preview JSON", width=130, height=36, corner_radius=8,
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            fg_color=("gray78", "#1a3a5c"), hover_color=("gray68", "#2a4a6c"),
-            text_color=("gray10", "#c0d0e0"), command=self._preview_definition,
+            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"), command=self._preview_definition,
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
             btn_frame, text="Save Agent", width=140, height=36, corner_radius=8,
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            fg_color=("gray70", "#0f3460"), hover_color=("gray60", "#1e4a8a"),
-            text_color=("gray10", "#c0d0e0"), command=self._save_agent,
+            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"), command=self._save_agent,
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
             btn_frame, text="Save & Run", width=140, height=36, corner_radius=8,
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            fg_color="#4a9eff", hover_color="#3a89dd",
+            fg_color="#92817A", hover_color="#7a6a60",
             text_color="#ffffff", command=self._save_and_run,
         ).pack(side="left")
 
@@ -227,26 +227,26 @@ class AgentBuilderTab:
 
         name_entry = ctk.CTkEntry(
             row, width=130, height=28, corner_radius=6, placeholder_text="name",
-            fg_color=("gray96", "#0e1117"), border_color=("gray75", "#2a3f60"),
-            text_color=("gray10", "#e0e0e0"), font=ctk.CTkFont(size=11),
+            fg_color=("#e5e5e5", "#000500"), border_color=("#543520", "#92817A"),
+            text_color=("#543520", "#F1DABF"), font=ctk.CTkFont(size=11),
         )
         name_entry.pack(side="left", padx=(0, 4))
 
         type_combo = ctk.CTkComboBox(
             row, values=["json", "text", "image", "number"], width=90, height=28,
             corner_radius=6, state="readonly",
-            fg_color=("gray96", "#0e1117"), border_color=("gray75", "#2a3f60"),
-            button_color=("gray75", "#1e4a8a"), button_hover_color=("gray60", "#3a5f90"),
-            text_color=("gray10", "#e0e0e0"), font=ctk.CTkFont(size=11),
-            dropdown_fg_color=("gray96", "#162d50"),
+            fg_color=("#e5e5e5", "#000500"), border_color=("#543520", "#92817A"),
+            button_color=("#543520", "#5c4a3a"), button_hover_color=("#6b4428", "#5c4030"),
+            text_color=("#543520", "#F1DABF"), font=ctk.CTkFont(size=11),
+            dropdown_fg_color=("#e5e5e5", "#2d1a0e"),
         )
         type_combo.set("json")
         type_combo.pack(side="left", padx=(0, 4))
 
         desc_entry = ctk.CTkEntry(
             row, height=28, corner_radius=6, placeholder_text="Description…",
-            fg_color=("gray96", "#0e1117"), border_color=("gray75", "#2a3f60"),
-            text_color=("gray10", "#e0e0e0"), font=ctk.CTkFont(size=11),
+            fg_color=("#e5e5e5", "#000500"), border_color=("#543520", "#92817A"),
+            text_color=("#543520", "#F1DABF"), font=ctk.CTkFont(size=11),
         )
         desc_entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
 
@@ -255,8 +255,8 @@ class AgentBuilderTab:
         remove_btn = ctk.CTkButton(
             row, text="✕", width=28, height=28, corner_radius=6,
             font=ctk.CTkFont(size=12),
-            fg_color=("gray78", "#3a2020"), hover_color=("gray68", "#5a3030"),
-            text_color=("gray10", "#ff6b6b"),
+            fg_color=("#543520", "#3a2020"), hover_color=("#6b4428", "#5a3030"),
+            text_color=("#543520", "#ff6b6b"),
             command=lambda rd=row_data: self._remove_input_row(rd),
         )
         remove_btn.pack(side="right")
@@ -274,8 +274,8 @@ class AgentBuilderTab:
 
         entry = ctk.CTkEntry(
             row, height=28, corner_radius=6, placeholder_text="Enter a constraint…",
-            fg_color=("gray96", "#0e1117"), border_color=("gray75", "#2a3f60"),
-            text_color=("gray10", "#e0e0e0"), font=ctk.CTkFont(size=11),
+            fg_color=("#e5e5e5", "#000500"), border_color=("#543520", "#92817A"),
+            text_color=("#543520", "#F1DABF"), font=ctk.CTkFont(size=11),
         )
         entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
 
@@ -284,8 +284,8 @@ class AgentBuilderTab:
         remove_btn = ctk.CTkButton(
             row, text="✕", width=28, height=28, corner_radius=6,
             font=ctk.CTkFont(size=12),
-            fg_color=("gray78", "#3a2020"), hover_color=("gray68", "#5a3030"),
-            text_color=("gray10", "#ff6b6b"),
+            fg_color=("#543520", "#3a2020"), hover_color=("#6b4428", "#5a3030"),
+            text_color=("#543520", "#ff6b6b"),
             command=lambda rd=row_data: self._remove_constraint_row(rd),
         )
         remove_btn.pack(side="right")
@@ -303,26 +303,26 @@ class AgentBuilderTab:
 
         name_entry = ctk.CTkEntry(
             row, width=130, height=28, corner_radius=6, placeholder_text="name",
-            fg_color=("gray96", "#0e1117"), border_color=("gray75", "#2a3f60"),
-            text_color=("gray10", "#e0e0e0"), font=ctk.CTkFont(size=11),
+            fg_color=("#e5e5e5", "#000500"), border_color=("#543520", "#92817A"),
+            text_color=("#543520", "#F1DABF"), font=ctk.CTkFont(size=11),
         )
         name_entry.pack(side="left", padx=(0, 4))
 
         type_combo = ctk.CTkComboBox(
             row, values=["json", "text", "number"], width=90, height=28,
             corner_radius=6, state="readonly",
-            fg_color=("gray96", "#0e1117"), border_color=("gray75", "#2a3f60"),
-            button_color=("gray75", "#1e4a8a"), button_hover_color=("gray60", "#3a5f90"),
-            text_color=("gray10", "#e0e0e0"), font=ctk.CTkFont(size=11),
-            dropdown_fg_color=("gray96", "#162d50"),
+            fg_color=("#e5e5e5", "#000500"), border_color=("#543520", "#92817A"),
+            button_color=("#543520", "#5c4a3a"), button_hover_color=("#6b4428", "#5c4030"),
+            text_color=("#543520", "#F1DABF"), font=ctk.CTkFont(size=11),
+            dropdown_fg_color=("#e5e5e5", "#2d1a0e"),
         )
         type_combo.set("json")
         type_combo.pack(side="left", padx=(0, 4))
 
         desc_entry = ctk.CTkEntry(
             row, height=28, corner_radius=6, placeholder_text="Description…",
-            fg_color=("gray96", "#0e1117"), border_color=("gray75", "#2a3f60"),
-            text_color=("gray10", "#e0e0e0"), font=ctk.CTkFont(size=11),
+            fg_color=("#e5e5e5", "#000500"), border_color=("#543520", "#92817A"),
+            text_color=("#543520", "#F1DABF"), font=ctk.CTkFont(size=11),
         )
         desc_entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
 
@@ -331,8 +331,8 @@ class AgentBuilderTab:
         remove_btn = ctk.CTkButton(
             row, text="✕", width=28, height=28, corner_radius=6,
             font=ctk.CTkFont(size=12),
-            fg_color=("gray78", "#3a2020"), hover_color=("gray68", "#5a3030"),
-            text_color=("gray10", "#ff6b6b"),
+            fg_color=("#543520", "#3a2020"), hover_color=("#6b4428", "#5a3030"),
+            text_color=("#543520", "#ff6b6b"),
             command=lambda rd=row_data: self._remove_output_row(rd),
         )
         remove_btn.pack(side="right")
@@ -505,10 +505,10 @@ class AgentBuilderTab:
         definition = self._build_definition()
         root = self.parent.winfo_toplevel()
 
-        overlay = ctk.CTkFrame(root, fg_color=("gray20", "gray14"), corner_radius=0)
+        overlay = ctk.CTkFrame(root, fg_color=("#e5e5e5", "#1a0e05"), corner_radius=0)
         overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
 
-        card = ctk.CTkFrame(overlay, fg_color=("gray96", "#1a1a2e"), corner_radius=14, width=580, height=520)
+        card = ctk.CTkFrame(overlay, fg_color=("#e5e5e5", "#1a0e05"), corner_radius=14, width=580, height=520)
         card.place(relx=0.5, rely=0.5, anchor="center")
         card.pack_propagate(False)
 
@@ -518,20 +518,20 @@ class AgentBuilderTab:
         ctk.CTkLabel(
             header, text="Preview: Agent Definition",
             font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
-            text_color=("gray10", "#e0e0e0"),
+            text_color=("#543520", "#F1DABF"),
         ).pack(side="left")
 
         ctk.CTkButton(
             header, text="✕", width=32, height=32, corner_radius=8,
             font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color=("gray78", "#2a2a3e"), hover_color=("gray68", "#3a3a50"),
-            text_color=("gray10", "#ff6b6b"), command=overlay.destroy,
+            fg_color=("#543520", "#2a2a3e"), hover_color=("#6b4428", "#3a3a50"),
+            text_color=("#543520", "#ff6b6b"), command=overlay.destroy,
         ).pack(side="right")
 
         textbox = ctk.CTkTextbox(
             card, corner_radius=8,
-            fg_color=("white", "#0e1117"),
-            text_color=("gray10", "#c0d0e0"),
+            fg_color=("#e5e5e5", "#000500"),
+            text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=11),
             wrap="word",
         )

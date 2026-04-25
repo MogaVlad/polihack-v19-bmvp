@@ -14,12 +14,12 @@ class L2ConsoleTab:
         wrapper = ctk.CTkScrollableFrame(
             self.parent,
             fg_color="transparent",
-            scrollbar_button_color=("#bbb", "#2a3f60"),
+            scrollbar_button_color=("#543520", "#92817A"),
         )
         wrapper.pack(fill="both", expand=True, padx=4, pady=4)
 
         # ── Banner ──────────────────────────────────────────────
-        banner = ctk.CTkFrame(wrapper, fg_color=("#fff3cd", "#3a2e10"), corner_radius=8)
+        banner = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=8)
         banner.pack(fill="x", padx=8, pady=(4, 8))
 
         ctk.CTkLabel(
@@ -29,7 +29,7 @@ class L2ConsoleTab:
                 "Switch to the Agent Library to see L3."
             ),
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#856404", "#ffc107"),
+            text_color=("#543520", "#F1DABF"),
             wraplength=750,
             justify="left",
         ).pack(padx=14, pady=10)
@@ -41,7 +41,7 @@ class L2ConsoleTab:
         ctk.CTkLabel(
             controls, text="Prompt Template:",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("gray30", "#8899aa"),
+            text_color=("#543520", "#92817A"),
         ).pack(side="left", padx=(0, 6))
 
         templates = self._load_template_names()
@@ -55,12 +55,12 @@ class L2ConsoleTab:
             height=30,
             corner_radius=6,
             state="readonly",
-            fg_color=("gray96", "#0e1117"),
-            border_color=("gray75", "#2a3f60"),
-            button_color=("gray75", "#1e4a8a"),
-            button_hover_color=("gray60", "#3a5f90"),
-            text_color=("gray10", "#e0e0e0"),
-            dropdown_fg_color=("gray96", "#162d50"),
+            fg_color=("#e5e5e5", "#000500"),
+            border_color=("#543520", "#92817A"),
+            button_color=("#543520", "#5c4a3a"),
+            button_hover_color=("#6b4428", "#5c4030"),
+            text_color=("#543520", "#F1DABF"),
+            dropdown_fg_color=("#e5e5e5", "#2d1a0e"),
             font=ctk.CTkFont(family="Segoe UI", size=11),
         )
         self.template_combo.pack(side="left", padx=(0, 8))
@@ -70,12 +70,12 @@ class L2ConsoleTab:
         ctk.CTkButton(
             controls, text="View Template", width=120, height=30, corner_radius=6,
             font=ctk.CTkFont(size=11),
-            fg_color=("gray78", "#0f3460"), hover_color=("gray68", "#1e4a8a"),
-            text_color=("gray10", "#c0d0e0"), command=self._view_template,
+            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"), command=self._view_template,
         ).pack(side="left")
 
         # ── Data input section ──────────────────────────────────
-        data_card = ctk.CTkFrame(wrapper, fg_color=("gray92", "#162d50"), corner_radius=10)
+        data_card = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         data_card.pack(fill="both", expand=True, padx=8, pady=4)
 
         data_header = ctk.CTkFrame(data_card, fg_color="transparent")
@@ -84,22 +84,22 @@ class L2ConsoleTab:
         ctk.CTkLabel(
             data_header, text="DATA INPUT",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=("gray40", "#667788"),
+            text_color=("#92817A", "#92817A"),
         ).pack(side="left")
 
         ctk.CTkButton(
             data_header, text="Load File", width=90, height=26, corner_radius=6,
             font=ctk.CTkFont(size=11),
-            fg_color=("gray78", "#0f3460"), hover_color=("gray68", "#1e4a8a"),
-            text_color=("gray10", "#c0d0e0"), command=self._load_file,
+            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
+            text_color=("#e7d5a5", "#F1DABF"), command=self._load_file,
         ).pack(side="right")
 
         self.data_input = ctk.CTkTextbox(
             data_card,
             height=120,
             corner_radius=8,
-            fg_color=("gray96", "#0e1117"),
-            text_color=("gray10", "#c0d0e0"),
+            fg_color=("#e5e5e5", "#000500"),
+            text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=11),
             wrap="word",
         )
@@ -109,26 +109,26 @@ class L2ConsoleTab:
         ctk.CTkButton(
             wrapper, text="📤  Send to LLM", height=36, corner_radius=8,
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            fg_color="#4a9eff", hover_color="#3a89dd",
+            fg_color="#92817A", hover_color="#7a6a60",
             text_color="#ffffff", command=self._send_to_llm,
         ).pack(padx=8, pady=6)
 
         # ── Response section ────────────────────────────────────
-        response_card = ctk.CTkFrame(wrapper, fg_color=("gray92", "#162d50"), corner_radius=10)
+        response_card = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         response_card.pack(fill="both", expand=True, padx=8, pady=(4, 8))
 
         ctk.CTkLabel(
             response_card, text="RAW RESPONSE",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=("gray40", "#667788"),
+            text_color=("#92817A", "#92817A"),
         ).pack(anchor="w", padx=12, pady=(10, 6))
 
         self.response_text = ctk.CTkTextbox(
             response_card,
             height=140,
             corner_radius=8,
-            fg_color=("gray96", "#0e1117"),
-            text_color=("gray10", "#c0d0e0"),
+            fg_color=("#e5e5e5", "#000500"),
+            text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=11),
             state="disabled",
             wrap="word",
@@ -157,8 +157,8 @@ class L2ConsoleTab:
 
         textbox = ctk.CTkTextbox(
             win, corner_radius=8,
-            fg_color=("gray96", "#0e1117"),
-            text_color=("gray10", "#c0d0e0"),
+            fg_color=("#e5e5e5", "#000500"),
+            text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=11),
             wrap="word",
         )
