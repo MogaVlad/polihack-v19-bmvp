@@ -1,6 +1,5 @@
-import tkinter as tk
-from tkinter import ttk
-from typing import Callable, Optional, List
+import customtkinter as ctk
+from typing import Callable, List, Optional
 
 import config
 from models.agent_definition import AgentDefinition
@@ -9,7 +8,7 @@ from models.agent_definition import AgentDefinition
 class AgentLibrary:
     def __init__(
         self,
-        parent: ttk.Frame,
+        parent: ctk.CTkFrame,
         on_agent_selected: Callable,
         on_create_new: Callable,
     ):
@@ -17,72 +16,64 @@ class AgentLibrary:
         self.on_agent_selected = on_agent_selected
         self.on_create_new = on_create_new
         self.agents: List[AgentDefinition] = []
+        self._agent_buttons: List[tuple] = []  # (button, agent_def)
 
         self._build_ui()
         self.refresh()
 
     def _build_ui(self):
-        title = ttk.Label(
-            self.parent,
-            text="AGENT LIBRARY",
-            style="SidebarTitle.TLabel",
-        )
-        title.pack(padx=10, pady=(10, 5), anchor="w")
+        # ── Title ───────────────────────────────────────────────
+        title_frame = ctk.CTkFrame(self.parent, fg_color="transparent")
+        title_frame.pack(fill="x", padx=16, pady=(16, 4))
 
-        search_frame = ttk.Frame(self.parent, style="Sidebar.TFrame")
-        search_frame.pack(fill=tk.X, padx=10, pady=5)
+        ctk.CTkLabel(
+            title_frame,
+            text="🗂  AGENT LIBRARY",
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            text_color=("gray20", "#c0d0e0"),
+        ).pack(anchor="w")
 
-        self.search_var = tk.StringVar()
+        # ── Search ──────────────────────────────────────────────
+        self.search_var = ctk.StringVar()
         self.search_var.trace_add("write", lambda *_: self._filter_agents())
-        self.search_entry = tk.Entry(
-            search_frame,
-            textvariable=self.search_var,
-            bg="#3c3c3c",
-            fg="#ffffff",
-            insertbackground="#ffffff",
-            relief=tk.FLAT,
-        )
-        self.search_entry.pack(fill=tk.X)
-        self.search_entry.insert(0, "Search...")
-        self.search_entry.bind("<FocusIn>", self._on_search_focus_in)
-        self.search_entry.bind("<FocusOut>", self._on_search_focus_out)
 
-        list_frame = ttk.Frame(self.parent, style="Sidebar.TFrame")
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-
-        self.agent_listbox = tk.Listbox(
-            list_frame,
-            bg="#2b2b2b",
-            fg="#ffffff",
-            selectbackground="#4a6fa5",
-            selectforeground="#ffffff",
-            relief=tk.FLAT,
-            font=("Segoe UI", 10),
-            activestyle="none",
-            borderwidth=0,
-        )
-        self.agent_listbox.pack(fill=tk.BOTH, expand=True)
-        self.agent_listbox.bind("<<ListboxSelect>>", self._on_select)
-
-        create_btn = tk.Button(
+        self.search_entry = ctk.CTkEntry(
             self.parent,
-            text="+ Create New Agent",
-            bg="#4a6fa5",
-            fg="#ffffff",
-            relief=tk.FLAT,
-            font=("Segoe UI", 10, "bold"),
-            cursor="hand2",
+            placeholder_text="Search agents…",
+            textvariable=self.search_var,
+            height=32,
+            corner_radius=8,
+            border_width=1,
+            fg_color=("#ffffff", "#0f3460"),
+            border_color=("#ccc", "#1e4a8a"),
+            text_color=("gray10", "#e0e0e0"),
+            placeholder_text_color=("gray50", "#667788"),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+        )
+        self.search_entry.pack(fill="x", padx=16, pady=(8, 12))
+
+        # ── Scrollable agent list ───────────────────────────────
+        self.scroll_frame = ctk.CTkScrollableFrame(
+            self.parent,
+            fg_color="transparent",
+            scrollbar_button_color=("#bbb", "#2a3f60"),
+            scrollbar_button_hover_color=("#999", "#3a5f90"),
+        )
+        self.scroll_frame.pack(fill="both", expand=True, padx=8, pady=0)
+
+        # ── Create button ──────────────────────────────────────
+        self.create_btn = ctk.CTkButton(
+            self.parent,
+            text="＋  Create New Agent",
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            height=38,
+            corner_radius=8,
+            fg_color="#4a9eff",
+            hover_color="#3a89dd",
+            text_color="#ffffff",
             command=self.on_create_new,
         )
-        create_btn.pack(fill=tk.X, padx=10, pady=10)
-
-    def _on_search_focus_in(self, event):
-        if self.search_entry.get() == "Search...":
-            self.search_entry.delete(0, tk.END)
-
-    def _on_search_focus_out(self, event):
-        if not self.search_entry.get():
-            self.search_entry.insert(0, "Search...")
+        self.create_btn.pack(fill="x", padx=16, pady=(8, 16))
 
     def refresh(self):
         self.agents = []
@@ -91,23 +82,50 @@ class AgentLibrary:
         self._render_list(self.agents)
 
     def _render_list(self, agents: List[AgentDefinition]):
-        self.agent_listbox.delete(0, tk.END)
+        # Clear existing
+        for widget in self.scroll_frame.winfo_children():
+            widget.destroy()
+        self._agent_buttons.clear()
+
         current_category = None
-        self._display_agents = []
 
         for agent in agents:
+            # Category header
             if agent.category != current_category:
                 current_category = agent.category
-                self.agent_listbox.insert(tk.END, f"  {current_category}")
-                self.agent_listbox.itemconfig(tk.END, fg="#888888", selectbackground="#2b2b2b")
-                self._display_agents.append(None)
 
-            self.agent_listbox.insert(tk.END, f"    {agent.name}")
-            self._display_agents.append(agent)
+                if current_category is not None:
+                    # spacer
+                    ctk.CTkFrame(self.scroll_frame, height=8, fg_color="transparent").pack(fill="x")
+
+                cat_label = ctk.CTkLabel(
+                    self.scroll_frame,
+                    text=f"  {current_category.upper()}",
+                    font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+                    text_color=("gray50", "#667788"),
+                    anchor="w",
+                )
+                cat_label.pack(fill="x", padx=8, pady=(6, 2))
+
+            # Agent card button
+            card = ctk.CTkButton(
+                self.scroll_frame,
+                text=agent.name,
+                anchor="w",
+                height=34,
+                corner_radius=6,
+                fg_color="transparent",
+                hover_color=("#d0e0f5", "#0f3460"),
+                text_color=("gray15", "#d0d8e8"),
+                font=ctk.CTkFont(family="Segoe UI", size=12),
+                command=lambda a=agent: self.on_agent_selected(a),
+            )
+            card.pack(fill="x", padx=4, pady=1)
+            self._agent_buttons.append((card, agent))
 
     def _filter_agents(self):
-        query = self.search_var.get().lower()
-        if query == "search..." or not query:
+        query = self.search_var.get().lower().strip()
+        if not query:
             self._render_list(self.agents)
             return
         filtered = [
@@ -115,13 +133,3 @@ class AgentLibrary:
             if query in a.name.lower() or query in a.goal.lower()
         ]
         self._render_list(filtered)
-
-    def _on_select(self, event):
-        selection = self.agent_listbox.curselection()
-        if not selection:
-            return
-        idx = selection[0]
-        if idx < len(self._display_agents):
-            agent = self._display_agents[idx]
-            if agent is not None:
-                self.on_agent_selected(agent)

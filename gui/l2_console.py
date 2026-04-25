@@ -1,82 +1,141 @@
 import os
-import tkinter as tk
-from tkinter import ttk, filedialog
+import customtkinter as ctk
+from tkinter import filedialog
 
 import config
 
 
 class L2ConsoleTab:
-    def __init__(self, parent: ttk.Notebook):
-        self.frame = ttk.Frame(parent)
+    def __init__(self, parent: ctk.CTkFrame):
+        self.parent = parent
         self._build_ui()
 
     def _build_ui(self):
-        banner = tk.Label(
-            self.frame,
+        wrapper = ctk.CTkScrollableFrame(
+            self.parent,
+            fg_color="transparent",
+            scrollbar_button_color=("#bbb", "#2a3f60"),
+        )
+        wrapper.pack(fill="both", expand=True, padx=4, pady=4)
+
+        # ── Banner ──────────────────────────────────────────────
+        banner = ctk.CTkFrame(wrapper, fg_color=("#fff3cd", "#3a2e10"), corner_radius=8)
+        banner.pack(fill="x", padx=8, pady=(4, 8))
+
+        ctk.CTkLabel(
+            banner,
             text=(
-                "This is L2: versioned prompts, manual data flow, raw text output. "
+                "⚠  This is L2: versioned prompts, manual data flow, raw text output. "
                 "Switch to the Agent Library to see L3."
             ),
-            bg="#fff3cd",
-            fg="#856404",
-            font=("Segoe UI", 10),
-            wraplength=800,
-            justify=tk.LEFT,
-            padx=10,
-            pady=8,
-        )
-        banner.pack(fill=tk.X, padx=10, pady=(10, 5))
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("#856404", "#ffc107"),
+            wraplength=750,
+            justify="left",
+        ).pack(padx=14, pady=10)
 
-        controls = ttk.Frame(self.frame)
-        controls.pack(fill=tk.X, padx=10, pady=5)
+        # ── Controls ────────────────────────────────────────────
+        controls = ctk.CTkFrame(wrapper, fg_color="transparent")
+        controls.pack(fill="x", padx=8, pady=(0, 6))
 
-        ttk.Label(controls, text="Prompt Template:").pack(side=tk.LEFT, padx=(0, 5))
+        ctk.CTkLabel(
+            controls, text="Prompt Template:",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#8899aa"),
+        ).pack(side="left", padx=(0, 6))
 
-        self.template_var = tk.StringVar()
         templates = self._load_template_names()
-        self.template_combo = ttk.Combobox(
+        self.template_var = ctk.StringVar()
+
+        self.template_combo = ctk.CTkComboBox(
             controls,
-            textvariable=self.template_var,
             values=templates,
+            variable=self.template_var,
+            width=240,
+            height=30,
+            corner_radius=6,
             state="readonly",
-            width=30,
+            fg_color=("gray96", "#0e1117"),
+            border_color=("gray75", "#2a3f60"),
+            button_color=("gray75", "#1e4a8a"),
+            button_hover_color=("gray60", "#3a5f90"),
+            text_color=("gray10", "#e0e0e0"),
+            dropdown_fg_color=("gray96", "#162d50"),
+            font=ctk.CTkFont(family="Segoe UI", size=11),
         )
-        self.template_combo.pack(side=tk.LEFT, padx=5)
+        self.template_combo.pack(side="left", padx=(0, 8))
         if templates:
-            self.template_combo.current(0)
+            self.template_combo.set(templates[0])
 
-        ttk.Button(controls, text="View Template", command=self._view_template).pack(side=tk.LEFT, padx=5)
+        ctk.CTkButton(
+            controls, text="View Template", width=120, height=30, corner_radius=6,
+            font=ctk.CTkFont(size=11),
+            fg_color=("gray78", "#0f3460"), hover_color=("gray68", "#1e4a8a"),
+            text_color=("gray10", "#c0d0e0"), command=self._view_template,
+        ).pack(side="left")
 
-        data_frame = ttk.LabelFrame(self.frame, text="DATA INPUT")
-        data_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # ── Data input section ──────────────────────────────────
+        data_card = ctk.CTkFrame(wrapper, fg_color=("gray92", "#162d50"), corner_radius=10)
+        data_card.pack(fill="both", expand=True, padx=8, pady=4)
 
-        btn_row = ttk.Frame(data_frame)
-        btn_row.pack(fill=tk.X, padx=5, pady=5)
-        ttk.Button(btn_row, text="Load File", command=self._load_file).pack(side=tk.LEFT)
+        data_header = ctk.CTkFrame(data_card, fg_color="transparent")
+        data_header.pack(fill="x", padx=12, pady=(10, 6))
 
-        self.data_input = tk.Text(
-            data_frame,
-            wrap=tk.WORD,
-            height=8,
-            font=("Consolas", 10),
+        ctk.CTkLabel(
+            data_header, text="DATA INPUT",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color=("gray40", "#667788"),
+        ).pack(side="left")
+
+        ctk.CTkButton(
+            data_header, text="Load File", width=90, height=26, corner_radius=6,
+            font=ctk.CTkFont(size=11),
+            fg_color=("gray78", "#0f3460"), hover_color=("gray68", "#1e4a8a"),
+            text_color=("gray10", "#c0d0e0"), command=self._load_file,
+        ).pack(side="right")
+
+        self.data_input = ctk.CTkTextbox(
+            data_card,
+            height=120,
+            corner_radius=8,
+            fg_color=("gray96", "#0e1117"),
+            text_color=("gray10", "#c0d0e0"),
+            font=ctk.CTkFont(family="Consolas", size=11),
+            wrap="word",
         )
-        self.data_input.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0, 5))
+        self.data_input.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
-        ttk.Button(self.frame, text="Send to LLM", command=self._send_to_llm).pack(pady=5)
+        # ── Send button ─────────────────────────────────────────
+        ctk.CTkButton(
+            wrapper, text="📤  Send to LLM", height=36, corner_radius=8,
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            fg_color="#4a9eff", hover_color="#3a89dd",
+            text_color="#ffffff", command=self._send_to_llm,
+        ).pack(padx=8, pady=6)
 
-        response_frame = ttk.LabelFrame(self.frame, text="RAW RESPONSE")
-        response_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5, 10))
+        # ── Response section ────────────────────────────────────
+        response_card = ctk.CTkFrame(wrapper, fg_color=("gray92", "#162d50"), corner_radius=10)
+        response_card.pack(fill="both", expand=True, padx=8, pady=(4, 8))
 
-        self.response_text = tk.Text(
-            response_frame,
-            wrap=tk.WORD,
-            height=10,
-            state=tk.DISABLED,
-            bg="#fafafa",
-            font=("Consolas", 10),
+        ctk.CTkLabel(
+            response_card, text="RAW RESPONSE",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color=("gray40", "#667788"),
+        ).pack(anchor="w", padx=12, pady=(10, 6))
+
+        self.response_text = ctk.CTkTextbox(
+            response_card,
+            height=140,
+            corner_radius=8,
+            fg_color=("gray96", "#0e1117"),
+            text_color=("gray10", "#c0d0e0"),
+            font=ctk.CTkFont(family="Consolas", size=11),
+            state="disabled",
+            wrap="word",
         )
-        self.response_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.response_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
+    # ── Logic ────────────────────────────────────────────────────
     def _load_template_names(self):
         if not os.path.isdir(config.PROMPTS_DIR):
             return []
@@ -91,13 +150,21 @@ class L2ConsoleTab:
             return
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
-        win = tk.Toplevel(self.frame)
+
+        win = ctk.CTkToplevel()
         win.title(f"Template: {template_name}")
-        win.geometry("600x500")
-        text = tk.Text(win, wrap=tk.WORD, font=("Consolas", 10))
-        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        text.insert("1.0", content)
-        text.configure(state=tk.DISABLED)
+        win.geometry("620x520")
+
+        textbox = ctk.CTkTextbox(
+            win, corner_radius=8,
+            fg_color=("gray96", "#0e1117"),
+            text_color=("gray10", "#c0d0e0"),
+            font=ctk.CTkFont(family="Consolas", size=11),
+            wrap="word",
+        )
+        textbox.pack(fill="both", expand=True, padx=16, pady=16)
+        textbox.insert("1.0", content)
+        textbox.configure(state="disabled")
 
     def _load_file(self):
         filepath = filedialog.askopenfilename(
@@ -105,7 +172,7 @@ class L2ConsoleTab:
         )
         if filepath:
             with open(filepath, "r", encoding="utf-8") as f:
-                self.data_input.delete("1.0", tk.END)
+                self.data_input.delete("1.0", "end")
                 self.data_input.insert("1.0", f.read())
 
     def _send_to_llm(self):

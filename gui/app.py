@@ -1,5 +1,4 @@
-import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
 
 import config
 from gui.agent_library import AgentLibrary
@@ -13,77 +12,135 @@ from gui.controls import StatusBar
 
 class App:
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.title(config.APP_TITLE)
-        self.root.geometry("1200x800")
-        self.root.minsize(900, 600)
+        # ── Global CTk theming ──────────────────────────────────
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
 
-        self._setup_styles()
+        self.root = ctk.CTk()
+        self.root.title(config.APP_TITLE)
+        self.root.geometry("1280x820")
+        self.root.minsize(960, 640)
+
+        # Make the root use a deep navy background in dark mode
+        self.root.configure(fg_color=("#f0f0f0", "#0e1117"))
+
         self._build_layout()
 
-    def _setup_styles(self):
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure("Sidebar.TFrame", background="#2b2b2b")
-        style.configure(
-            "Sidebar.TLabel",
-            background="#2b2b2b",
-            foreground="#ffffff",
-            font=("Segoe UI", 10),
-        )
-        style.configure(
-            "SidebarTitle.TLabel",
-            background="#2b2b2b",
-            foreground="#ffffff",
-            font=("Segoe UI", 12, "bold"),
-        )
-        style.configure("Content.TFrame", background="#f5f5f5")
-
+    # ────────────────────────────────────────────────────────────
     def _build_layout(self):
-        main_pane = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
-        main_pane.pack(fill=tk.BOTH, expand=True)
+        # Grid: sidebar (col 0), main content (col 1)
+        self.root.grid_rowconfigure(1, weight=1)
+        self.root.grid_columnconfigure(1, weight=1)
 
-        self.sidebar_frame = ttk.Frame(main_pane, style="Sidebar.TFrame", width=250)
-        main_pane.add(self.sidebar_frame, weight=0)
+        # ── Header bar ──────────────────────────────────────────
+        header = ctk.CTkFrame(
+            self.root,
+            height=48,
+            corner_radius=0,
+            fg_color=("#ffffff", "#16213e"),
+            border_width=0,
+        )
+        header.grid(row=0, column=0, columnspan=2, sticky="ew")
+        header.grid_propagate(False)
 
-        right_container = ttk.Frame(main_pane, style="Content.TFrame")
-        main_pane.add(right_container, weight=1)
+        logo_label = ctk.CTkLabel(
+            header,
+            text="⚡ AgentForge",
+            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+            text_color=("#1a1a2e", "#4a9eff"),
+        )
+        logo_label.pack(side="left", padx=16, pady=8)
 
-        self.notebook = ttk.Notebook(right_container)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        subtitle = ctk.CTkLabel(
+            header,
+            text="Engineering Agent Platform",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray50", "#8899aa"),
+        )
+        subtitle.pack(side="left", padx=(0, 16), pady=8)
 
-        self.runner_tab = AgentRunnerTab(self.notebook)
-        self.notebook.add(self.runner_tab.frame, text="Agent Runner")
+        # ── Sidebar ─────────────────────────────────────────────
+        self.sidebar_frame = ctk.CTkFrame(
+            self.root,
+            width=260,
+            corner_radius=0,
+            fg_color=("#e8ecf1", "#16213e"),
+            border_width=0,
+        )
+        self.sidebar_frame.grid(row=1, column=0, sticky="nsew")
+        self.sidebar_frame.grid_propagate(False)
 
-        self.builder_tab = AgentBuilderTab(self.notebook)
-        self.notebook.add(self.builder_tab.frame, text="Agent Builder")
+        # ── Right content area ──────────────────────────────────
+        right = ctk.CTkFrame(
+            self.root,
+            corner_radius=0,
+            fg_color=("#f5f5f5", "#0e1117"),
+            border_width=0,
+        )
+        right.grid(row=1, column=1, sticky="nsew")
+        right.grid_columnconfigure(0, weight=1)
 
-        self.l2_tab = L2ConsoleTab(self.notebook)
-        self.notebook.add(self.l2_tab.frame, text="L2 Console")
+        # Use an inner frame with pack so canvas + tabview don't conflict
+        right_inner = ctk.CTkFrame(right, fg_color="transparent")
+        right_inner.grid(row=0, column=0, sticky="nsew")
+        right.grid_rowconfigure(0, weight=1)
 
-        self.adoption_tab = AdoptionPanel(self.notebook)
-        self.notebook.add(self.adoption_tab.frame, text="L2 vs L3")
+        # ── Tabview ─────────────────────────────────────────────
+        self.tabview = ctk.CTkTabview(
+            right_inner,
+            corner_radius=10,
+            fg_color=("#ffffff", "#1a1a2e"),
+            segmented_button_fg_color=("#dde4ee", "#0f3460"),
+            segmented_button_selected_color="#4a9eff",
+            segmented_button_selected_hover_color="#3a89dd",
+            segmented_button_unselected_color=("#c8d0dd", "#162d50"),
+            segmented_button_unselected_hover_color=("#b0bccf", "#1e3a6a"),
+            text_color=("gray10", "#e0e0e0"),
+        )
+        self.tabview.pack(fill="both", expand=True, padx=8, pady=(8, 4))
 
-        self.canvas_panel = CanvasPanel(right_container)
+        # Create tabs
+        self.tabview.add("Agent Runner")
+        self.tabview.add("Agent Builder")
+        self.tabview.add("L2 Console")
+        self.tabview.add("L2 vs L3")
+        self.tabview.set("Agent Runner")
 
+        # ── Tab contents ────────────────────────────────────────
+        self.runner_tab = AgentRunnerTab(self.tabview.tab("Agent Runner"))
+        self.builder_tab = AgentBuilderTab(self.tabview.tab("Agent Builder"))
+        self.l2_tab = L2ConsoleTab(self.tabview.tab("L2 Console"))
+        self.adoption_tab = AdoptionPanel(self.tabview.tab("L2 vs L3"))
+
+        # ── Canvas panel (below tabs) ───────────────────────────
+        self.canvas_panel = CanvasPanel(right_inner)
+
+        # ── Status bar ──────────────────────────────────────────
         self.status_bar = StatusBar(self.root)
-        self.status_bar.frame.pack(side=tk.BOTTOM, fill=tk.X)
+        self.status_bar.frame.grid(row=2, column=0, columnspan=2, sticky="ew")
 
+        # ── Agent library sidebar ───────────────────────────────
         self.agent_library = AgentLibrary(
             self.sidebar_frame,
             on_agent_selected=self._on_agent_selected,
             on_create_new=self._on_create_new,
         )
 
+        self.status_bar.set_agent_count(len(self.agent_library.agents))
+
+        from tools.registry import ToolRegistry
+        self.status_bar.set_tool_count(len(ToolRegistry().list_tool_names()))
+
+    # ── Callbacks ────────────────────────────────────────────────
     def _on_agent_selected(self, agent_def):
         self.runner_tab.load_agent(agent_def)
-        self.notebook.select(0)
-        self.status_bar.set_status(f"Loaded agent: {agent_def.name}")
+        self.tabview.set("Agent Runner")
+        self.status_bar.set_status(f"Loaded: {agent_def.name}", "#4a9eff")
 
     def _on_create_new(self):
-        self.notebook.select(1)
+        self.tabview.set("Agent Builder")
         self.builder_tab.reset_form()
-        self.status_bar.set_status("Creating new agent...")
+        self.status_bar.set_status("Creating new agent…", "#ff9800")
 
     def run(self):
         self.root.mainloop()

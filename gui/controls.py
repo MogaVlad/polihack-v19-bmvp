@@ -1,37 +1,94 @@
-import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
 
 
 class StatusBar:
-    def __init__(self, parent: tk.Tk):
-        self.frame = ttk.Frame(parent, relief=tk.SUNKEN)
+    def __init__(self, parent):
+        self.parent = parent
 
-        self.status_label = ttk.Label(
-            self.frame,
-            text="Status: Ready",
-            font=("Segoe UI", 9),
-            padding=(10, 3),
+        self.frame = ctk.CTkFrame(
+            parent,
+            height=36,
+            corner_radius=0,
+            fg_color=("gray86", "#1a1a2e"),
+            border_width=0,
         )
-        self.status_label.pack(side=tk.LEFT)
 
-        self.agents_label = ttk.Label(
-            self.frame,
+        inner = ctk.CTkFrame(self.frame, fg_color="transparent")
+        inner.pack(fill="x", padx=12, pady=4)
+
+        self.status_label = ctk.CTkLabel(
+            inner,
+            text="● Ready",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("#4caf50", "#4caf50"),
+        )
+        self.status_label.pack(side="left")
+
+        sep1 = ctk.CTkLabel(inner, text="│", text_color=("gray60", "gray40"), font=ctk.CTkFont(size=12))
+        sep1.pack(side="left", padx=12)
+
+        self.agents_label = ctk.CTkLabel(
+            inner,
             text="Agents: 0 loaded",
-            font=("Segoe UI", 9),
-            padding=(10, 3),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#8899aa"),
         )
-        self.agents_label.pack(side=tk.LEFT, padx=20)
+        self.agents_label.pack(side="left")
 
-        self.tools_label = ttk.Label(
-            self.frame,
+        sep2 = ctk.CTkLabel(inner, text="│", text_color=("gray60", "gray40"), font=ctk.CTkFont(size=12))
+        sep2.pack(side="left", padx=12)
+
+        self.tools_label = ctk.CTkLabel(
+            inner,
             text="Tools: 0 available",
-            font=("Segoe UI", 9),
-            padding=(10, 3),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#8899aa"),
         )
-        self.tools_label.pack(side=tk.LEFT)
+        self.tools_label.pack(side="left")
 
-    def set_status(self, text: str):
-        self.status_label.configure(text=f"Status: {text}")
+        # Dark / Light switch
+        right_frame = ctk.CTkFrame(inner, fg_color="transparent")
+        right_frame.pack(side="right")
+
+        self.mode_label = ctk.CTkLabel(
+            right_frame,
+            text="☀",
+            font=ctk.CTkFont(size=14),
+            text_color=("gray30", "#8899aa"),
+        )
+        self.mode_label.pack(side="left", padx=(0, 6))
+
+        self.theme_switch = ctk.CTkSwitch(
+            right_frame,
+            text="",
+            width=42,
+            height=22,
+            switch_width=38,
+            switch_height=18,
+            command=self._toggle_theme,
+            onvalue=1,
+            offvalue=0,
+            progress_color="#4a9eff",
+        )
+        self.theme_switch.pack(side="left")
+        self.theme_switch.select()  # Start with dark mode ON
+
+        self.moon_label = ctk.CTkLabel(
+            right_frame,
+            text="🌙",
+            font=ctk.CTkFont(size=14),
+            text_color=("gray30", "#8899aa"),
+        )
+        self.moon_label.pack(side="left", padx=(6, 0))
+
+    def _toggle_theme(self):
+        if self.theme_switch.get() == 1:
+            ctk.set_appearance_mode("dark")
+        else:
+            ctk.set_appearance_mode("light")
+
+    def set_status(self, text: str, color: str = "#4caf50"):
+        self.status_label.configure(text=f"● {text}", text_color=(color, color))
 
     def set_agent_count(self, count: int):
         self.agents_label.configure(text=f"Agents: {count} loaded")
