@@ -14,7 +14,7 @@ class PromptBuilder:
 
         # 1. Identity & Role
         lines.append(f"You are the '{definition.name}' agent on the AgentArchitect platform.")
-        lines.append(f"Role: {definition.role_description}")
+        lines.append(f"Your goal: {definition.goal}")
         lines.append("")
 
         if definition.constraints:
