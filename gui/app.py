@@ -1,9 +1,9 @@
 import os
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QFrame, QHBoxLayout, QVBoxLayout, QLabel, 
-    QTabWidget, QPushButton, QStackedWidget, QSizePolicy
+    QMainWindow, QWidget, QFrame, QHBoxLayout, QVBoxLayout, QLabel,
+    QPushButton, QStackedWidget, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QKeySequence, QShortcut
 
 import config
@@ -16,6 +16,10 @@ from gui.canvas import CanvasPanel
 from gui.controls import StatusBar
 from models.floor_plan import FloorPlan
 
+SIDEBAR_WIDTH = 280
+SIDEBAR_COLLAPSED = 0
+
+
 class App(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -26,10 +30,9 @@ class App(QMainWindow):
         self._build_layout()
 
     def _build_layout(self):
-        # Central widget
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        
+
         main_layout = QVBoxLayout(self.central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -39,16 +42,22 @@ class App(QMainWindow):
         self.header.setProperty("class", "Header")
         self.header.setFixedHeight(48)
         header_layout = QHBoxLayout(self.header)
-        header_layout.setContentsMargins(16, 0, 16, 0)
-        
+        header_layout.setContentsMargins(12, 0, 16, 0)
+
+        self.sidebar_toggle_btn = QPushButton("☰")
+        self.sidebar_toggle_btn.setFixedSize(36, 36)
+        self.sidebar_toggle_btn.setProperty("class", "HeaderBtn")
+        self.sidebar_toggle_btn.clicked.connect(self._toggle_sidebar)
+        header_layout.addWidget(self.sidebar_toggle_btn)
+
         logo_label = QLabel("⚡ AgentArchitect")
         logo_label.setProperty("class", "Title")
         header_layout.addWidget(logo_label)
-        
+
         subtitle = QLabel("Engineering Agent Platform")
         subtitle.setProperty("class", "Subtitle")
         header_layout.addWidget(subtitle, 1)
-        
+
         main_layout.addWidget(self.header)
 
         # ── Body ────────────────────────────────────────────────
@@ -59,14 +68,15 @@ class App(QMainWindow):
         main_layout.addWidget(body_widget, 1)
 
         # ── Sidebar ─────────────────────────────────────────────
-        self.sidebar_visible = True
+        self.sidebar_expanded = True
         self.sidebar_frame = QFrame()
         self.sidebar_frame.setProperty("class", "Sidebar")
-        self.sidebar_frame.setFixedWidth(260)
+        self.sidebar_frame.setFixedWidth(SIDEBAR_WIDTH)
+        self.sidebar_frame.setMinimumWidth(0)
         sidebar_layout = QVBoxLayout(self.sidebar_frame)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
-        
+
         body_layout.addWidget(self.sidebar_frame)
 
         # ── Right content area ──────────────────────────────────
@@ -76,29 +86,30 @@ class App(QMainWindow):
         right_layout.setSpacing(0)
         body_layout.addWidget(self.right_frame, 1)
 
-        # ── Tabview ─────────────────────────────────────────────
-        self.tabview = QTabWidget()
-        self.tabview.setDocumentMode(True)
-        right_layout.addWidget(self.tabview, 1)
+        # ── Stacked pages (no tab bar) ─────────────────────────
+        self.pages = QStackedWidget()
+        right_layout.addWidget(self.pages, 1)
 
-        # ── Canvas panel (below tabs - mock for now) ────────────
+        # ── Canvas panel ────────────────────────────────────────
         self.canvas_panel = CanvasPanel(self.right_frame)
-        self.canvas_panel.hide() # Initially hidden
+        self.canvas_panel.hide()
         right_layout.addWidget(self.canvas_panel, 2)
 
         # ── Status bar ──────────────────────────────────────────
         self.status_bar = StatusBar()
         main_layout.addWidget(self.status_bar)
 
-        # ── Tab contents ────────────────────────────────────────
-        self.runner_tab = AgentRunnerTab(self.tabview, status_bar=self.status_bar, canvas_panel=self.canvas_panel)
-        self.builder_tab = AgentBuilderTab(self.tabview, on_agent_saved=self._on_agent_saved, on_save_and_run=self._on_save_and_run)
-        self.l2_tab = L2ConsoleTab(self.tabview)
-        self.adoption_tab = AdoptionPanel(self.tabview)
+        # ── Page contents ───────────────────────────────────────
+        self.runner_tab = AgentRunnerTab(self.pages, status_bar=self.status_bar, canvas_panel=self.canvas_panel)
+        self.builder_tab = AgentBuilderTab(self.pages, on_agent_saved=self._on_agent_saved, on_save_and_run=self._on_save_and_run)
+        self.l2_tab = L2ConsoleTab(self.pages)
+        self.adoption_tab = AdoptionPanel(self.pages)
 
-        self.tabview.addTab(self.runner_tab, "Agent Runner")
-        self.tabview.addTab(self.builder_tab, "Agent Builder")
-        
+        self.pages.addWidget(self.runner_tab)
+        self.pages.addWidget(self.builder_tab)
+        self.pages.addWidget(self.l2_tab)
+        self.pages.addWidget(self.adoption_tab)
+
         # ── Agent library sidebar ───────────────────────────────
         self.agent_library = AgentLibrary(
             self.sidebar_frame,
@@ -108,25 +119,26 @@ class App(QMainWindow):
         sidebar_layout.addWidget(self.agent_library, 1)
 
         self.status_bar.set_agent_count(len(self.agent_library.agents))
-        
+
         from tools.registry import ToolRegistry
         self.status_bar.set_tool_count(len(ToolRegistry().list_tool_names()))
 
         # ── Sidebar navigation buttons ──────────────────────────
         nav_frame = QFrame()
         nav_layout = QVBoxLayout(nav_frame)
-        nav_layout.setContentsMargins(16, 4, 16, 16)
-        
-        btn_legacy = QPushButton("📜 Legacy Prompting")
+        nav_layout.setContentsMargins(12, 4, 12, 12)
+        nav_layout.setSpacing(6)
+
+        btn_legacy = QPushButton("\U0001f4dc  Legacy Prompting")
         btn_legacy.setProperty("class", "SidebarBtn")
         btn_legacy.clicked.connect(lambda: self._set_active_view("Legacy Prompting"))
         nav_layout.addWidget(btn_legacy)
-        
-        btn_showcase = QPushButton("📊 Legacy to Agent Showcase")
+
+        btn_showcase = QPushButton("\U0001f4ca  Legacy → Agent")
         btn_showcase.setProperty("class", "SidebarBtn")
         btn_showcase.clicked.connect(lambda: self._set_active_view("Legacy to Agent Showcase"))
         nav_layout.addWidget(btn_showcase)
-        
+
         sidebar_layout.addWidget(nav_frame)
 
         # ── Keyboard shortcuts ──────────────────────────────────
@@ -136,23 +148,46 @@ class App(QMainWindow):
         QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.runner_tab._run_agent)
         QShortcut(QKeySequence("Ctrl+E"), self).activated.connect(self.runner_tab._export_json)
         QShortcut(QKeySequence("F5"), self).activated.connect(self._refresh_library)
+        QShortcut(QKeySequence("Ctrl+B"), self).activated.connect(self._toggle_sidebar)
 
-        # ── Pre-load example floor plan on canvas ───────────────
         self._preload_example_plan()
 
+    # ── Sidebar collapse ────────────────────────────────────────
+    def _toggle_sidebar(self):
+        target = SIDEBAR_COLLAPSED if self.sidebar_expanded else SIDEBAR_WIDTH
+        self._anim = QPropertyAnimation(self.sidebar_frame, b"maximumWidth")
+        self._anim.setDuration(200)
+        self._anim.setStartValue(self.sidebar_frame.width())
+        self._anim.setEndValue(target)
+        self._anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
+
+        self._anim_min = QPropertyAnimation(self.sidebar_frame, b"minimumWidth")
+        self._anim_min.setDuration(200)
+        self._anim_min.setStartValue(self.sidebar_frame.width())
+        self._anim_min.setEndValue(target)
+        self._anim_min.setEasingCurve(QEasingCurve.Type.InOutCubic)
+
+        self._anim.start()
+        self._anim_min.start()
+        self.sidebar_expanded = not self.sidebar_expanded
+
+    # ── Navigation ──────────────────────────────────────────────
     def _set_active_view(self, view_name: str):
-        # We will handle the manual setting of active view here
-        # Since legacy and showcase are not strictly in QTabWidget, we can insert/remove them or just use QStackedWidget.
-        # For simplicity, we can add them to QTabWidget but hide the tabs, or just use setCurrentIndex
-        pass
+        tab_map = {
+            "Legacy Prompting": self.l2_tab,
+            "Legacy to Agent Showcase": self.adoption_tab,
+        }
+        widget = tab_map.get(view_name)
+        if widget:
+            self.pages.setCurrentWidget(widget)
 
     def _on_agent_selected(self, agent_def):
         self.runner_tab.load_agent(agent_def)
-        self.tabview.setCurrentWidget(self.runner_tab)
+        self.pages.setCurrentWidget(self.runner_tab)
         self.status_bar.set_status(f"Loaded: {agent_def.name}", "#b3c7c1")
 
     def _on_create_new(self):
-        self.tabview.setCurrentWidget(self.builder_tab)
+        self.pages.setCurrentWidget(self.builder_tab)
         self.builder_tab.reset_form()
         self.status_bar.set_status("Creating new agent…", "#8889a5")
 

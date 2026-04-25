@@ -1,135 +1,253 @@
-import os
-
 def get_stylesheet(dark_mode: bool = True) -> str:
-    """Returns the QSS stylesheet for the application."""
     if dark_mode:
-        main_bg = "#4c5767"
-        card_bg = "#070909"
-        text_color = "#e8edeb"
-        text_muted = "#b3c7c1"
-        btn_bg = "#384c46"
-        btn_hover = "#2a3a34"
-        btn_text = "#e8edeb"
-        accent = "#8889a5"
-        border = "#b3c7c1"
-        input_bg = "#121715"
+        text = "#e8ecee"
+        bg = "#0f1315"
+        primary = "#b3c0c7"
+        secondary = "#4f4c67"
+        accent = "#8b81a2"
     else:
-        main_bg = "#98a3b3"
-        card_bg = "#f6f8f8"
-        text_color = "#121715"
-        text_muted = "#4c5767"
-        btn_bg = "#384c46"
-        btn_hover = "#2a3a34"
-        btn_text = "#f6f8f8"
-        accent = "#5a5b77"
-        border = "#3a4854"
-        input_bg = "#e8edeb"
+        text = "#111517"
+        bg = "#eaeef0"
+        primary = "#38454c"
+        secondary = "#9b98b3"
+        accent = "#675d7e"
+
+    surface = "#181c1f" if dark_mode else "#dde2e5"
+    border = "#282e33" if dark_mode else "#c4cad0"
+    input_bg = "#1e2327" if dark_mode else "#d5dade"
+    hover = "#252b30" if dark_mode else "#cfd5da"
+    muted = primary
 
     qss = f"""
+    /* ── Base ──────────────────────────────────────── */
+
     QMainWindow {{
-        background-color: {main_bg};
+        background-color: {bg};
     }}
-    
+
     QWidget {{
-        color: {text_color};
+        color: {text};
         font-family: "Segoe UI", sans-serif;
         font-size: 12px;
     }}
 
-    QFrame.Card {{
-        background-color: {card_bg};
+    /* ── Cards ─────────────────────────────────────── */
+
+    QFrame[class="Card"] {{
+        background-color: {surface};
+        border: 1px solid {border};
         border-radius: 10px;
+        padding: 8px;
     }}
-    
-    QFrame.Header {{
-        background-color: {card_bg};
+
+    /* ── Header ────────────────────────────────────── */
+
+    QFrame[class="Header"] {{
+        background-color: {bg};
         border-bottom: 1px solid {border};
     }}
 
-    QFrame.Sidebar {{
-        background-color: {main_bg};
+    QPushButton[class="HeaderBtn"] {{
+        background-color: transparent;
+        color: {muted};
+        border: none;
+        border-radius: 6px;
+        padding: 4px;
+        font-size: 18px;
+        font-weight: normal;
+    }}
+    QPushButton[class="HeaderBtn"]:hover {{
+        background-color: {hover};
+        color: {text};
+    }}
+
+    /* ── Sidebar ───────────────────────────────────── */
+
+    QFrame[class="Sidebar"] {{
+        background-color: {bg};
         border-right: 1px solid {border};
     }}
 
+    QLabel[class="SidebarTitle"] {{
+        font-size: 11px;
+        font-weight: bold;
+        color: {muted};
+        letter-spacing: 1px;
+    }}
+
+    QLabel[class="CategoryLabel"] {{
+        font-size: 10px;
+        font-weight: bold;
+        color: {muted};
+        letter-spacing: 1px;
+    }}
+
+    QLineEdit[class="SidebarSearch"] {{
+        background-color: {surface};
+        color: {text};
+        border: 1px solid {border};
+        border-radius: 8px;
+        padding: 7px 10px;
+        font-size: 12px;
+    }}
+
+    /* ── Agent Cards ───────────────────────────────── */
+
+    QPushButton[class="AgentCard"] {{
+        background-color: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        text-align: left;
+        padding: 0;
+    }}
+    QPushButton[class="AgentCard"]:hover {{
+        background-color: {hover};
+        border: 1px solid {border};
+    }}
+
+    QLabel[class="AgentCardTitle"] {{
+        font-size: 13px;
+        font-weight: 600;
+        color: {text};
+        background: transparent;
+    }}
+
+    QPushButton[class="CreateBtn"] {{
+        background-color: {secondary};
+        color: {text};
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-weight: bold;
+        font-size: 12px;
+    }}
+    QPushButton[class="CreateBtn"]:hover {{
+        background-color: {accent};
+    }}
+
+    /* ── Sidebar Nav Buttons ───────────────────────── */
+
+    QPushButton[class="SidebarBtn"] {{
+        background-color: transparent;
+        color: {muted};
+        text-align: left;
+        padding: 8px 14px;
+        border: none;
+        border-radius: 8px;
+        font-weight: normal;
+        font-size: 12px;
+    }}
+    QPushButton[class="SidebarBtn"]:hover {{
+        background-color: {hover};
+        color: {text};
+    }}
+
+    /* ── Buttons ───────────────────────────────────── */
+
     QPushButton {{
-        background-color: {btn_bg};
-        color: {btn_text};
+        background-color: {secondary};
+        color: {text};
         border: none;
         border-radius: 8px;
         padding: 8px 16px;
         font-weight: bold;
     }}
-    
     QPushButton:hover {{
-        background-color: {btn_hover};
+        background-color: {accent};
     }}
-    
     QPushButton:disabled {{
-        background-color: {text_muted};
-        color: {card_bg};
+        background-color: {border};
+        color: {muted};
     }}
-    
-    QPushButton.SidebarBtn {{
-        background-color: {btn_bg};
-        text-align: left;
-        padding-left: 16px;
-    }}
+
+    /* ── Inputs ────────────────────────────────────── */
 
     QLineEdit, QTextEdit, QPlainTextEdit {{
         background-color: {input_bg};
-        color: {text_color};
+        color: {text};
         border: 1px solid {border};
         border-radius: 6px;
         padding: 6px;
     }}
-    
+
+    QComboBox {{
+        background-color: {input_bg};
+        color: {text};
+        border: 1px solid {border};
+        border-radius: 6px;
+        padding: 4px 8px;
+    }}
+    QComboBox::drop-down {{
+        border: none;
+        width: 20px;
+    }}
+    QComboBox QAbstractItemView {{
+        background-color: {input_bg};
+        color: {text};
+        selection-background-color: {secondary};
+        border: 1px solid {border};
+    }}
+
+    /* ── Scroll ────────────────────────────────────── */
+
     QScrollArea {{
         border: none;
         background-color: transparent;
     }}
-    
+
     QScrollBar:vertical {{
         border: none;
-        background: {main_bg};
-        width: 10px;
-        margin: 0px 0px 0px 0px;
+        background: transparent;
+        width: 6px;
+        margin: 0;
     }}
     QScrollBar::handle:vertical {{
-        background: {btn_bg};
+        background: {border};
         min-height: 20px;
-        border-radius: 5px;
+        border-radius: 3px;
     }}
-    
-    QTabWidget::pane {{
+    QScrollBar::handle:vertical:hover {{
+        background: {muted};
+    }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+        height: 0;
+    }}
+
+    QScrollBar:horizontal {{
         border: none;
-        background: {card_bg};
-        border-radius: 10px;
+        background: transparent;
+        height: 6px;
+        margin: 0;
     }}
-    
-    QTabBar::tab {{
-        background: {main_bg};
-        color: {text_color};
-        padding: 8px 16px;
-        margin-right: 4px;
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
+    QScrollBar::handle:horizontal {{
+        background: {border};
+        min-width: 20px;
+        border-radius: 3px;
     }}
-    
-    QTabBar::tab:selected {{
-        background: {btn_bg};
-        color: {btn_text};
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+        width: 0;
     }}
-    
-    QLabel.Title {{
-        font-size: 18px;
+
+    /* ── Labels ────────────────────────────────────── */
+
+    QLabel[class="Title"] {{
+        font-size: 16px;
         font-weight: bold;
     }}
-    
-    QLabel.Subtitle {{
-        font-size: 12px;
-        color: {text_muted};
+
+    QLabel[class="Subtitle"] {{
+        font-size: 11px;
+        color: {muted};
     }}
-    
+
+    QLabel[class="SectionHeader"] {{
+        font-size: 11px;
+        font-weight: bold;
+        color: {muted};
+    }}
+
+    /* ── Checkboxes ────────────────────────────────── */
+
     QCheckBox {{
         spacing: 8px;
     }}
@@ -140,8 +258,31 @@ def get_stylesheet(dark_mode: bool = True) -> str:
         border-radius: 4px;
     }}
     QCheckBox::indicator:checked {{
-        background-color: {btn_bg};
-        border: 2px solid {btn_bg};
+        background-color: {accent};
+        border: 2px solid {accent};
+    }}
+
+    /* ── Misc ──────────────────────────────────────── */
+
+    QSplitter::handle {{
+        background-color: {border};
+        width: 2px;
+    }}
+
+    QMessageBox {{
+        background-color: {surface};
+    }}
+
+    QDialog {{
+        background-color: {bg};
+    }}
+
+    QToolTip {{
+        background-color: {surface};
+        color: {text};
+        border: 1px solid {border};
+        padding: 6px;
+        border-radius: 4px;
     }}
     """
     return qss
