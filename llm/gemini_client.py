@@ -1,37 +1,77 @@
 import time
-from typing import List, Optional
+from typing import List, Optional, Dict
+
+from google import genai
+from google.genai import types
 
 import config
 
 
 class GeminiClient:
+    """Gemini API wrapper with retries, native chat, vision, and L2 template support."""
+
+    MAX_RETRIES = 3
+    RETRY_BASE_DELAY = 2
+    MODEL = "gemini-2.0-flash"
+
     def __init__(self):
-        self._model = None
-        self._vision_model = None
+        self._client = None
         self._initialized = False
 
     def _ensure_init(self):
         if self._initialized:
             return
         try:
-            import google.generativeai as genai
-
-            genai.configure(api_key=config.GEMINI_API_KEY)
-            self._model = genai.GenerativeModel("gemini-1.5-flash")
-            self._vision_model = genai.GenerativeModel("gemini-1.5-flash")
+            self._client = genai.Client(api_key=config.GEMINI_API_KEY)
             self._initialized = True
         except Exception as e:
             print(f"Gemini init failed: {e}")
 
+    def _call_with_retry(self, fn, *args, **kwargs) -> str:
+        last_error = None
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = fn(*args, **kwargs)
+                return response.text
+            except Exception as e:
+                last_error = e
+                error_str = str(e).lower()
+                if "429" in error_str or "resource" in error_str or "quota" in error_str or "500" in error_str or "503" in error_str:
+                    delay = self.RETRY_BASE_DELAY * (2 ** attempt)
+                    print(f"Rate limit/transient error (attempt {attempt + 1}/{self.MAX_RETRIES}), retrying in {delay}s...")
+                    time.sleep(delay)
+                    continue
+                return f"[Error: {e}]"
+        return f"[Error: API failed after {self.MAX_RETRIES} retries. Last error: {last_error}]"
+
+    # ── L2 mode: simple prompt ──────────────────────────────────────
+
     def send_prompt(self, prompt_text: str) -> str:
         self._ensure_init()
-        if not self._model:
+        if not self._client:
             return "[Error: Gemini not initialized. Check API key.]"
+        return self._call_with_retry(
+            self._client.models.generate_content,
+            model=self.MODEL,
+            contents=prompt_text,
+            config=types.GenerateContentConfig(temperature=0.4, max_output_tokens=4096),
+        )
+
+    def send_with_template(self, template_path: str, data: str, extra_data: Optional[Dict[str, str]] = None) -> str:
         try:
-            response = self._model.generate_content(prompt_text)
-            return response.text
-        except Exception as e:
-            return f"[Error: {e}]"
+            with open(template_path, "r", encoding="utf-8") as f:
+                template = f.read()
+        except FileNotFoundError:
+            return f"[Error: Template not found: {template_path}]"
+
+        template = template.replace("{{DATA}}", data)
+        if extra_data:
+            for key, value in extra_data.items():
+                template = template.replace(f"{{{{{key}}}}}", value)
+
+        return self.send_prompt(template)
+
+    # ── L3 mode: context-aware conversation ─────────────────────────
 
     def send_with_context(
         self,
@@ -40,30 +80,52 @@ class GeminiClient:
         history: Optional[List[dict]] = None,
     ) -> str:
         self._ensure_init()
-        if not self._model:
+        if not self._client:
             return "[Error: Gemini not initialized. Check API key.]"
+
         try:
-            full_prompt = f"{system_prompt}\n\n"
+            gemini_history = []
+
             if history:
                 for msg in history:
                     role = msg.get("role", "user")
                     content = msg.get("content", "")
-                    full_prompt += f"{role}: {content}\n"
-            full_prompt += f"user: {user_message}\nagent:"
-            response = self._model.generate_content(full_prompt)
-            return response.text
+                    gemini_role = "model" if role in ("agent", "model", "assistant") else "user"
+                    gemini_history.append(
+                        types.Content(role=gemini_role, parts=[types.Part.from_text(text=content)])
+                    )
+
+            chat = self._client.chats.create(
+                model=self.MODEL,
+                config=types.GenerateContentConfig(
+                    temperature=0.4,
+                    max_output_tokens=4096,
+                    system_instruction=system_prompt,
+                ),
+                history=gemini_history,
+            )
+            return self._call_with_retry(chat.send_message, user_message)
+
         except Exception as e:
             return f"[Error: {e}]"
 
+    # ── Vision mode ─────────────────────────────────────────────────
+
     def parse_image(self, image_path: str, prompt: str) -> str:
         self._ensure_init()
-        if not self._vision_model:
+        if not self._client:
             return "[Error: Gemini Vision not initialized.]"
         try:
             from PIL import Image
 
             img = Image.open(image_path)
-            response = self._vision_model.generate_content([prompt, img])
-            return response.text
+            return self._call_with_retry(
+                self._client.models.generate_content,
+                model=self.MODEL,
+                contents=[prompt, img],
+                config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=4096),
+            )
+        except FileNotFoundError:
+            return f"[Error: Image not found: {image_path}]"
         except Exception as e:
             return f"[Error: {e}]"
