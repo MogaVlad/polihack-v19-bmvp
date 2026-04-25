@@ -47,7 +47,7 @@ class App:
 
         logo_label = ctk.CTkLabel(
             header,
-            text="⚡ AgentForge",
+            text="⚡ AgentArchitect",
             font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
             text_color=("#543520", "#F1DABF"),
         )
@@ -61,26 +61,14 @@ class App:
         )
         subtitle.pack(side="left", padx=(0, 16), pady=8)
 
-        # ── Sidebar toggle button ────────────────────────────────
-        self.sidebar_visible = True
-        self.sidebar_toggle_btn = ctk.CTkButton(
-            header,
-            text="☰",
-            width=36,
-            height=32,
-            corner_radius=8,
-            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
-            fg_color=("#e7d5a5", "#2d1a0e"),
-            hover_color=("#d4b896", "#3d2510"),
-            text_color=("#e7d5a5", "#F1DABF"),
-            command=self._toggle_sidebar,
-        )
-        self.sidebar_toggle_btn.pack(side="left", padx=(4, 0), pady=8)
+        # Toggle button is now part of the sidebar, removed from header.
 
         # ── Sidebar ─────────────────────────────────────────────
+        self.sidebar_visible = True
+        self.current_sidebar_width = 260
         self.sidebar_frame = ctk.CTkFrame(
             self.root,
-            width=260,
+            width=self.current_sidebar_width,
             corner_radius=0,
             fg_color=("#e7d5a5", "#2d1a0e"),
             border_width=0,
@@ -88,20 +76,28 @@ class App:
         self.sidebar_frame.grid(row=1, column=0, sticky="nsew")
         self.sidebar_frame.grid_propagate(False)
 
+        # Inner container for the library so it doesn't squish during animation
+        self.sidebar_content = ctk.CTkFrame(
+            self.sidebar_frame,
+            width=260,
+            fg_color="transparent",
+        )
+        self.sidebar_content.place(x=0, y=0, relheight=1.0)
+
         # ── Right content area ──────────────────────────────────
-        right = ctk.CTkFrame(
+        self.right = ctk.CTkFrame(
             self.root,
             corner_radius=0,
             fg_color=("#e5e5e5", "#000500"),
             border_width=0,
         )
-        right.grid(row=1, column=1, sticky="nsew")
-        right.grid_columnconfigure(0, weight=1)
+        self.right.grid(row=1, column=1, sticky="nsew")
+        self.right.grid_columnconfigure(0, weight=1)
 
         # Use an inner frame with pack so canvas + tabview don't conflict
-        right_inner = ctk.CTkFrame(right, fg_color="transparent")
+        right_inner = ctk.CTkFrame(self.right, fg_color="transparent")
         right_inner.grid(row=0, column=0, sticky="nsew")
-        right.grid_rowconfigure(0, weight=1)
+        self.right.grid_rowconfigure(0, weight=1)
 
         # ── Tabview ─────────────────────────────────────────────
         self.tabview = ctk.CTkTabview(
@@ -115,7 +111,8 @@ class App:
             segmented_button_unselected_hover_color=("#c4a882", "#3d2510"),
             text_color=("#543520", "#F1DABF"),
         )
-        self.tabview.pack(fill="both", expand=True, padx=8, pady=(8, 4))
+        # Increased padding to push tabs away from the sidebar edge
+        self.tabview.pack(fill="both", expand=True, padx=24, pady=(16, 8))
 
         # Create tabs
         self.tabview.add("Agent Runner")
@@ -153,7 +150,7 @@ class App:
 
         # ── Agent library sidebar ───────────────────────────────
         self.agent_library = AgentLibrary(
-            self.sidebar_frame,
+            self.sidebar_content,
             on_agent_selected=self._on_agent_selected,
             on_create_new=self._on_create_new,
         )
@@ -169,20 +166,39 @@ class App:
         self.root.bind_all("<Control-e>", lambda e: self.runner_tab._export_json())
         self.root.bind_all("<F5>", lambda e: self._refresh_library())
 
+        # ── Floating Toggle Button ──────────────────────────────
+        self.sidebar_toggle_btn = ctk.CTkButton(
+            self.right,
+            text="❮",
+            width=28,
+            height=64,
+            corner_radius=8,
+            bg_color="transparent",
+            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+            fg_color=("#c4a882", "#1a0e05"),
+            hover_color=("#b5966c", "#3d2510"),
+            text_color=("#2d1a0e", "#F1DABF"),
+            command=self._toggle_sidebar,
+        )
+        # Placed securely inside the right area, avoiding edge artifacts
+        self.sidebar_toggle_btn.place(x=12, rely=0.5, anchor="w")
+
         # ── Pre-load example floor plan on canvas ───────────────
         self._preload_example_plan()
 
     # ── Callbacks ────────────────────────────────────────────────
     def _toggle_sidebar(self):
-        """Collapse / expand the Agent Library sidebar."""
+        """Instantly collapse / expand the Agent Library sidebar."""
+        self.sidebar_visible = not self.sidebar_visible
+        
         if self.sidebar_visible:
-            self.sidebar_frame.grid_remove()
-            self.sidebar_toggle_btn.configure(text="☰")
-            self.sidebar_visible = False
+            self.current_sidebar_width = 260
+            self.sidebar_frame.configure(width=260)
+            self.sidebar_toggle_btn.configure(text="❮")
         else:
-            self.sidebar_frame.grid()
-            self.sidebar_toggle_btn.configure(text="✕")
-            self.sidebar_visible = True
+            self.current_sidebar_width = 0
+            self.sidebar_frame.configure(width=0)
+            self.sidebar_toggle_btn.configure(text="❯")
 
     def _on_agent_selected(self, agent_def):
         self.runner_tab.load_agent(agent_def)

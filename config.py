@@ -42,7 +42,7 @@ TOOL_CONFIG = {
     },
 }
 
-APP_TITLE = "AgentForge — Engineering Agent Platform"
+APP_TITLE = "AgentArchitect — Engineering Agent Platform"
 AGENTS_DIR = "data/agents"
 USER_AGENTS_DIR = "user_agents"
 FLOOR_PLANS_DIR = "data/floor_plans"

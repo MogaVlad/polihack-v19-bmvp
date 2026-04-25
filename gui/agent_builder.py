@@ -110,6 +110,21 @@ class AgentBuilderTab:
         )
         self.goal_text.pack(side="left", fill="x", expand=True)
 
+        # Fix: prevent mouse wheel from propagating to the parent scrollable frame
+        def _prevent_scroll(event):
+            delta = getattr(event, "delta", 0)
+            if delta != 0:
+                event.widget.yview_scroll(int(-1 * (delta / 120)), "units")
+            elif event.num == 4:
+                event.widget.yview_scroll(-1, "units")
+            elif event.num == 5:
+                event.widget.yview_scroll(1, "units")
+            return "break"
+
+        self.goal_text._textbox.bind("<MouseWheel>", _prevent_scroll)
+        self.goal_text._textbox.bind("<Button-4>", _prevent_scroll)
+        self.goal_text._textbox.bind("<Button-5>", _prevent_scroll)
+
         # ── Inputs card ─────────────────────────────────────────
         inputs_card = ctk.CTkFrame(self.scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         inputs_card.pack(fill="x", padx=8, pady=4)

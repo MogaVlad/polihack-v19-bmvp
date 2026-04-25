@@ -177,6 +177,24 @@ class AdoptionPanel:
         )
         self.l3_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
+        # Fix: prevent mouse wheel from propagating to the parent scrollable frame
+        def _prevent_scroll(event):
+            delta = getattr(event, "delta", 0)
+            if delta != 0:
+                event.widget.yview_scroll(int(-1 * (delta / 120)), "units")
+            elif event.num == 4:
+                event.widget.yview_scroll(-1, "units")
+            elif event.num == 5:
+                event.widget.yview_scroll(1, "units")
+            return "break"
+
+        self.l2_text._textbox.bind("<MouseWheel>", _prevent_scroll)
+        self.l2_text._textbox.bind("<Button-4>", _prevent_scroll)
+        self.l2_text._textbox.bind("<Button-5>", _prevent_scroll)
+        self.l3_text._textbox.bind("<MouseWheel>", _prevent_scroll)
+        self.l3_text._textbox.bind("<Button-4>", _prevent_scroll)
+        self.l3_text._textbox.bind("<Button-5>", _prevent_scroll)
+
         # ── Annotations ─────────────────────────────────────────
         self.ann_card = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
         self.ann_card.pack(fill="x", padx=8, pady=(8, 8))

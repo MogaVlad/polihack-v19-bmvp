@@ -102,7 +102,7 @@ class AgentLibrary:
                     self.scroll_frame,
                     text=f"  {current_category.upper()}",
                     font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-                    text_color=("#92817A", "#92817A"),
+                    text_color=("#543520", "#92817A"),
                     anchor="w",
                 )
                 cat_label.pack(fill="x", padx=8, pady=(6, 2))
@@ -133,7 +133,7 @@ class AgentLibrary:
                 corner_radius=6,
                 fg_color="transparent",
                 hover_color=("#d4b896", "#2d1a0e"),
-                text_color=("#e7d5a5", "#d0d8e8"),
+                text_color=("#543520", "#F1DABF"),
                 font=ctk.CTkFont(family="Segoe UI", size=12),
                 command=lambda a=agent: self.on_agent_selected(a),
             )

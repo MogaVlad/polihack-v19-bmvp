@@ -135,6 +135,24 @@ class L2ConsoleTab:
         )
         self.response_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
+        # Fix: prevent mouse wheel from propagating to the parent scrollable frame
+        def _prevent_scroll(event):
+            delta = getattr(event, "delta", 0)
+            if delta != 0:
+                event.widget.yview_scroll(int(-1 * (delta / 120)), "units")
+            elif event.num == 4:
+                event.widget.yview_scroll(-1, "units")
+            elif event.num == 5:
+                event.widget.yview_scroll(1, "units")
+            return "break"
+
+        self.data_input._textbox.bind("<MouseWheel>", _prevent_scroll)
+        self.data_input._textbox.bind("<Button-4>", _prevent_scroll)
+        self.data_input._textbox.bind("<Button-5>", _prevent_scroll)
+        self.response_text._textbox.bind("<MouseWheel>", _prevent_scroll)
+        self.response_text._textbox.bind("<Button-4>", _prevent_scroll)
+        self.response_text._textbox.bind("<Button-5>", _prevent_scroll)
+
     # ── Logic ────────────────────────────────────────────────────
     def _load_template_names(self):
         if not os.path.isdir(config.PROMPTS_DIR):

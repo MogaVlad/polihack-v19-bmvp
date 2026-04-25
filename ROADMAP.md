@@ -445,9 +445,9 @@ Everyone on the same branch. Frequent commits.
 - Professional color scheme (dark sidebar, light content, accent colors)
 - L2 Console intentionally plainer than L3 Runner (visual contrast = adoption contrast)
 - Agent Library: polished cards with category grouping, status indicators
-- Loading states (spinner/progress while agent runs), disabled buttons during execution
-- Window title: "AgentForge — Engineering Agent Platform"
-- Resize handling, tooltips on all buttons
+- Loading states (spinner/progress while agent runs), disabled buttons- Main window starts dark mode.
+- Window title: "AgentArchitect — Engineering Agent Platform"
+- Left column (Agent Library), right column (Tabbed interface).ll buttons
 
 ### Person B — Engine Robustness
 - Rate limit handling (show "Waiting for API..." in conversation, auto-retry)

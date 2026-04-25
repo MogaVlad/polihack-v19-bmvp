@@ -244,6 +244,24 @@ class AgentRunnerTab:
         self.chat_display.tag_bind("location", "<Leave>",
                                    lambda e: self.chat_display.configure(cursor=""))
 
+        # Fix: prevent mouse wheel from propagating to the parent scrollable frame
+        def _prevent_scroll(event):
+            delta = getattr(event, "delta", 0)
+            if delta != 0:
+                event.widget.yview_scroll(int(-1 * (delta / 120)), "units")
+            elif event.num == 4:
+                event.widget.yview_scroll(-1, "units")
+            elif event.num == 5:
+                event.widget.yview_scroll(1, "units")
+            return "break"
+
+        self.chat_display._textbox.bind("<MouseWheel>", _prevent_scroll)
+        self.chat_display._textbox.bind("<Button-4>", _prevent_scroll)
+        self.chat_display._textbox.bind("<Button-5>", _prevent_scroll)
+        self.output_text._textbox.bind("<MouseWheel>", _prevent_scroll)
+        self.output_text._textbox.bind("<Button-4>", _prevent_scroll)
+        self.output_text._textbox.bind("<Button-5>", _prevent_scroll)
+
         msg_frame = ctk.CTkFrame(chat_card, fg_color="transparent")
         msg_frame.pack(fill="x", padx=12, pady=(0, 12))
 

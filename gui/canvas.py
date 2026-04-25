@@ -28,6 +28,7 @@ class CanvasPanel:
 
         self._build_ui()
         self._tooltip_window = None
+        self._violation_data: dict = {}  # tag_id -> tooltip text
 
     def _build_ui(self):
         # ── Toggle / controls bar ───────────────────────────────
@@ -121,6 +122,7 @@ class CanvasPanel:
     def load_plan(self, plan: FloorPlan):
         self.floor_plan = plan
         self.violations = []
+        self._violation_data.clear()
         if self.visible:
             self._redraw()
 
@@ -186,6 +188,11 @@ class CanvasPanel:
 
     # ── Draw ─────────────────────────────────────────────────────
     def _redraw(self):
+        # Bug fix: destroy any open tooltip before wiping canvas items.
+        # When canvas.delete("all") removes violation ovals, tkinter does NOT
+        # fire the tag <Leave> binding, so the tooltip would stay on screen.
+        self._destroy_tooltip()
+
         self.canvas.delete("all")
         if not self.floor_plan:
             return
@@ -266,38 +273,65 @@ class CanvasPanel:
 
         # Violations
         if self.show_violations_var.get() and self.violations:
+            # Compute world-space bounds for fallback positioning.
+            # Unmatched dots get placed in world coords so they pan/zoom
+            # with the drawing instead of floating at fixed screen offsets.
+            all_wx = [p[0] for room in plan.rooms if room.polygon for p in room.polygon]
+            all_wy = [p[1] for room in plan.rooms if room.polygon for p in room.polygon]
+            fallback_wx = (min(all_wx) if all_wx else 0) - 3
+            fallback_wy = (min(all_wy) if all_wy else 0) - 3
+
             for idx, v in enumerate(self.violations):
-                vx, vy = None, None
                 target = plan.get_room(v.location) or plan.get_corridor(v.location)
 
                 if target and target.polygon:
-                    vx = sum(p[0] for p in target.polygon) / len(target.polygon) * s + ox
-                    vy = sum(p[1] for p in target.polygon) / len(target.polygon) * s + oy
+                    # World-space centroid → screen coords
+                    wx = sum(p[0] for p in target.polygon) / len(target.polygon)
+                    wy = sum(p[1] for p in target.polygon) / len(target.polygon)
                 else:
-                    vx, vy = ox + 30 + (idx * 20), oy + 30
+                    # Bug fix: use world-space coords for fallback so dots
+                    # pan and zoom together with the floor plan geometry.
+                    wx = fallback_wx + idx * 2
+                    wy = fallback_wy
+
+                vx = wx * s + ox
+                vy = wy * s + oy
 
                 color = "#f44336" if v.severity == "critical" else "#c47b2a" if v.severity == "major" else "#fdd835"
                 tag_id = f"violation_{idx}"
+                # Store tooltip data in a separate dict keyed by tag_id —
+                # embedding it inside a tag string is unreliable across tkinter versions.
+                self._violation_data[tag_id] = f"{v.rule} | {v.severity.upper()}\n{v.description}"
 
-                item = self.canvas.create_oval(
+                self.canvas.create_oval(
                     vx - 9, vy - 9, vx + 9, vy + 9,
                     fill=color, outline="#ffffff", width=2,
                     tags=("violation", tag_id),
                 )
-                self.canvas.itemconfig(
-                    item,
-                    tags=("violation", tag_id, f"data:{v.rule} | {v.severity.upper()}\n{v.description}"),
-                )
+
+        # Re-bind tooltip events after every redraw (tag_bind survives
+        # delete("all") on the tag name but items are new objects).
+        self.canvas.tag_bind("violation", "<Enter>", self._on_violation_hover)
+        self.canvas.tag_bind("violation", "<Leave>", self._on_violation_leave)
 
     # ── Tooltips ─────────────────────────────────────────────────
+    def _destroy_tooltip(self):
+        if self._tooltip_window:
+            try:
+                self._tooltip_window.destroy()
+            except Exception:
+                pass
+            self._tooltip_window = None
+
     def _on_violation_hover(self, event):
+        self._destroy_tooltip()
         item = self.canvas.find_withtag("current")[0]
         tags = self.canvas.gettags(item)
-        text = "Violation Details"
 
+        text = "Violation Details"
         for t in tags:
-            if t.startswith("data:"):
-                text = t[5:]
+            if t.startswith("violation_"):
+                text = self._violation_data.get(t, text)
                 break
 
         x = self.canvas.winfo_rootx() + event.x + 15
@@ -316,9 +350,7 @@ class CanvasPanel:
         label.pack()
 
     def _on_violation_leave(self, event):
-        if self._tooltip_window:
-            self._tooltip_window.destroy()
-            self._tooltip_window = None
+        self._destroy_tooltip()
 
     def highlight_location(self, location_id: str):
         if not self.floor_plan:
