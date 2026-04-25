@@ -1,12 +1,10 @@
 import json
 import os
-import re
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton,
-    QTextEdit, QLineEdit, QScrollArea, QFileDialog, QDialog, QSplitter
+    QTextEdit, QLineEdit, QScrollArea, QFileDialog, QDialog, QSplitter, QProgressBar
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from typing import Optional
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from models.agent_definition import AgentDefinition
 from models.chat import AgentResult
@@ -35,11 +33,13 @@ class AgentRunnerWorker(QThread):
             result = self.engine.run_agent(self.agent_def, self.inputs, status_callback=status_cb)
             self.completed.emit(result)
         except Exception as e:
-            self.completed.emit(AgentResult(
-                agent_id=self.agent_def.id,
-                success=False,
-                error=str(e),
-            ))
+            self.completed.emit(
+                AgentResult(
+                    agent_id=self.agent_def.id,
+                    success=False,
+                    error=str(e),
+                )
+            )
 
 
 class AgentFollowupWorker(QThread):
@@ -55,6 +55,7 @@ class AgentFollowupWorker(QThread):
         try:
             def status_cb(msg):
                 self.status_update.emit(msg)
+
             response = self.conversation.followup(self.msg, status_callback=status_cb)
             self.completed.emit(response)
         except Exception as e:
@@ -73,6 +74,7 @@ class AgentRetryWorker(QThread):
         try:
             def status_cb(msg):
                 self.status_update.emit(msg)
+
             response = self.conversation.retry_last_followup(status_callback=status_cb)
             if not response:
                 response = "No previous follow-up found to retry."
@@ -108,7 +110,7 @@ class AgentRunnerTab(QWidget):
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(8)
 
-        # ── Header card ─────────────────────────────────────────
+        # Header card
         header = QFrame()
         header.setProperty("class", "Card")
         header_layout = QVBoxLayout(header)
@@ -124,6 +126,12 @@ class AgentRunnerTab(QWidget):
         top_row.addWidget(self.status_indicator, 0, Qt.AlignmentFlag.AlignRight)
         header_layout.addLayout(top_row)
 
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)  # indeterminate progress
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.hide()
+        header_layout.addWidget(self.progress_bar)
+
         self.agent_goal_label = QLabel("Select an agent from the library to begin.")
         self.agent_goal_label.setProperty("class", "Subtitle")
         self.agent_goal_label.setWordWrap(True)
@@ -138,7 +146,7 @@ class AgentRunnerTab(QWidget):
 
         main_layout.addWidget(header)
 
-        # ── Two-column body ─────────────────────────────────────
+        # Two-column body
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         main_layout.addWidget(self.splitter, 1)
 
@@ -177,13 +185,13 @@ class AgentRunnerTab(QWidget):
         out_layout.addWidget(self.output_text)
 
         export_row = QHBoxLayout()
-        export_btn = QPushButton("Export JSON")
-        export_btn.clicked.connect(self._export_json)
-        export_row.addWidget(export_btn)
+        self.export_btn = QPushButton("Export JSON")
+        self.export_btn.clicked.connect(self._export_json)
+        export_row.addWidget(self.export_btn)
 
-        show_canvas_btn = QPushButton("Show on Canvas")
-        show_canvas_btn.clicked.connect(self._show_on_canvas)
-        export_row.addWidget(show_canvas_btn)
+        self.show_canvas_btn = QPushButton("Show on Canvas")
+        self.show_canvas_btn.clicked.connect(self._show_on_canvas)
+        export_row.addWidget(self.show_canvas_btn)
         export_row.addStretch()
         out_layout.addLayout(export_row)
 
@@ -233,7 +241,34 @@ class AgentRunnerTab(QWidget):
 
         self.splitter.setSizes([400, 500])
 
-    # ── Chat helpers ────────────────────────────────────────────
+    # Chat helpers
+
+    def _set_running_ui(self, running: bool):
+        self._is_running = running
+
+        # Main actions
+        self.run_btn.setEnabled(not running and self.current_agent is not None)
+        self.view_def_btn.setEnabled(not running)
+
+        # Input fields
+        for widget in self.input_widgets.values():
+            widget.setEnabled(not running)
+
+        # Output actions
+        can_use_outputs = (not running) and self._has_run and self._last_result and self._last_result.success
+        self.export_btn.setEnabled(can_use_outputs)
+        self.show_canvas_btn.setEnabled(can_use_outputs)
+
+        # Conversation actions
+        can_chat = (not running) and self._has_run and self._conversation is not None and self._conversation.is_active
+        self.chat_input.setEnabled(can_chat)
+        self.send_btn.setEnabled(can_chat)
+        self.retry_btn.setEnabled((not running) and self._followup_can_retry)
+
+        if running:
+            self.progress_bar.show()
+        else:
+            self.progress_bar.hide()
 
     def _append_agent_message(self, text: str):
         self.chat_display.append(f"<b>Agent:</b> {text}<br>")
@@ -262,7 +297,7 @@ class AgentRunnerTab(QWidget):
         if not self.canvas_panel:
             return
         try:
-            if not getattr(self.canvas_panel, 'floor_plan', None):
+            if not getattr(self.canvas_panel, "floor_plan", None):
                 default = os.path.join("data", "floor_plans", "example_office.json")
                 if os.path.isfile(default):
                     plan = FloorPlan.load_from_json(default)
@@ -270,7 +305,7 @@ class AgentRunnerTab(QWidget):
         except Exception:
             pass
 
-    # ── Agent loading ───────────────────────────────────────────
+    # Agent loading
 
     def load_agent(self, agent_def: AgentDefinition):
         self.current_agent = agent_def
@@ -278,6 +313,7 @@ class AgentRunnerTab(QWidget):
         self._last_result = None
         self._conversation = None
         self._violation_locations.clear()
+        self._set_retry_enabled(False)
 
         self.agent_name_label.setText(agent_def.name)
         self.agent_goal_label.setText(agent_def.goal)
@@ -285,7 +321,6 @@ class AgentRunnerTab(QWidget):
         self.output_text.clear()
         self._clear_chat()
         self._set_chat_enabled(False)
-        self._set_retry_enabled(False)
 
         if agent_def.constraints:
             self.constraints_label.setText(" • " + "\n • ".join(agent_def.constraints))
@@ -323,6 +358,7 @@ class AgentRunnerTab(QWidget):
             self.inputs_container.addWidget(row)
 
         self._set_status("Ready")
+        self._set_running_ui(False)
         if self.status_bar:
             self.status_bar.set_status(f"Loaded: {agent_def.name}")
 
@@ -337,11 +373,11 @@ class AgentRunnerTab(QWidget):
         dlg = QDialog(self)
         dlg.setWindowTitle("Agent Definition")
         dlg.resize(600, 500)
-        l = QVBoxLayout(dlg)
-        t = QTextEdit()
-        t.setReadOnly(True)
-        t.setPlainText(json.dumps(self.current_agent.to_dict(), indent=2))
-        l.addWidget(t)
+        layout = QVBoxLayout(dlg)
+        text = QTextEdit()
+        text.setReadOnly(True)
+        text.setPlainText(json.dumps(self.current_agent.to_dict(), indent=2))
+        layout.addWidget(text)
         dlg.exec()
 
     def _collect_inputs(self) -> dict:
@@ -350,7 +386,7 @@ class AgentRunnerTab(QWidget):
             inputs[name] = widget.text().strip()
         return inputs
 
-    # ── Run ─────────────────────────────────────────────────────
+    # Run
 
     def _run_agent(self):
         if not self.current_agent or self._is_running:
@@ -364,14 +400,14 @@ class AgentRunnerTab(QWidget):
                 self._set_status(f"Missing: {inp.name}")
                 return
 
-        self._is_running = True
-        self.run_btn.setEnabled(False)
         self.output_text.clear()
         self._clear_chat()
         self._set_chat_enabled(False)
         self._set_retry_enabled(False)
         self._set_status("Initializing…")
         self._append_agent_message("Starting agent execution...")
+
+        self._set_running_ui(True)
 
         self.worker = AgentRunnerWorker(self._engine, self.current_agent, inputs)
 
@@ -384,14 +420,13 @@ class AgentRunnerTab(QWidget):
         self.worker.start()
 
     def _on_run_complete(self, result: AgentResult):
-        self._is_running = False
-        self.run_btn.setEnabled(True)
         self._has_run = True
         self._last_result = result
 
         if not result.success:
             self._set_status("Failed")
             self._append_agent_message(f"<b>Execution Failed:</b><br>{result.error}")
+            self._set_running_ui(False)
             return
 
         self._set_status("Done")
@@ -401,10 +436,7 @@ class AgentRunnerTab(QWidget):
         except Exception:
             self.output_text.setPlainText(str(result.outputs))
 
-        explanation = result.explanation
-        if not explanation:
-            explanation = "Execution completed successfully."
-
+        explanation = result.explanation or "Execution completed successfully."
         self._append_agent_message(explanation.replace("\n", "<br>"))
 
         if not self._conversation:
@@ -419,10 +451,14 @@ class AgentRunnerTab(QWidget):
             self.status_bar.set_status("Agent run complete")
 
         self._show_on_canvas()
+        self._set_running_ui(False)
 
-    # ── Conversation ────────────────────────────────────────────
+    # Conversation
 
     def _send_message(self):
+        if self._is_running:
+            return
+
         text = self.chat_input.text().strip()
         if not text:
             return
@@ -432,6 +468,7 @@ class AgentRunnerTab(QWidget):
         self._set_chat_enabled(False)
         self._set_retry_enabled(False)
         self._set_status("Thinking…")
+        self._set_running_ui(True)
 
         if self._conversation and self._conversation.is_active:
             self.fw_worker = AgentFollowupWorker(self._conversation, text)
@@ -447,18 +484,22 @@ class AgentRunnerTab(QWidget):
 
     def _on_followup_complete(self, response: str):
         self._append_agent_message(response.replace("\n", "<br>"))
-        self._set_chat_enabled(True)
         timed_out = "timed out" in response.lower() and "retry" in response.lower()
         self._set_retry_enabled(timed_out)
         self._set_status("Done")
+        self._set_running_ui(False)
 
     def _retry_followup(self):
+        if self._is_running:
+            return
+
         if not self._conversation or not self._conversation.is_active or not self._followup_can_retry:
             return
 
         self._set_chat_enabled(False)
         self._set_retry_enabled(False)
         self._set_status("Retrying…")
+        self._set_running_ui(True)
 
         self.rt_worker = AgentRetryWorker(self._conversation)
 
@@ -472,11 +513,12 @@ class AgentRunnerTab(QWidget):
     def _clear_chat(self):
         self.chat_display.clear()
 
-    # ── Export / Canvas ─────────────────────────────────────────
+    # Export / Canvas
 
     def _export_json(self):
         if not self._has_run or not self._last_result or not self._last_result.success:
             return
+
         path, _ = QFileDialog.getSaveFileName(self, "Export JSON", "agent_output.json", "JSON files (*.json)")
         if path:
             with open(path, "w", encoding="utf-8") as f:

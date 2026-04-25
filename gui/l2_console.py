@@ -1,7 +1,7 @@
 import os
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QComboBox,
-    QPushButton, QTextEdit, QScrollArea, QFileDialog
+    QPushButton, QTextEdit, QScrollArea, QFileDialog, QDialog
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -35,93 +35,95 @@ class L2ConsoleTab(QWidget):
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         main_layout.addWidget(scroll_area)
-        
+
         wrapper = QWidget()
         scroll_area.setWidget(wrapper)
         wrapper_layout = QVBoxLayout(wrapper)
         wrapper_layout.setContentsMargins(16, 16, 16, 16)
         wrapper_layout.setSpacing(12)
 
-        # ── Banner ──────────────────────────────────────────────
         banner = QFrame()
-        banner.setProperty("class", "Card")
+        banner.setProperty("class", "L2Plain")
         banner_layout = QVBoxLayout(banner)
-        
+
+        banner_title = QLabel("LEGACY PROMPTING (L2)")
+        banner_title.setProperty("class", "SectionHeader")
+        banner_layout.addWidget(banner_title)
+
         banner_lbl = QLabel(
-            "⚠  This is Legacy Prompting: versioned prompts, manual data flow, raw text output. "
-            "Switch to the Agent Library to see the Agent approach."
+            "Versioned prompts, manual data flow, raw text output.\n"
+            "Switch to Agent Library for structured L3 workflow."
         )
         banner_lbl.setWordWrap(True)
         banner_layout.addWidget(banner_lbl)
         wrapper_layout.addWidget(banner)
 
-        # ── Controls ────────────────────────────────────────────
         controls = QFrame()
+        controls.setProperty("class", "L2Plain")
         controls_layout = QHBoxLayout(controls)
-        controls_layout.setContentsMargins(0, 0, 0, 0)
-        
+        controls_layout.setContentsMargins(6, 4, 6, 4)
+
         controls_layout.addWidget(QLabel("Prompt Template:"))
-        
+
         self.template_combo = QComboBox()
         templates = self._load_template_names()
         self.template_combo.addItems(templates)
         controls_layout.addWidget(self.template_combo)
-        
+
         view_btn = QPushButton("View Template")
+        view_btn.setProperty("class", "L2PlainBtn")
         view_btn.clicked.connect(self._view_template)
         controls_layout.addWidget(view_btn)
-        
+
         controls_layout.addStretch()
         wrapper_layout.addWidget(controls)
 
-        # ── Data input section ──────────────────────────────────
         data_card = QFrame()
-        data_card.setProperty("class", "Card")
+        data_card.setProperty("class", "L2Plain")
         data_layout = QVBoxLayout(data_card)
-        
+
         data_header = QHBoxLayout()
         data_header_lbl = QLabel("DATA INPUT")
-        data_header_lbl.setProperty("class", "Title")
+        data_header_lbl.setProperty("class", "SectionHeader")
         data_header.addWidget(data_header_lbl)
-        
+
         load_btn = QPushButton("Load File")
+        load_btn.setProperty("class", "L2PlainBtn")
         load_btn.clicked.connect(self._load_file)
         data_header.addWidget(load_btn, 0, Qt.AlignmentFlag.AlignRight)
-        
+
         data_layout.addLayout(data_header)
-        
+
         self.data_input = QTextEdit()
         self.data_input.setMinimumHeight(120)
         data_layout.addWidget(self.data_input)
-        
+
         wrapper_layout.addWidget(data_card, 1)
 
-        # ── Send button ─────────────────────────────────────────
-        send_btn = QPushButton("📤  Send to LLM")
-        send_btn.clicked.connect(self._send_to_llm)
-        wrapper_layout.addWidget(send_btn, 0, Qt.AlignmentFlag.AlignCenter)
+        self.send_btn = QPushButton("Send to LLM")
+        self.send_btn.setProperty("class", "L2PlainBtn")
+        self.send_btn.clicked.connect(self._send_to_llm)
+        wrapper_layout.addWidget(self.send_btn, 0, Qt.AlignmentFlag.AlignCenter)
 
-        # ── Response section ────────────────────────────────────
         response_card = QFrame()
-        response_card.setProperty("class", "Card")
+        response_card.setProperty("class", "L2Plain")
         response_layout = QVBoxLayout(response_card)
-        
+
         resp_lbl = QLabel("RAW RESPONSE")
-        resp_lbl.setProperty("class", "Title")
+        resp_lbl.setProperty("class", "SectionHeader")
         response_layout.addWidget(resp_lbl)
-        
+
         self.response_text = QTextEdit()
         self.response_text.setReadOnly(True)
         self.response_text.setMinimumHeight(140)
         response_layout.addWidget(self.response_text)
-        
+
         wrapper_layout.addWidget(response_card, 1)
 
-    # ── Logic ────────────────────────────────────────────────────
     def _load_template_names(self):
         if not os.path.isdir(config.PROMPTS_DIR):
             return []
@@ -131,23 +133,23 @@ class L2ConsoleTab(QWidget):
         template_name = self.template_combo.currentText()
         if not template_name:
             return
+
         filepath = os.path.join(config.PROMPTS_DIR, template_name)
         if not os.path.isfile(filepath):
             return
+
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
 
-        from PyQt6.QtWidgets import QDialog
         win = QDialog(self)
         win.setWindowTitle(f"Template: {template_name}")
         win.resize(620, 520)
-        
+
         layout = QVBoxLayout(win)
         textbox = QTextEdit()
         textbox.setReadOnly(True)
         textbox.setPlainText(content)
         layout.addWidget(textbox)
-        
         win.exec()
 
     def _load_file(self):
@@ -168,11 +170,13 @@ class L2ConsoleTab(QWidget):
         if not data:
             return
 
-        self.response_text.setPlainText("Sending to LLM…")
-        
+        self.send_btn.setEnabled(False)
+        self.response_text.setPlainText("Sending to LLM...")
+
         self.worker = LlmWorker(template_path, data)
         self.worker.finished.connect(self._display_response)
         self.worker.start()
 
     def _display_response(self, text: str):
+        self.send_btn.setEnabled(True)
         self.response_text.setPlainText(text)
