@@ -1,0 +1,5 @@
+{
+  "template": "v1_check_egress",
+  "data_hash": "a35d38b38e79",
+  "response": "Looking at this floor plan, I can see several fire safety issues:\n\nFirst, the building only has one exit (E1 through Reception). For a building with 107 occupants, P118 requires at least 2 exits. This is a major problem.\n\nThe East Corridor (C2) is only 1.2m wide, which is below the 1.4m minimum. It's also a dead-end corridor that's 24m long, way over the 12m limit.\n\nSome doors are too narrow - D4 is 0.8m and D7 is 0.7m, both below the 0.9m minimum for room doors.\n\nThe Server Room (R4), Conference Room (R5), and Storage Closet (R7) are all very far from the exit - roughly 35-40 meters, which exceeds both the 30m general limit and the 20m dead-end limit.\n\nThe exit capacity is also insufficient - with only 1.2m of total exit width, you can evacuate about 96 people, but you have 107.\n\nOverall, this building fails P118 compliance. The biggest issue is the single exit - if it gets blocked, everyone is trapped. I'd recommend adding a second exit at the east end of the building and widening the East Corridor."
+}

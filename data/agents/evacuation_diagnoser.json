@@ -28,7 +28,7 @@
       "description": "Ranked list of issues with plain-language explanations and impact assessments"
     }
   ],
-  "tools": ["gemini_text"],
+  "tools": ["metrics"],
   "conversational": true,
   "conversation_guidelines": "Discuss specific violations in detail when asked. Explain the real-world impact: what happens in an actual fire if this violation exists. Compare to similar buildings. Stay within scope: redirect fix proposals to the Exit Placement Advisor agent."
 }

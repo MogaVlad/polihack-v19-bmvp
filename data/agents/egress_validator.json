@@ -30,7 +30,7 @@
       "description": "Overall pass/fail status with violation counts by severity"
     }
   ],
-  "tools": ["p118_validator", "pathfinding"],
+  "tools": ["p118_validator", "pathfinding", "structural_checker"],
   "conversational": true,
   "conversation_guidelines": "After validation, explain which rules were checked and flag borderline cases (values within 10% of thresholds). Answer questions about specific violations. Reference P118 article numbers. Stay within scope: redirect fix proposals to the Exit Placement Advisor agent."
 }

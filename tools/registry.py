@@ -36,6 +36,37 @@ class ToolRegistry:
             results.extend(detect_anomalies(inputs))
             return results
 
+        def gemini_vision_parse(inputs):
+            """Parse a floor plan image using Gemini Vision."""
+            import os
+            from llm.gemini_client import GeminiClient
+
+            image_path = inputs.get("floor_plan", "")
+            if not image_path or not os.path.isfile(image_path):
+                return {"error": f"Image not found: {image_path}"}
+
+            client = GeminiClient()
+            prompt = (
+                "Analyze this floor plan image. Identify and list:\n"
+                "1. All rooms with their type, approximate dimensions, and estimated area\n"
+                "2. All corridors with approximate width and length\n"
+                "3. All doors and what spaces they connect\n"
+                "4. All exits and their locations\n"
+                "5. Any stairs, elevators, or vertical circulation\n"
+                "6. Any unusual or ambiguous features\n"
+                "Be precise about spatial relationships and measurements."
+            )
+            result = client.parse_image(image_path, prompt)
+            return {"vision_analysis": result}
+
+        self.register_tool(
+            "gemini_vision",
+            "Gemini Vision",
+            "Parses floor plan images into structured spatial descriptions using AI vision",
+            "image_path",
+            "Text analysis of floor plan",
+            gemini_vision_parse,
+        )
         self.register_tool(
             "p118_validator",
             "P118 Validator",

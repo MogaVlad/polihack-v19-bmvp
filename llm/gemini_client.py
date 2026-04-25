@@ -58,6 +58,10 @@ class GeminiClient:
         )
 
     def send_with_template(self, template_path: str, data: str, extra_data: Optional[Dict[str, str]] = None) -> str:
+        """L2 mode: load a prompt template, replace placeholders, send.
+
+        Falls back to cached L2 responses when the API is unavailable.
+        """
         try:
             with open(template_path, "r", encoding="utf-8") as f:
                 template = f.read()
@@ -69,7 +73,17 @@ class GeminiClient:
             for key, value in extra_data.items():
                 template = template.replace(f"{{{{{key}}}}}", value)
 
-        return self.send_prompt(template)
+        response = self.send_prompt(template)
+
+        if response.startswith("[Error"):
+            from engine.cache import L2ResponseCache
+            import os
+            template_name = os.path.splitext(os.path.basename(template_path))[0]
+            cached = L2ResponseCache().get_cached(template_name, data)
+            if cached:
+                return cached
+
+        return response
 
     # ── L3 mode: context-aware conversation ─────────────────────────
 
