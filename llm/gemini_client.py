@@ -12,7 +12,7 @@ class GeminiClient:
 
     MAX_RETRIES = 3
     RETRY_BASE_DELAY = 2
-    MODEL = "gemini-2.5-flash"
+    MODEL = "gemma-3-27b-it"
 
     def __init__(self):
         self._client = None
@@ -99,23 +99,34 @@ class GeminiClient:
 
         try:
             gemini_history = []
+            is_gemma = "gemma" in self.MODEL.lower()
 
             if history:
-                for msg in history:
+                for i, msg in enumerate(history):
                     role = msg.get("role", "user")
                     content = msg.get("content", "")
                     gemini_role = "model" if role in ("agent", "model", "assistant") else "user"
+                    
+                    if is_gemma and i == 0 and gemini_role == "user":
+                        content = f"System Instructions:\n{system_prompt}\n\nUser Input:\n{content}"
+                        
                     gemini_history.append(
                         types.Content(role=gemini_role, parts=[types.Part.from_text(text=content)])
                     )
 
+            if is_gemma and not history:
+                user_message = f"System Instructions:\n{system_prompt}\n\nUser Input:\n{user_message}"
+
+            config_kwargs = {
+                "temperature": 0.4,
+                "max_output_tokens": 4096,
+            }
+            if not is_gemma:
+                config_kwargs["system_instruction"] = system_prompt
+
             chat = self._client.chats.create(
                 model=self.MODEL,
-                config=types.GenerateContentConfig(
-                    temperature=0.4,
-                    max_output_tokens=4096,
-                    system_instruction=system_prompt,
-                ),
+                config=types.GenerateContentConfig(**config_kwargs),
                 history=gemini_history,
             )
             return self._call_with_retry(chat.send_message, user_message)
