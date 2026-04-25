@@ -59,6 +59,22 @@ class App:
         )
         subtitle.pack(side="left", padx=(0, 16), pady=8)
 
+        # ── Sidebar toggle button ────────────────────────────────
+        self.sidebar_visible = True
+        self.sidebar_toggle_btn = ctk.CTkButton(
+            header,
+            text="☰",
+            width=36,
+            height=32,
+            corner_radius=8,
+            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            fg_color=("#dde4ee", "#0f3460"),
+            hover_color=("#c8d0dd", "#1e4a8a"),
+            text_color=("gray20", "#c0d0e0"),
+            command=self._toggle_sidebar,
+        )
+        self.sidebar_toggle_btn.pack(side="left", padx=(4, 0), pady=8)
+
         # ── Sidebar ─────────────────────────────────────────────
         self.sidebar_frame = ctk.CTkFrame(
             self.root,
@@ -106,6 +122,12 @@ class App:
         self.tabview.add("L2 vs L3")
         self.tabview.set("Agent Runner")
 
+        # Fix light-mode black rectangles: explicitly set each tab
+        # frame's background to match the tabview's fg_color so that
+        # transparent children don't inherit a dark default.
+        for tab_name in ("Agent Runner", "Agent Builder", "L2 Console", "L2 vs L3"):
+            self.tabview.tab(tab_name).configure(fg_color=("#ffffff", "#1a1a2e"))
+
         # ── Canvas panel (below tabs) ───────────────────────────
         self.canvas_panel = CanvasPanel(right_inner)
 
@@ -140,6 +162,17 @@ class App:
         self.status_bar.set_tool_count(len(ToolRegistry().list_tool_names()))
 
     # ── Callbacks ────────────────────────────────────────────────
+    def _toggle_sidebar(self):
+        """Collapse / expand the Agent Library sidebar."""
+        if self.sidebar_visible:
+            self.sidebar_frame.grid_remove()
+            self.sidebar_toggle_btn.configure(text="☰")
+            self.sidebar_visible = False
+        else:
+            self.sidebar_frame.grid()
+            self.sidebar_toggle_btn.configure(text="✕")
+            self.sidebar_visible = True
+
     def _on_agent_selected(self, agent_def):
         self.runner_tab.load_agent(agent_def)
         self.tabview.set("Agent Runner")
