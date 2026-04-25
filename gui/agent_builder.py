@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt
 from typing import Callable, List, Optional
 
 from models.agent_definition import AgentDefinition, AgentInput, AgentOutput
+from engine.prompt_builder import validate_domain_relevance
 from tools.registry import ToolRegistry
 import config
 
@@ -352,7 +353,14 @@ class AgentBuilderTab(QWidget):
         if not data["inputs"]:
             self._show_error("At least one input is required.")
             return False
-            
+
+        is_relevant, reason = validate_domain_relevance(
+            data["name"], data["goal"], data["constraints"],
+        )
+        if not is_relevant:
+            self._show_error(reason)
+            return False
+
         self._hide_error()
         return True
 

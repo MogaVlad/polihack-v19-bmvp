@@ -392,14 +392,19 @@ def test_cache_schema_validation():
 
 
 def test_offtopic_and_adversarial_prompt_guards():
-    """Prompt includes explicit off-topic redirect and adversarial resistance instructions."""
+    """Prompt includes hard topic restriction and adversarial resistance."""
     agent = AgentDefinition.load_from_json("data/agents/egress_validator.json")
     prompt = PromptBuilder.build_system_prompt(agent)
 
-    assert "off-topic" in prompt.lower()
-    assert "redirect" in prompt.lower()
+    assert "HARD RULE" in prompt
+    assert "TOPIC RESTRICTION" in prompt
+    assert "MUST ONLY answer" in prompt
+    assert "MUST refuse" in prompt
+    assert "civil engineering" in prompt.lower()
+    assert "refuse entirely" in prompt.lower()
     assert "adversarial" in prompt.lower()
     assert "ignore prior rules" in prompt.lower()
+    assert "pretend you are" in prompt.lower()
     print("PASS: test_offtopic_and_adversarial_prompt_guards")
 
 
@@ -431,6 +436,51 @@ def test_conversation_timeout_retry_flow():
     user_msgs = [m for m in history if m.role == "user"]
     assert len(user_msgs) == 1, "Retry should replace the failed attempt, not duplicate it"
     print("PASS: test_conversation_timeout_retry_flow")
+
+
+def test_domain_relevance_validator():
+    """Verify the agent builder domain-relevance gate."""
+    from engine.prompt_builder import validate_domain_relevance
+
+    ok, msg = validate_domain_relevance(
+        "Corridor Width Checker",
+        "Verify all corridors meet minimum width requirements",
+        ["Min corridor width 1.4m"],
+    )
+    assert ok, f"Valid civil-eng agent rejected: {msg}"
+
+    ok, msg = validate_domain_relevance(
+        "Exit Capacity Analyzer",
+        "Check exit door widths against P118 occupancy rules",
+        [],
+    )
+    assert ok, f"Valid agent with no constraints rejected: {msg}"
+
+    ok, msg = validate_domain_relevance(
+        "Recipe Bot",
+        "Give me a coca cola recipe",
+        ["Must taste good"],
+    )
+    assert not ok
+    assert "recipe" in msg.lower()
+
+    ok, msg = validate_domain_relevance(
+        "Stock Picker",
+        "Recommend crypto investments for maximum profit",
+        [],
+    )
+    assert not ok
+    assert "non-engineering" in msg.lower()
+
+    ok, msg = validate_domain_relevance(
+        "My Helper",
+        "Do random stuff for me",
+        [],
+    )
+    assert not ok
+    assert "civil-engineering" in msg.lower()
+
+    print("PASS: test_domain_relevance_validator")
 
 
 def test_full_pipeline_with_llm():
@@ -522,6 +572,7 @@ if __name__ == "__main__":
     test_cache_schema_validation()
     test_offtopic_and_adversarial_prompt_guards()
     test_conversation_timeout_retry_flow()
+    test_domain_relevance_validator()
 
     print()
     print("-" * 60)
