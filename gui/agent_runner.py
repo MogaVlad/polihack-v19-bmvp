@@ -1,9 +1,19 @@
+import json
+import os
+import threading
 import tkinter as tk
 import customtkinter as ctk
+from tkinter import filedialog
 from typing import Optional
 import re
 
 from models.agent_definition import AgentDefinition
+from models.chat import AgentResult
+from models.floor_plan import FloorPlan
+from models.violations import Violation
+from engine.runner import AgentRunner
+from engine.conversation import ConversationManager
+from engine.prompt_builder import PromptBuilder
 
 
 # Keywords that indicate flagged issues in agent responses
@@ -15,10 +25,16 @@ _FLAG_KEYWORDS = re.compile(
 
 
 class AgentRunnerTab:
-    def __init__(self, parent: ctk.CTkFrame):
+    def __init__(self, parent: ctk.CTkFrame, status_bar=None, canvas_panel=None):
         self.parent = parent
+        self.status_bar = status_bar
+        self.canvas_panel = canvas_panel
         self.current_agent: Optional[AgentDefinition] = None
-        self._has_run = False  # track whether the agent has been run at least once
+        self._has_run = False
+        self._is_running = False
+        self._last_result: Optional[AgentResult] = None
+        self._conversation: Optional[ConversationManager] = None
+        self._engine = AgentRunner()
         self._build_ui()
 
     # ── Helpers ──────────────────────────────────────────────────
@@ -398,63 +414,190 @@ class AgentRunnerTab:
             tools_text = "—"
         self.tools_label.configure(text=tools_text)
 
-    # ── Actions (stubs for Phase 2 wiring) ───────────────────────
+    # ── Actions ───────────────────────────────────────────────────
     def _view_definition(self):
         if not self.current_agent:
             return
-        import json
 
-        win = ctk.CTkToplevel()
-        win.title(f"Definition: {self.current_agent.name}")
-        win.geometry("540x620")
+        root = self.parent.winfo_toplevel()
+
+        overlay = ctk.CTkFrame(root, fg_color=("gray20", "#000000"), corner_radius=0)
+        overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        overlay.configure(fg_color=("gray20", "gray14"))
+
+        card = ctk.CTkFrame(overlay, fg_color=("gray96", "#1a1a2e"), corner_radius=14, width=580, height=520)
+        card.place(relx=0.5, rely=0.5, anchor="center")
+        card.pack_propagate(False)
+
+        header = ctk.CTkFrame(card, fg_color="transparent")
+        header.pack(fill="x", padx=20, pady=(16, 8))
+
+        ctk.CTkLabel(
+            header,
+            text=f"Definition: {self.current_agent.name}",
+            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            text_color=("gray10", "#e0e0e0"),
+        ).pack(side="left")
+
+        ctk.CTkButton(
+            header, text="✕", width=32, height=32, corner_radius=8,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("gray78", "#2a2a3e"), hover_color=("gray68", "#3a3a50"),
+            text_color=("gray10", "#ff6b6b"),
+            command=overlay.destroy,
+        ).pack(side="right")
 
         textbox = ctk.CTkTextbox(
-            win, corner_radius=8,
-            fg_color=("gray96", "#0e1117"),
+            card, corner_radius=8,
+            fg_color=("white", "#0e1117"),
             text_color=("gray10", "#c0d0e0"),
             font=ctk.CTkFont(family="Consolas", size=11),
             wrap="word",
         )
-        textbox.pack(fill="both", expand=True, padx=16, pady=16)
+        textbox.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         textbox.insert("1.0", json.dumps(self.current_agent.to_dict(), indent=2))
         textbox.configure(state="disabled")
 
+        overlay.bind("<Button-1>", lambda e: overlay.destroy() if e.widget == overlay else None)
+        overlay.lift()
+
+    def _collect_inputs(self) -> dict:
+        """Collect input values from widgets. For file paths, read file contents."""
+        inputs = {}
+        for name, widget in self.input_widgets.items():
+            value = widget.get().strip()
+            # If the value looks like a file path, try to read the file
+            if value and os.path.isfile(value):
+                try:
+                    with open(value, "r", encoding="utf-8") as f:
+                        value = f.read()
+                except Exception:
+                    pass  # keep raw value if read fails
+            inputs[name] = value
+        return inputs
+
     def _run_agent(self):
-        """Stub — Phase 2 will wire this to engine/runner.py.
-        For now, simulate a successful run to demonstrate UI flow."""
-        if not self.current_agent:
+        """Run the agent via engine in a background thread."""
+        if not self.current_agent or self._is_running:
             return
 
+        self._is_running = True
         self._set_status("Running…", "#ff9800")
         self.run_btn.configure(state="disabled")
+        self._set_chat_enabled(False)
+        if self.status_bar:
+            self.status_bar.set_status(f"Running {self.current_agent.name}…", "#ff9800")
 
-        # Simulate completion (Phase 2 will replace with threaded engine call)
-        self._has_run = True
-        self._set_status("Done", "#4caf50")
-        self.run_btn.configure(state="normal")
-        self._set_chat_enabled(True)
+        inputs = self._collect_inputs()
 
-        # Show a placeholder message in chat
-        self._append_agent_message(
-            f"Analysis complete for agent \"{self.current_agent.name}\". "
-            f"You can ask follow-up questions about the results."
+        def on_status(msg):
+            # Schedule UI update on main thread
+            self.parent.after(0, lambda: self._set_status(msg, "#ff9800"))
+
+        def on_complete(result: AgentResult):
+            # Schedule UI update on main thread
+            self.parent.after(0, lambda: self._on_run_complete(result))
+
+        self._engine.run_agent_async(
+            self.current_agent, inputs, on_complete, on_status
         )
 
+    def _on_run_complete(self, result: AgentResult):
+        """Handle agent run completion on the main thread."""
+        self._is_running = False
+        self._has_run = True
+        self._last_result = result
+        self.run_btn.configure(state="normal")
+
+        if result.success:
+            self._set_status("Done", "#4caf50")
+            if self.status_bar:
+                self.status_bar.set_status(f"{self.current_agent.name}: Done ✓", "#4caf50")
+        else:
+            self._set_status("Error", "#f44336")
+            if self.status_bar:
+                self.status_bar.set_status(f"Error running {self.current_agent.name}", "#f44336")
+
+        # Display structured output
+        self.output_text.configure(state="normal")
+        self.output_text.delete("1.0", "end")
+        if result.outputs:
+            self.output_text.insert("1.0", json.dumps(result.outputs, indent=2, default=str))
+        elif result.error:
+            self.output_text.insert("1.0", f"Error: {result.error}")
+        self.output_text.configure(state="disabled")
+
+        # Show initial agent message in chat
+        explanation = result.explanation or result.error or "Agent run complete."
+        self._append_agent_message(explanation)
+
+        # Initialize conversation manager for follow-ups
+        if self.current_agent.conversational:
+            self._conversation = ConversationManager(self.current_agent, self._engine.client)
+            system_prompt = PromptBuilder.build_system_prompt(
+                self.current_agent, result.tool_results
+            )
+            self._conversation.initialize(system_prompt, explanation, result.tool_results)
+            self._set_chat_enabled(True)
+
+        # Update metrics in status bar if available
+        self._update_metrics(result)
+
+    def _update_metrics(self, result: AgentResult):
+        """Show violation metrics in status bar if tool results contain them."""
+        if not self.status_bar:
+            return
+        for tool_name, tool_data in result.tool_results.items():
+            try:
+                parsed = json.loads(tool_data)
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    # Count violations by severity
+                    sevs = {}
+                    for item in parsed:
+                        if isinstance(item, dict) and "severity" in item:
+                            s = item["severity"]
+                            sevs[s] = sevs.get(s, 0) + 1
+                    if sevs:
+                        parts = [f"{v} {k}" for k, v in sevs.items()]
+                        self.status_bar.set_status(
+                            f"{sum(sevs.values())} violations ({', '.join(parts)})",
+                            "#f44336" if sevs.get("critical", 0) > 0 else "#ff9800"
+                        )
+                        return
+            except (json.JSONDecodeError, TypeError):
+                continue
+
     def _send_message(self):
-        """Send a user message in the conversation panel."""
-        if not self._has_run:
+        """Send a follow-up message via ConversationManager."""
+        if not self._has_run or self._is_running:
             return
         text = self.chat_input.get().strip()
         if not text:
             return
         self._append_user_message(text)
         self.chat_input.delete(0, "end")
+        self._set_chat_enabled(False)
+        self._set_status("Thinking…", "#ff9800")
 
-        # Stub: echo acknowledgement (Phase 2 will call conversation.followup())
-        self._append_agent_message(
-            f"Thank you for your question. I'll process that with the "
-            f"{self.current_agent.name} context. (Engine not yet wired.)"
-        )
+        if self._conversation and self._conversation.is_active:
+            user_msg = text
+            def _do_followup():
+                try:
+                    response = self._conversation.followup(user_msg)
+                    self.parent.after(0, lambda: self._on_followup_complete(response))
+                except Exception as e:
+                    self.parent.after(0, lambda: self._on_followup_complete(f"[Error: {e}]"))
+            threading.Thread(target=_do_followup, daemon=True).start()
+        else:
+            self._append_agent_message("Conversation not available for this agent.")
+            self._set_chat_enabled(True)
+            self._set_status("Done", "#4caf50")
+
+    def _on_followup_complete(self, response: str):
+        """Handle followup response on main thread."""
+        self._append_agent_message(response)
+        self._set_chat_enabled(True)
+        self._set_status("Done", "#4caf50")
 
     def _clear_chat(self):
         """Clear all messages from the conversation panel."""
@@ -463,16 +606,61 @@ class AgentRunnerTab:
         self.chat_display.configure(state="disabled")
 
     def _export_json(self):
-        """Export agent results as JSON. Stub for Phase 2."""
-        pass
+        """Export agent results as JSON via file save dialog."""
+        if not self._last_result:
+            return
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            initialfile=f"{self.current_agent.id}_results.json" if self.current_agent else "results.json",
+        )
+        if filepath:
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(self._last_result.to_dict(), f, indent=2, default=str)
 
     def _show_on_canvas(self):
-        """Push results to canvas. Stub for Phase 2."""
-        pass
+        """Push floor plan and violations to the canvas panel."""
+        if not self.canvas_panel or not self._last_result:
+            return
+
+        # Try to find a floor plan in inputs or outputs
+        plan_loaded = False
+        for name, widget in self.input_widgets.items():
+            value = widget.get().strip()
+            if value and os.path.isfile(value) and value.endswith(".json"):
+                try:
+                    plan = FloorPlan.load_from_json(value)
+                    self.canvas_panel.load_plan(plan)
+                    plan_loaded = True
+                    break
+                except Exception:
+                    pass
+
+        # Try to parse violations from tool results
+        violations = []
+        for tool_name, tool_data in self._last_result.tool_results.items():
+            try:
+                parsed = json.loads(tool_data)
+                if isinstance(parsed, list):
+                    for item in parsed:
+                        if isinstance(item, dict) and "severity" in item:
+                            violations.append(Violation.from_dict(item))
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+        if violations:
+            self.canvas_panel.show_violations(violations)
+
+        # Show canvas if hidden
+        if not self.canvas_panel.visible:
+            self.canvas_panel.toggle()
+        if plan_loaded:
+            self.canvas_panel.fit_to_window()
 
     def _browse_file(self, input_name: str):
-        from tkinter import filedialog
-        filepath = filedialog.askopenfilename()
+        filepath = filedialog.askopenfilename(
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
         if filepath and input_name in self.input_widgets:
             self.input_widgets[input_name].delete(0, "end")
             self.input_widgets[input_name].insert(0, filepath)

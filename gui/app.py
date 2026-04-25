@@ -106,8 +106,19 @@ class App:
         self.tabview.add("L2 vs L3")
         self.tabview.set("Agent Runner")
 
-        # ── Tab contents ────────────────────────────────────────
-        self.runner_tab = AgentRunnerTab(self.tabview.tab("Agent Runner"))
+        # ── Canvas panel (below tabs) ───────────────────────────
+        self.canvas_panel = CanvasPanel(right_inner)
+
+        # ── Status bar ──────────────────────────────────────────
+        self.status_bar = StatusBar(self.root)
+        self.status_bar.frame.grid(row=2, column=0, columnspan=2, sticky="ew")
+
+        # ── Tab contents (created after status_bar/canvas so we can pass refs) ──
+        self.runner_tab = AgentRunnerTab(
+            self.tabview.tab("Agent Runner"),
+            status_bar=self.status_bar,
+            canvas_panel=self.canvas_panel,
+        )
         self.builder_tab = AgentBuilderTab(
             self.tabview.tab("Agent Builder"),
             on_agent_saved=self._on_agent_saved,
@@ -115,13 +126,6 @@ class App:
         )
         self.l2_tab = L2ConsoleTab(self.tabview.tab("L2 Console"))
         self.adoption_tab = AdoptionPanel(self.tabview.tab("L2 vs L3"))
-
-        # ── Canvas panel (below tabs) ───────────────────────────
-        self.canvas_panel = CanvasPanel(right_inner)
-
-        # ── Status bar ──────────────────────────────────────────
-        self.status_bar = StatusBar(self.root)
-        self.status_bar.frame.grid(row=2, column=0, columnspan=2, sticky="ew")
 
         # ── Agent library sidebar ───────────────────────────────
         self.agent_library = AgentLibrary(

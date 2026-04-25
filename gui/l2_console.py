@@ -176,4 +176,36 @@ class L2ConsoleTab:
                 self.data_input.insert("1.0", f.read())
 
     def _send_to_llm(self):
-        pass
+        """Send data with the selected template to LLM via GeminiClient."""
+        import threading
+        from llm.gemini_client import GeminiClient
+
+        template_name = self.template_var.get()
+        if not template_name:
+            return
+
+        template_path = os.path.join(config.PROMPTS_DIR, template_name)
+        data = self.data_input.get("1.0", "end").strip()
+        if not data:
+            return
+
+        # Show loading state
+        self.response_text.configure(state="normal")
+        self.response_text.delete("1.0", "end")
+        self.response_text.insert("1.0", "Sending to LLM…")
+        self.response_text.configure(state="disabled")
+
+        def _do_send():
+            client = GeminiClient()
+            result = client.send_with_template(template_path, data)
+            # Schedule UI update on main thread
+            self.parent.after(0, lambda: self._display_response(result))
+
+        threading.Thread(target=_do_send, daemon=True).start()
+
+    def _display_response(self, text: str):
+        """Display the raw LLM response."""
+        self.response_text.configure(state="normal")
+        self.response_text.delete("1.0", "end")
+        self.response_text.insert("1.0", text)
+        self.response_text.configure(state="disabled")
