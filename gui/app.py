@@ -71,8 +71,8 @@ class App(QMainWindow):
         self.sidebar_expanded = True
         self.sidebar_frame = QFrame()
         self.sidebar_frame.setProperty("class", "Sidebar")
-        self.sidebar_frame.setFixedWidth(SIDEBAR_WIDTH)
-        self.sidebar_frame.setMinimumWidth(0)
+        self.sidebar_frame.setMinimumWidth(SIDEBAR_WIDTH)
+        self.sidebar_frame.setMaximumWidth(SIDEBAR_WIDTH)
         sidebar_layout = QVBoxLayout(self.sidebar_frame)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
@@ -154,21 +154,35 @@ class App(QMainWindow):
 
     # ── Sidebar collapse ────────────────────────────────────────
     def _toggle_sidebar(self):
-        target = SIDEBAR_COLLAPSED if self.sidebar_expanded else SIDEBAR_WIDTH
+        if self.sidebar_expanded:
+            start, end = SIDEBAR_WIDTH, SIDEBAR_COLLAPSED
+        else:
+            start, end = SIDEBAR_COLLAPSED, SIDEBAR_WIDTH
+
+        # Animate maximumWidth for the slide effect
         self._anim = QPropertyAnimation(self.sidebar_frame, b"maximumWidth")
         self._anim.setDuration(200)
-        self._anim.setStartValue(self.sidebar_frame.width())
-        self._anim.setEndValue(target)
+        self._anim.setStartValue(start)
+        self._anim.setEndValue(end)
         self._anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
 
-        self._anim_min = QPropertyAnimation(self.sidebar_frame, b"minimumWidth")
-        self._anim_min.setDuration(200)
-        self._anim_min.setStartValue(self.sidebar_frame.width())
-        self._anim_min.setEndValue(target)
-        self._anim_min.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        # When expanding we must unlock minimumWidth first so it can grow;
+        # when collapsing we animate minimumWidth down together.
+        if self.sidebar_expanded:
+            # collapsing: shrink min alongside max
+            self.sidebar_frame.setMinimumWidth(0)
+        else:
+            # expanding: set min to 0 now so the frame can start at 0,
+            # then snap it to SIDEBAR_WIDTH once fully open
+            self.sidebar_frame.setMinimumWidth(0)
 
+        def _on_finished():
+            # Snap both constraints to the final value so layout can't drift
+            self.sidebar_frame.setMinimumWidth(end)
+            self.sidebar_frame.setMaximumWidth(end)
+
+        self._anim.finished.connect(_on_finished)
         self._anim.start()
-        self._anim_min.start()
         self.sidebar_expanded = not self.sidebar_expanded
 
     # ── Navigation ──────────────────────────────────────────────
