@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QStackedWidget, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtGui import QKeySequence, QShortcut, QIcon, QPixmap
 
 import config
 from gui.agent_library import AgentLibrary
@@ -50,7 +50,26 @@ class App(QMainWindow):
         self.sidebar_toggle_btn.clicked.connect(self._toggle_sidebar)
         header_layout.addWidget(self.sidebar_toggle_btn)
 
-        logo_label = QLabel("⚡ AgentArchitect")
+        # icons live in gui/assets/icons/ (same folder as this file)
+        _here = os.path.dirname(os.path.abspath(__file__))
+        _icons = os.path.join(_here, "assets", "icons")
+
+        def _px(name, size=20):
+            lbl = QLabel()
+            p = os.path.join(_icons, name)
+            if os.path.isfile(p):
+                lbl.setPixmap(QPixmap(p).scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            return lbl
+
+        def _ico(name):
+            return QIcon(os.path.join(_icons, name))
+
+        # window icon
+        self.setWindowIcon(_ico("appicon.png"))
+
+        header_layout.addWidget(_px("nexttotitle.png", 24))
+
+        logo_label = QLabel("AgentArchitect")
         logo_label.setProperty("class", "Title")
         header_layout.addWidget(logo_label)
 
@@ -129,13 +148,17 @@ class App(QMainWindow):
         nav_layout.setContentsMargins(12, 4, 12, 12)
         nav_layout.setSpacing(6)
 
-        btn_legacy = QPushButton("\U0001f4dc  Legacy Prompting")
+        btn_legacy = QPushButton("  Legacy Prompting")
         btn_legacy.setProperty("class", "SidebarBtn")
+        btn_legacy.setIcon(_ico("legacy.png"))
+        btn_legacy.setIconSize(QSize(18, 18))
         btn_legacy.clicked.connect(lambda: self._set_active_view("Legacy Prompting"))
         nav_layout.addWidget(btn_legacy)
 
-        btn_showcase = QPushButton("\U0001f4ca  Legacy → Agent")
+        btn_showcase = QPushButton("  Legacy → Agent")
         btn_showcase.setProperty("class", "SidebarBtn")
+        btn_showcase.setIcon(_ico("l2tol3.png"))
+        btn_showcase.setIconSize(QSize(18, 18))
         btn_showcase.clicked.connect(lambda: self._set_active_view("Legacy to Agent Showcase"))
         nav_layout.addWidget(btn_showcase)
 
