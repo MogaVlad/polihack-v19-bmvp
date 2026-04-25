@@ -48,6 +48,7 @@ class AgentRunnerTab:
         self._engine = AgentRunner()
         self._violation_locations: set = set()
         self._output_expanded = False  # collapsed by default
+        self._followup_can_retry = False
         self._build_ui()
 
     # ── Helpers ──────────────────────────────────────────────────
@@ -368,7 +369,22 @@ class AgentRunnerTab:
             command=self._send_message,
             state="disabled",
         )
-        self.send_btn.pack(side="right")
+        self.send_btn.pack(side="right", padx=(6, 0))
+
+        self.retry_btn = ctk.CTkButton(
+            msg_frame,
+            text="Retry",
+            width=72,
+            height=34,
+            corner_radius=8,
+            fg_color=("#6b4428", "#3d2510"),
+            hover_color=("#7a5130", "#4a3018"),
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+            command=self._retry_followup,
+            state="disabled",
+        )
+        self.retry_btn.pack(side="right")
 
     # ── Output dropdown toggle ────────────────────────────────────
     def _toggle_outputs(self):
@@ -458,6 +474,10 @@ class AgentRunnerTab:
         state = "normal" if enabled else "disabled"
         self.chat_input.configure(state=state)
         self.send_btn.configure(state=state)
+
+    def _set_retry_enabled(self, enabled: bool):
+        self._followup_can_retry = enabled
+        self.retry_btn.configure(state="normal" if enabled else "disabled")
 
     def _set_status(self, text: str, color: str = "#667788"):
         self.status_indicator.configure(text=f"● {text}", text_color=("#92817A", color))
@@ -554,6 +574,7 @@ class AgentRunnerTab:
         # Clear chat and disable input
         self._clear_chat()
         self._set_chat_enabled(False)
+        self._set_retry_enabled(False)
 
         # Update constraints & tools
         if agent_def.constraints:
@@ -642,7 +663,14 @@ class AgentRunnerTab:
         inputs = self._collect_inputs()
 
         def on_status(msg):
-            self.parent.after(0, lambda: self._set_status(msg, "#c47b2a"))
+            def _update_status():
+                color = "#c47b2a"
+                if "waiting for api" in msg.lower() or "retrying" in msg.lower():
+                    color = "#92817A"
+                elif "timeout" in msg.lower() or "error" in msg.lower():
+                    color = "#f44336"
+                self._set_status(msg, color)
+            self.parent.after(0, _update_status)
 
         def on_complete(result: AgentResult):
             self.parent.after(0, lambda: self._on_run_complete(result))
@@ -705,8 +733,10 @@ class AgentRunnerTab:
                 system_prompt = PromptBuilder.build_system_prompt(
                     self.current_agent, result.tool_results
                 )
-                self._conversation.initialize(system_prompt, explanation, result.tool_results)
+                inputs = self._collect_inputs()
+                self._conversation.initialize(system_prompt, explanation, result.tool_results, inputs)
                 self._set_chat_enabled(True)
+                self._set_retry_enabled(False)
 
             self._update_metrics(result)
 
@@ -752,13 +782,20 @@ class AgentRunnerTab:
         # User text is consumed but NOT shown in the conversation panel
         self.chat_input.delete(0, "end")
         self._set_chat_enabled(False)
+        self._set_retry_enabled(False)
         self._set_status("Thinking…", "#c47b2a")
 
         if self._conversation and self._conversation.is_active:
             user_msg = text
             def _do_followup():
                 try:
-                    response = self._conversation.followup(user_msg)
+                    response = self._conversation.followup(
+                        user_msg,
+                        status_callback=lambda s: self.parent.after(0, lambda: self._set_status(
+                            s,
+                            "#92817A" if "waiting for api" in s.lower() else "#c47b2a",
+                        )),
+                    )
                     self.parent.after(0, lambda: self._on_followup_complete(response))
                 except Exception as e:
                     self.parent.after(0, lambda: self._on_followup_complete(f"[Error: {e}]"))
@@ -774,7 +811,33 @@ class AgentRunnerTab:
         except Exception as e:
             self._append_agent_message(f"[Display error: {e}]")
         self._set_chat_enabled(True)
+        timed_out = "timed out" in response.lower() and "retry" in response.lower()
+        self._set_retry_enabled(timed_out)
         self._set_status("Done", "#92817A")
+
+    def _retry_followup(self):
+        if not self._conversation or not self._conversation.is_active or not self._followup_can_retry:
+            return
+
+        self._set_chat_enabled(False)
+        self._set_retry_enabled(False)
+        self._set_status("Retrying…", "#c47b2a")
+
+        def _do_retry():
+            try:
+                response = self._conversation.retry_last_followup(
+                    status_callback=lambda s: self.parent.after(0, lambda: self._set_status(
+                        s,
+                        "#92817A" if "waiting for api" in s.lower() else "#c47b2a",
+                    )),
+                )
+                if not response:
+                    response = "No previous follow-up found to retry."
+                self.parent.after(0, lambda: self._on_followup_complete(response))
+            except Exception as e:
+                self.parent.after(0, lambda: self._on_followup_complete(f"[Error: {e}]"))
+
+        threading.Thread(target=_do_retry, daemon=True).start()
 
     def _clear_chat(self):
         self.chat_display.configure(state="normal")

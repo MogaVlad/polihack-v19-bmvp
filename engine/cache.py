@@ -1,7 +1,7 @@
 import hashlib
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Any
 
 from models.chat import AgentResult
 
@@ -38,6 +38,9 @@ class ResponseCache:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+            is_valid, _ = self.validate_cached_result_data(data)
+            if not is_valid:
+                return None
             return AgentResult(
                 agent_id=data["agent_id"],
                 success=True,
@@ -60,6 +63,9 @@ class ResponseCache:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+            is_valid, _ = self.validate_cached_result_data(data)
+            if not is_valid:
+                return None
             question_lower = question.lower().strip()
             for fu in data.get("followups", []):
                 if self._fuzzy_match(question_lower, fu["question"].lower()):
@@ -100,6 +106,70 @@ class ResponseCache:
         return None
 
     @staticmethod
+    def validate_cached_result_data(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        issues: List[str] = []
+
+        if not isinstance(data, dict):
+            return False, ["cache payload must be a JSON object"]
+
+        if not isinstance(data.get("agent_id"), str) or not data.get("agent_id"):
+            issues.append("missing or invalid 'agent_id'")
+        if not isinstance(data.get("input_hash"), str) or not data.get("input_hash"):
+            issues.append("missing or invalid 'input_hash'")
+        if not isinstance(data.get("initial_response", ""), str):
+            issues.append("'initial_response' must be a string")
+        if not isinstance(data.get("outputs", {}), dict):
+            issues.append("'outputs' must be an object")
+        if not isinstance(data.get("tool_results", {}), dict):
+            issues.append("'tool_results' must be an object")
+
+        followups = data.get("followups", [])
+        if not isinstance(followups, list):
+            issues.append("'followups' must be a list")
+        else:
+            for idx, fu in enumerate(followups):
+                if not isinstance(fu, dict):
+                    issues.append(f"followups[{idx}] must be an object")
+                    continue
+                if not isinstance(fu.get("question"), str) or not fu.get("question"):
+                    issues.append(f"followups[{idx}] missing valid 'question'")
+                if not isinstance(fu.get("response"), str) or not fu.get("response"):
+                    issues.append(f"followups[{idx}] missing valid 'response'")
+
+        return len(issues) == 0, issues
+
+    def validate_all_cached_responses(self) -> Dict[str, Any]:
+        report = {
+            "valid": True,
+            "checked_files": 0,
+            "invalid_files": {},
+            "l2": {},
+        }
+
+        if os.path.isdir(self.cache_dir):
+            for fname in sorted(os.listdir(self.cache_dir)):
+                if fname == "l2" or not fname.endswith(".json"):
+                    continue
+                report["checked_files"] += 1
+                path = os.path.join(self.cache_dir, fname)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    is_valid, issues = self.validate_cached_result_data(data)
+                    if not is_valid:
+                        report["valid"] = False
+                        report["invalid_files"][fname] = issues
+                except Exception as exc:
+                    report["valid"] = False
+                    report["invalid_files"][fname] = [str(exc)]
+
+        report["l2"] = L2ResponseCache(self.cache_dir).validate_all_cached_responses()
+        if not report["l2"].get("valid", True):
+            report["valid"] = False
+
+        return report
+
+    @staticmethod
     def _fuzzy_match(query: str, cached_question: str) -> bool:
         query_words = set(query.split())
         cached_words = set(cached_question.split())
@@ -129,6 +199,9 @@ class L2ResponseCache:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 cached = json.load(f)
+            is_valid, _ = self.validate_cached_response_data(cached)
+            if not is_valid:
+                return None
             return cached.get("response", None)
         except (json.JSONDecodeError, KeyError):
             return None
@@ -151,3 +224,47 @@ class L2ResponseCache:
             if fname.startswith(template_name) and fname.endswith(".json"):
                 return os.path.join(self.cache_dir, fname)
         return None
+
+    @staticmethod
+    def validate_cached_response_data(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        issues: List[str] = []
+
+        if not isinstance(data, dict):
+            return False, ["cache payload must be a JSON object"]
+
+        if not isinstance(data.get("template"), str) or not data.get("template"):
+            issues.append("missing or invalid 'template'")
+        if not isinstance(data.get("data_hash"), str) or not data.get("data_hash"):
+            issues.append("missing or invalid 'data_hash'")
+        if not isinstance(data.get("response"), str) or not data.get("response"):
+            issues.append("missing or invalid 'response'")
+
+        return len(issues) == 0, issues
+
+    def validate_all_cached_responses(self) -> Dict[str, Any]:
+        report = {
+            "valid": True,
+            "checked_files": 0,
+            "invalid_files": {},
+        }
+
+        if not os.path.isdir(self.cache_dir):
+            return report
+
+        for fname in sorted(os.listdir(self.cache_dir)):
+            if not fname.endswith(".json"):
+                continue
+            report["checked_files"] += 1
+            path = os.path.join(self.cache_dir, fname)
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                is_valid, issues = self.validate_cached_response_data(data)
+                if not is_valid:
+                    report["valid"] = False
+                    report["invalid_files"][fname] = issues
+            except Exception as exc:
+                report["valid"] = False
+                report["invalid_files"][fname] = [str(exc)]
+
+        return report

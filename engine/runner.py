@@ -23,6 +23,7 @@ class AgentRunner:
         self.prompt_builder = PromptBuilder()
         self.registry = ToolRegistry()
         self.cache = ResponseCache()
+        self.cache_validation_report = self.cache.validate_all_cached_responses()
 
     def run_agent(
         self,
@@ -46,16 +47,27 @@ class AgentRunner:
         user_prompt = self.prompt_builder.build_user_prompt(inputs)
 
         _status("Calling LLM...")
-        response = self.client.send_with_context(system_prompt, user_prompt)
+        response = self.client.send_with_context(
+            system_prompt,
+            user_prompt,
+            status_callback=_status,
+            timeout_seconds=GeminiClient.REQUEST_TIMEOUT_SECONDS,
+        )
 
         if self._is_error(response):
-            _status("LLM unavailable, checking cache...")
+            if "timeout" in response.lower():
+                _status("LLM timed out — checking cache...")
+            else:
+                _status("LLM unavailable, checking cache...")
             cached = self.cache.get_cached_result(definition.id, inputs)
             if cached:
                 _status("Loaded cached response")
                 cached.tool_results = tool_results
                 return cached
-            _status("Error — no cached fallback available")
+            if "timeout" in response.lower():
+                _status("Timeout — no cached fallback available")
+            else:
+                _status("Error — no cached fallback available")
             return AgentResult(
                 agent_id=definition.id,
                 success=False,

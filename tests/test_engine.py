@@ -20,6 +20,18 @@ from llm.gemini_client import GeminiClient
 from tools.registry import ToolRegistry
 
 
+class _FakeGeminiClient:
+    def __init__(self, responses):
+        self._responses = list(responses)
+
+    def send_with_context(self, system_prompt, user_message, history=None, status_callback=None, timeout_seconds=None):
+        if status_callback:
+            status_callback("Waiting for API... retrying in 2s (1/3)")
+        if self._responses:
+            return self._responses.pop(0)
+        return "Fallback response"
+
+
 def test_prompt_builder():
     """Test that PromptBuilder produces well-structured prompts."""
     agent = AgentDefinition.load_from_json("data/agents/egress_validator.json")
@@ -367,6 +379,60 @@ def test_l2_templates_enforce_plain_text():
     print(f"PASS: test_l2_templates_enforce_plain_text ({len(templates)} templates)")
 
 
+def test_cache_schema_validation():
+    """Validate that all shipped L2/L3 cache entries match the current schema."""
+    report = ResponseCache().validate_all_cached_responses()
+    assert report["checked_files"] > 0
+    assert report["l2"]["checked_files"] > 0
+    assert report["valid"], f"Invalid cache schema files: {report['invalid_files']} / L2: {report['l2']['invalid_files']}"
+    print(
+        "PASS: test_cache_schema_validation "
+        f"(L3={report['checked_files']} files, L2={report['l2']['checked_files']} files)"
+    )
+
+
+def test_offtopic_and_adversarial_prompt_guards():
+    """Prompt includes explicit off-topic redirect and adversarial resistance instructions."""
+    agent = AgentDefinition.load_from_json("data/agents/egress_validator.json")
+    prompt = PromptBuilder.build_system_prompt(agent)
+
+    assert "off-topic" in prompt.lower()
+    assert "redirect" in prompt.lower()
+    assert "adversarial" in prompt.lower()
+    assert "ignore prior rules" in prompt.lower()
+    print("PASS: test_offtopic_and_adversarial_prompt_guards")
+
+
+def test_conversation_timeout_retry_flow():
+    """Timeout follow-up returns retry hint, then retry can recover."""
+    agent = AgentDefinition.load_from_json("data/agents/egress_validator.json")
+    fake_client = _FakeGeminiClient([
+        "[Error: Timeout after 30s]",
+        "Recovered answer after retry.",
+    ])
+    cm = ConversationManager(agent, gemini_client=fake_client)
+    cm.initialize(
+        system_prompt="system",
+        initial_response="initial",
+        inputs={"parsed_plan": "{}"},
+    )
+
+    statuses = []
+    first = cm.followup("What is the highest-risk violation?", status_callback=lambda s: statuses.append(s))
+    assert "timed out" in first.lower()
+    assert "retry" in first.lower()
+    assert len(statuses) >= 1
+
+    second = cm.retry_last_followup()
+    assert second is not None
+    assert "recovered" in second.lower()
+    assert cm.turn_count == 1
+    history = cm.get_history()
+    user_msgs = [m for m in history if m.role == "user"]
+    assert len(user_msgs) == 1, "Retry should replace the failed attempt, not duplicate it"
+    print("PASS: test_conversation_timeout_retry_flow")
+
+
 def test_full_pipeline_with_llm():
     """Full pipeline test with actual LLM call. Requires valid API key."""
     import config
@@ -453,6 +519,9 @@ if __name__ == "__main__":
     test_conversation_behavior_instructions()
     test_conversation_turn_limit()
     test_l2_templates_enforce_plain_text()
+    test_cache_schema_validation()
+    test_offtopic_and_adversarial_prompt_guards()
+    test_conversation_timeout_retry_flow()
 
     print()
     print("-" * 60)
