@@ -1,558 +1,406 @@
 import json
-import customtkinter as ctk
-from tkinter import messagebox
+import os
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QLineEdit,
+    QTextEdit, QScrollArea, QPushButton, QCheckBox, QMessageBox, QComboBox
+)
+from PyQt6.QtCore import Qt
 from typing import Callable, List, Optional
 
 from models.agent_definition import AgentDefinition, AgentInput, AgentOutput
 from tools.registry import ToolRegistry
 import config
 
-
-class AgentBuilderTab:
+class AgentBuilderTab(QWidget):
     def __init__(
         self,
-        parent: ctk.CTkFrame,
+        parent=None,
         on_agent_saved: Optional[Callable] = None,
         on_save_and_run: Optional[Callable[[AgentDefinition], None]] = None,
     ):
-        self.parent = parent
+        super().__init__(parent)
+        self.setObjectName("AgentBuilderTab")
         self.on_agent_saved = on_agent_saved
         self.on_save_and_run = on_save_and_run
-        self.input_rows: List[dict] = []
-        self.constraint_rows: List[dict] = []  # {"frame": CTkFrame, "entry": CTkEntry}
-        self.output_rows: List[dict] = []
+        
+        self.input_rows = []
+        self.constraint_rows = []
+        self.output_rows = []
         self.tool_vars = {}
+        
         self._build_ui()
 
-    # ── Helpers ──────────────────────────────────────────────────
-    def _section_header(self, parent, text: str):
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-        ctk.CTkLabel(
-            frame, text=text,
-            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=("#b3c7c1", "#b3c7c1"),
-        ).pack(side="left")
-        sep = ctk.CTkFrame(frame, height=1, fg_color=("#121715", "#b3c7c1"))
-        sep.pack(side="left", fill="x", expand=True, padx=(10, 0), pady=1)
+    def _section_header(self, text: str) -> QWidget:
+        frame = QWidget()
+        layout = QHBoxLayout(frame)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        lbl = QLabel(text)
+        lbl.setStyleSheet("font-weight: bold; color: #b3c7c1; font-size: 11px;")
+        layout.addWidget(lbl)
+        
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet("color: #b3c7c1;")
+        layout.addWidget(sep, 1)
         return frame
 
-    # ── Build UI ─────────────────────────────────────────────────
     def _build_ui(self):
-        self.scroll = ctk.CTkScrollableFrame(
-            self.parent,
-            fg_color="transparent",
-            scrollbar_button_color=("#384c46", "#b3c7c1"),
-        )
-        self.scroll.pack(fill="both", expand=True, padx=4, pady=4)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        main_layout.addWidget(self.scroll_area)
+        
+        self.wrapper = QWidget()
+        self.scroll_area.setWidget(self.wrapper)
+        self.wrapper_layout = QVBoxLayout(self.wrapper)
+        self.wrapper_layout.setContentsMargins(16, 16, 16, 16)
+        self.wrapper_layout.setSpacing(12)
 
-        # ── Title ───────────────────────────────────────────────
-        ctk.CTkLabel(
-            self.scroll,
-            text="🔧  Create New Agent",
-            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            text_color=("#121715", "#e8edeb"),
-        ).pack(anchor="w", padx=12, pady=(8, 12))
+        # Title
+        title_lbl = QLabel("🔧  Create New Agent")
+        title_lbl.setProperty("class", "Title")
+        self.wrapper_layout.addWidget(title_lbl)
 
-        # ── Validation error label (hidden by default) ──────────
-        self.error_frame = ctk.CTkFrame(self.scroll, fg_color=("#4a1010", "#4a1010"), corner_radius=8, height=0)
-        self.error_frame.pack(fill="x", padx=8, pady=(0, 4))
-        self.error_frame.pack_propagate(False)  # start collapsed
+        # Error label
+        self.error_label = QLabel("")
+        self.error_label.setStyleSheet("color: #ff6b6b; background-color: #4a1010; padding: 8px; border-radius: 4px;")
+        self.error_label.setWordWrap(True)
+        self.error_label.hide()
+        self.wrapper_layout.addWidget(self.error_label)
 
-        self.error_label = ctk.CTkLabel(
-            self.error_frame,
-            text="",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#cc0000", "#ff6b6b"),
-            wraplength=700,
-            justify="left",
-        )
-        self.error_label.pack(anchor="w", padx=12, pady=8)
+        # ── Basic Info ─────────────────────────────────────
+        basic_card = QFrame()
+        basic_card.setProperty("class", "Card")
+        basic_layout = QVBoxLayout(basic_card)
+        basic_layout.addWidget(self._section_header("BASIC INFO"))
+        
+        name_layout = QHBoxLayout()
+        name_layout.addWidget(QLabel("Name: *"))
+        self.name_entry = QLineEdit()
+        name_layout.addWidget(self.name_entry, 1)
+        basic_layout.addLayout(name_layout)
+        
+        cat_layout = QHBoxLayout()
+        cat_layout.addWidget(QLabel("Category:"))
+        self.category_entry = QLineEdit("Custom")
+        cat_layout.addWidget(self.category_entry, 1)
+        basic_layout.addLayout(cat_layout)
+        
+        desc_layout = QHBoxLayout()
+        desc_layout.addWidget(QLabel("Description: *"), 0, Qt.AlignmentFlag.AlignTop)
+        self.desc_entry = QTextEdit()
+        self.desc_entry.setFixedHeight(60)
+        desc_layout.addWidget(self.desc_entry, 1)
+        basic_layout.addLayout(desc_layout)
+        
+        self.wrapper_layout.addWidget(basic_card)
 
-        # ── Basic info card ─────────────────────────────────────
-        basic_card = ctk.CTkFrame(self.scroll, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
-        basic_card.pack(fill="x", padx=8, pady=4)
-        self._section_header(basic_card, "BASIC INFO").pack(fill="x", padx=12, pady=(12, 8))
+        # ── Prompting ──────────────────────────────────────
+        prompt_card = QFrame()
+        prompt_card.setProperty("class", "Card")
+        prompt_layout = QVBoxLayout(prompt_card)
+        prompt_layout.addWidget(self._section_header("PROMPTING"))
+        
+        sys_layout = QHBoxLayout()
+        sys_layout.addWidget(QLabel("System Prompt: *"), 0, Qt.AlignmentFlag.AlignTop)
+        self.system_prompt_entry = QTextEdit()
+        self.system_prompt_entry.setFixedHeight(100)
+        sys_layout.addWidget(self.system_prompt_entry, 1)
+        prompt_layout.addLayout(sys_layout)
+        
+        self.wrapper_layout.addWidget(prompt_card)
 
-        # Name
-        row_name = ctk.CTkFrame(basic_card, fg_color="transparent")
-        row_name.pack(fill="x", padx=12, pady=3)
-        ctk.CTkLabel(row_name, text="Name: *", width=80, anchor="w",
-                     font=ctk.CTkFont(size=12), text_color=("#121715", "#b3c7c1")).pack(side="left")
-        self.name_entry = ctk.CTkEntry(
-            row_name, height=30, corner_radius=6,
-            fg_color=("#98a3b3", "#4c5767"), border_color=("#121715", "#b3c7c1"),
-            text_color=("#121715", "#e8edeb"), font=ctk.CTkFont(size=12),
-        )
-        self.name_entry.pack(side="left", fill="x", expand=True)
+        # ── Inputs ─────────────────────────────────────────
+        input_card = QFrame()
+        input_card.setProperty("class", "Card")
+        self.input_layout = QVBoxLayout(input_card)
+        
+        inp_header = QHBoxLayout()
+        inp_header.addWidget(self._section_header("INPUT SCHEMA"), 1)
+        add_inp_btn = QPushButton("+ Add Input")
+        add_inp_btn.clicked.connect(self._add_input_row)
+        inp_header.addWidget(add_inp_btn)
+        self.input_layout.addLayout(inp_header)
+        
+        self.inputs_container = QVBoxLayout()
+        self.input_layout.addLayout(self.inputs_container)
+        self.wrapper_layout.addWidget(input_card)
 
-        # Category
-        row_cat = ctk.CTkFrame(basic_card, fg_color="transparent")
-        row_cat.pack(fill="x", padx=12, pady=3)
-        ctk.CTkLabel(row_cat, text="Category:", width=80, anchor="w",
-                     font=ctk.CTkFont(size=12), text_color=("#121715", "#b3c7c1")).pack(side="left")
-        self.category_entry = ctk.CTkEntry(
-            row_cat, height=30, corner_radius=6,
-            fg_color=("#98a3b3", "#4c5767"), border_color=("#121715", "#b3c7c1"),
-            text_color=("#121715", "#e8edeb"), font=ctk.CTkFont(size=12),
-        )
-        self.category_entry.pack(side="left", fill="x", expand=True)
-        self.category_entry.insert(0, "Custom")
+        # ── Constraints ────────────────────────────────────
+        cons_card = QFrame()
+        cons_card.setProperty("class", "Card")
+        self.cons_layout = QVBoxLayout(cons_card)
+        
+        cons_header = QHBoxLayout()
+        cons_header.addWidget(self._section_header("CONSTRAINTS & RULES"), 1)
+        add_cons_btn = QPushButton("+ Add Constraint")
+        add_cons_btn.clicked.connect(self._add_constraint_row)
+        cons_header.addWidget(add_cons_btn)
+        self.cons_layout.addLayout(cons_header)
+        
+        self.cons_container = QVBoxLayout()
+        self.cons_layout.addLayout(self.cons_container)
+        self.wrapper_layout.addWidget(cons_card)
 
-        # Goal
-        row_goal = ctk.CTkFrame(basic_card, fg_color="transparent")
-        row_goal.pack(fill="x", padx=12, pady=(3, 12))
-        ctk.CTkLabel(row_goal, text="Goal: *", width=80, anchor="nw",
-                     font=ctk.CTkFont(size=12), text_color=("#121715", "#b3c7c1")).pack(side="left", anchor="n")
-        self.goal_text = ctk.CTkTextbox(
-            row_goal, height=70, corner_radius=6,
-            fg_color=("#98a3b3", "#4c5767"), text_color=("#121715", "#e8edeb"),
-            font=ctk.CTkFont(family="Segoe UI", size=12), wrap="word",
-        )
-        self.goal_text.pack(side="left", fill="x", expand=True)
+        # ── Outputs ────────────────────────────────────────
+        out_card = QFrame()
+        out_card.setProperty("class", "Card")
+        self.out_layout = QVBoxLayout(out_card)
+        
+        out_header = QHBoxLayout()
+        out_header.addWidget(self._section_header("OUTPUT SCHEMA"), 1)
+        add_out_btn = QPushButton("+ Add Output")
+        add_out_btn.clicked.connect(self._add_output_row)
+        out_header.addWidget(add_out_btn)
+        self.out_layout.addLayout(out_header)
+        
+        self.outs_container = QVBoxLayout()
+        self.out_layout.addLayout(self.outs_container)
+        self.wrapper_layout.addWidget(out_card)
 
-        # Fix: prevent mouse wheel from propagating to the parent scrollable frame
-        def _prevent_scroll(event):
-            delta = getattr(event, "delta", 0)
-            if delta != 0:
-                event.widget.yview_scroll(int(-1 * (delta / 120)), "units")
-            elif event.num == 4:
-                event.widget.yview_scroll(-1, "units")
-            elif event.num == 5:
-                event.widget.yview_scroll(1, "units")
-            return "break"
-
-        self.goal_text._textbox.bind("<MouseWheel>", _prevent_scroll)
-        self.goal_text._textbox.bind("<Button-4>", _prevent_scroll)
-        self.goal_text._textbox.bind("<Button-5>", _prevent_scroll)
-
-        # ── Inputs card ─────────────────────────────────────────
-        inputs_card = ctk.CTkFrame(self.scroll, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
-        inputs_card.pack(fill="x", padx=8, pady=4)
-        self._section_header(inputs_card, "INPUTS").pack(fill="x", padx=12, pady=(12, 6))
-
-        self.inputs_container = ctk.CTkFrame(inputs_card, fg_color="transparent")
-        self.inputs_container.pack(fill="x", padx=12, pady=(0, 4))
-
-        ctk.CTkButton(
-            inputs_card, text="＋ Add Input", width=120, height=28, corner_radius=6,
-            font=ctk.CTkFont(size=11),
-            fg_color=("#121715", "#4c5767"), hover_color=("#2a3a34", "#3a4854"),
-            text_color=("#98a3b3", "#e8edeb"), command=self._add_input_row,
-        ).pack(padx=12, pady=(4, 12))
-
-        # ── Constraints card ────────────────────────────────────
-        constraints_card = ctk.CTkFrame(self.scroll, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
-        constraints_card.pack(fill="x", padx=8, pady=4)
-        self._section_header(constraints_card, "CONSTRAINTS").pack(fill="x", padx=12, pady=(12, 6))
-
-        self.constraints_container = ctk.CTkFrame(constraints_card, fg_color="transparent")
-        self.constraints_container.pack(fill="x", padx=12, pady=(0, 4))
-
-        ctk.CTkButton(
-            constraints_card, text="＋ Add Constraint", width=140, height=28, corner_radius=6,
-            font=ctk.CTkFont(size=11),
-            fg_color=("#121715", "#4c5767"), hover_color=("#2a3a34", "#3a4854"),
-            text_color=("#98a3b3", "#e8edeb"), command=self._add_constraint_row,
-        ).pack(padx=12, pady=(4, 12))
-
-        # ── Outputs card ────────────────────────────────────────
-        outputs_card = ctk.CTkFrame(self.scroll, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
-        outputs_card.pack(fill="x", padx=8, pady=4)
-        self._section_header(outputs_card, "OUTPUTS").pack(fill="x", padx=12, pady=(12, 6))
-
-        self.outputs_container = ctk.CTkFrame(outputs_card, fg_color="transparent")
-        self.outputs_container.pack(fill="x", padx=12, pady=(0, 4))
-
-        ctk.CTkButton(
-            outputs_card, text="＋ Add Output", width=130, height=28, corner_radius=6,
-            font=ctk.CTkFont(size=11),
-            fg_color=("#121715", "#4c5767"), hover_color=("#2a3a34", "#3a4854"),
-            text_color=("#98a3b3", "#e8edeb"), command=self._add_output_row,
-        ).pack(padx=12, pady=(4, 12))
-
-        # ── Tools card ──────────────────────────────────────────
-        tools_card = ctk.CTkFrame(self.scroll, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
-        tools_card.pack(fill="x", padx=8, pady=4)
-        self._section_header(tools_card, "TOOLS").pack(fill="x", padx=12, pady=(12, 8))
-
+        # ── Capabilities ───────────────────────────────────
+        cap_card = QFrame()
+        cap_card.setProperty("class", "Card")
+        cap_layout = QVBoxLayout(cap_card)
+        cap_layout.addWidget(self._section_header("CAPABILITIES & TOOLS"))
+        
+        self.tool_container = QVBoxLayout()
         registry = ToolRegistry()
-        for key in registry.list_tool_names():
-            info = registry.get_tool_info(key)
-            var = ctk.BooleanVar()
-            cb = ctk.CTkCheckBox(
-                tools_card,
-                text=f"{info.name} — {info.description}",
-                variable=var,
-                font=ctk.CTkFont(family="Segoe UI", size=12),
-                text_color=("#121715", "#e8edeb"),
-                fg_color="#384c46",
-                hover_color="#2a3a34",
-                border_color=("#121715", "#b3c7c1"),
-            )
-            cb.pack(anchor="w", padx=16, pady=3)
-            self.tool_vars[key] = var
+        for tool_name, tool_info in registry._tools.items():
+            cb = QCheckBox(f"{tool_name} — {tool_info.description[:60]}...")
+            self.tool_vars[tool_name] = cb
+            self.tool_container.addWidget(cb)
+        cap_layout.addLayout(self.tool_container)
+        
+        self.wrapper_layout.addWidget(cap_card)
 
-        # Spacer
-        ctk.CTkFrame(tools_card, height=8, fg_color="transparent").pack()
+        # ── Actions ────────────────────────────────────────
+        action_frame = QFrame()
+        action_layout = QHBoxLayout(action_frame)
+        action_layout.setContentsMargins(0, 16, 0, 16)
+        
+        save_btn = QPushButton("💾  Save Agent")
+        save_btn.clicked.connect(self._save_agent)
+        action_layout.addWidget(save_btn)
+        
+        save_run_btn = QPushButton("🚀  Save & Run")
+        save_run_btn.clicked.connect(self._save_and_run_agent)
+        action_layout.addWidget(save_run_btn)
+        
+        self.wrapper_layout.addWidget(action_frame)
+        self.wrapper_layout.addStretch()
 
-        # ── Conversational toggle ───────────────────────────────
-        conv_frame = ctk.CTkFrame(self.scroll, fg_color="transparent")
-        conv_frame.pack(fill="x", padx=12, pady=8)
+        # Add initial row
+        self._add_input_row()
 
-        self.conversational_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(
-            conv_frame,
-            text="Enable follow-up conversation",
-            variable=self.conversational_var,
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#121715", "#e8edeb"),
-            fg_color="#384c46", hover_color="#2a3a34",
-            border_color=("#121715", "#b3c7c1"),
-        ).pack(anchor="w")
+    def _create_row_frame(self):
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        return row, layout
 
-        # ── Action buttons ──────────────────────────────────────
-        btn_frame = ctk.CTkFrame(self.scroll, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=12, pady=(8, 20))
-
-        ctk.CTkButton(
-            btn_frame, text="Preview JSON", width=130, height=36, corner_radius=8,
-            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            fg_color=("#384c46", "#070909"), hover_color=("#2a3a34", "#3a4854"),
-            text_color=("#f6f8f8", "#e8edeb"), command=self._preview_definition,
-        ).pack(side="left", padx=(0, 8))
-
-        ctk.CTkButton(
-            btn_frame, text="Save Agent", width=140, height=36, corner_radius=8,
-            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            fg_color=("#384c46", "#070909"), hover_color=("#2a3a34", "#3a4854"),
-            text_color=("#f6f8f8", "#e8edeb"), command=self._save_agent,
-        ).pack(side="left", padx=(0, 8))
-
-        ctk.CTkButton(
-            btn_frame, text="Save & Run", width=140, height=36, corner_radius=8,
-            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            fg_color="#384c46", hover_color="#2a3a34",
-            text_color="#ffffff", command=self._save_and_run,
-        ).pack(side="left")
-
-    # ── Dynamic rows ─────────────────────────────────────────────
     def _add_input_row(self):
-        row = ctk.CTkFrame(self.inputs_container, fg_color="transparent")
-        row.pack(fill="x", pady=3)
-
-        name_entry = ctk.CTkEntry(
-            row, width=130, height=28, corner_radius=6, placeholder_text="name",
-            fg_color=("#98a3b3", "#4c5767"), border_color=("#121715", "#b3c7c1"),
-            text_color=("#121715", "#e8edeb"), font=ctk.CTkFont(size=11),
-        )
-        name_entry.pack(side="left", padx=(0, 4))
-
-        type_combo = ctk.CTkComboBox(
-            row, values=["json", "text", "image", "number"], width=90, height=28,
-            corner_radius=6, state="readonly",
-            fg_color=("#98a3b3", "#4c5767"), border_color=("#121715", "#b3c7c1"),
-            button_color=("#121715", "#4c5767"), button_hover_color=("#2a3a34", "#1a2428"),
-            text_color=("#121715", "#e8edeb"), font=ctk.CTkFont(size=11),
-            dropdown_fg_color=("#f6f8f8", "#4c5767"),
-        )
-        type_combo.set("json")
-        type_combo.pack(side="left", padx=(0, 4))
-
-        desc_entry = ctk.CTkEntry(
-            row, height=28, corner_radius=6, placeholder_text="Description…",
-            fg_color=("#98a3b3", "#4c5767"), border_color=("#121715", "#b3c7c1"),
-            text_color=("#121715", "#e8edeb"), font=ctk.CTkFont(size=11),
-        )
-        desc_entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
-
-        row_data = {"frame": row, "name": name_entry, "type": type_combo, "desc": desc_entry}
-
-        remove_btn = ctk.CTkButton(
-            row, text="✕", width=28, height=28, corner_radius=6,
-            font=ctk.CTkFont(size=12),
-            fg_color=("#121715", "#3a2020"), hover_color=("#2a3a34", "#5a3030"),
-            text_color=("#121715", "#ff6b6b"),
-            command=lambda rd=row_data: self._remove_input_row(rd),
-        )
-        remove_btn.pack(side="right")
-
-        self.input_rows.append(row_data)
-
-    def _remove_input_row(self, row_data: dict):
-        row_data["frame"].destroy()
-        if row_data in self.input_rows:
-            self.input_rows.remove(row_data)
+        row, layout = self._create_row_frame()
+        
+        name_entry = QLineEdit()
+        name_entry.setPlaceholderText("Name (e.g. floor_plan)")
+        layout.addWidget(name_entry, 2)
+        
+        type_combo = QComboBox()
+        type_combo.addItems(["string", "number", "boolean", "image", "json"])
+        layout.addWidget(type_combo, 1)
+        
+        desc_entry = QLineEdit()
+        desc_entry.setPlaceholderText("Description")
+        layout.addWidget(desc_entry, 3)
+        
+        req_cb = QCheckBox("Req")
+        req_cb.setChecked(True)
+        layout.addWidget(req_cb)
+        
+        del_btn = QPushButton("X")
+        del_btn.setFixedWidth(30)
+        del_btn.clicked.connect(lambda: self._remove_row(row, self.input_rows, self.inputs_container))
+        layout.addWidget(del_btn)
+        
+        self.inputs_container.addWidget(row)
+        self.input_rows.append({
+            "frame": row,
+            "name": name_entry,
+            "type": type_combo,
+            "desc": desc_entry,
+            "req": req_cb
+        })
 
     def _add_constraint_row(self):
-        row = ctk.CTkFrame(self.constraints_container, fg_color="transparent")
-        row.pack(fill="x", pady=3)
-
-        entry = ctk.CTkEntry(
-            row, height=28, corner_radius=6, placeholder_text="Enter a constraint…",
-            fg_color=("#98a3b3", "#4c5767"), border_color=("#121715", "#b3c7c1"),
-            text_color=("#121715", "#e8edeb"), font=ctk.CTkFont(size=11),
-        )
-        entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
-
-        row_data = {"frame": row, "entry": entry}
-
-        remove_btn = ctk.CTkButton(
-            row, text="✕", width=28, height=28, corner_radius=6,
-            font=ctk.CTkFont(size=12),
-            fg_color=("#121715", "#3a2020"), hover_color=("#2a3a34", "#5a3030"),
-            text_color=("#121715", "#ff6b6b"),
-            command=lambda rd=row_data: self._remove_constraint_row(rd),
-        )
-        remove_btn.pack(side="right")
-
-        self.constraint_rows.append(row_data)
-
-    def _remove_constraint_row(self, row_data: dict):
-        row_data["frame"].destroy()
-        if row_data in self.constraint_rows:
-            self.constraint_rows.remove(row_data)
+        row, layout = self._create_row_frame()
+        
+        entry = QLineEdit()
+        entry.setPlaceholderText("e.g. 'Must use metric units' or 'Never guess missing dimensions'")
+        layout.addWidget(entry, 1)
+        
+        del_btn = QPushButton("X")
+        del_btn.setFixedWidth(30)
+        del_btn.clicked.connect(lambda: self._remove_row(row, self.constraint_rows, self.cons_container))
+        layout.addWidget(del_btn)
+        
+        self.cons_container.addWidget(row)
+        self.constraint_rows.append({"frame": row, "entry": entry})
 
     def _add_output_row(self):
-        row = ctk.CTkFrame(self.outputs_container, fg_color="transparent")
-        row.pack(fill="x", pady=3)
+        row, layout = self._create_row_frame()
+        
+        name_entry = QLineEdit()
+        name_entry.setPlaceholderText("Field Name (e.g. violations)")
+        layout.addWidget(name_entry, 2)
+        
+        type_combo = QComboBox()
+        type_combo.addItems(["string", "number", "boolean", "array", "object"])
+        layout.addWidget(type_combo, 1)
+        
+        desc_entry = QLineEdit()
+        desc_entry.setPlaceholderText("Description")
+        layout.addWidget(desc_entry, 3)
+        
+        del_btn = QPushButton("X")
+        del_btn.setFixedWidth(30)
+        del_btn.clicked.connect(lambda: self._remove_row(row, self.output_rows, self.outs_container))
+        layout.addWidget(del_btn)
+        
+        self.outs_container.addWidget(row)
+        self.output_rows.append({
+            "frame": row,
+            "name": name_entry,
+            "type": type_combo,
+            "desc": desc_entry
+        })
 
-        name_entry = ctk.CTkEntry(
-            row, width=130, height=28, corner_radius=6, placeholder_text="name",
-            fg_color=("#98a3b3", "#4c5767"), border_color=("#121715", "#b3c7c1"),
-            text_color=("#121715", "#e8edeb"), font=ctk.CTkFont(size=11),
-        )
-        name_entry.pack(side="left", padx=(0, 4))
-
-        type_combo = ctk.CTkComboBox(
-            row, values=["json", "text", "number"], width=90, height=28,
-            corner_radius=6, state="readonly",
-            fg_color=("#98a3b3", "#4c5767"), border_color=("#121715", "#b3c7c1"),
-            button_color=("#121715", "#4c5767"), button_hover_color=("#2a3a34", "#1a2428"),
-            text_color=("#121715", "#e8edeb"), font=ctk.CTkFont(size=11),
-            dropdown_fg_color=("#f6f8f8", "#4c5767"),
-        )
-        type_combo.set("json")
-        type_combo.pack(side="left", padx=(0, 4))
-
-        desc_entry = ctk.CTkEntry(
-            row, height=28, corner_radius=6, placeholder_text="Description…",
-            fg_color=("#98a3b3", "#4c5767"), border_color=("#121715", "#b3c7c1"),
-            text_color=("#121715", "#e8edeb"), font=ctk.CTkFont(size=11),
-        )
-        desc_entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
-
-        row_data = {"frame": row, "name": name_entry, "type": type_combo, "desc": desc_entry}
-
-        remove_btn = ctk.CTkButton(
-            row, text="✕", width=28, height=28, corner_radius=6,
-            font=ctk.CTkFont(size=12),
-            fg_color=("#121715", "#3a2020"), hover_color=("#2a3a34", "#5a3030"),
-            text_color=("#121715", "#ff6b6b"),
-            command=lambda rd=row_data: self._remove_output_row(rd),
-        )
-        remove_btn.pack(side="right")
-
-        self.output_rows.append(row_data)
-
-    def _remove_output_row(self, row_data: dict):
-        row_data["frame"].destroy()
-        if row_data in self.output_rows:
-            self.output_rows.remove(row_data)
-
-    # ── Validation ───────────────────────────────────────────────
-    _VALID_INPUT_TYPES = {"json", "text", "image", "number"}
-    _VALID_OUTPUT_TYPES = {"json", "text", "number"}
-
-    def _validate_form(self) -> Optional[str]:
-        """Validate the builder form. Returns an error message or None if valid."""
-        name = self.name_entry.get().strip()
-        if not name:
-            return "Agent name is required."
-
-        goal = self.goal_text.get("1.0", "end").strip()
-        if not goal:
-            return "Agent goal is required."
-
-        # Validate inputs
-        input_names = set()
-        for i, r in enumerate(self.input_rows):
-            iname = r["name"].get().strip()
-            if not iname:
-                return f"Input #{i+1} is missing a name."
-            if iname in input_names:
-                return f"Duplicate input name: '{iname}'."
-            input_names.add(iname)
-            itype = r["type"].get()
-            if itype not in self._VALID_INPUT_TYPES:
-                return f"Input #{i+1} has invalid type '{itype}'."
-
-        # Validate outputs
-        output_names = set()
-        for i, r in enumerate(self.output_rows):
-            oname = r["name"].get().strip()
-            if not oname:
-                return f"Output #{i+1} is missing a name."
-            if oname in output_names:
-                return f"Duplicate output name: '{oname}'."
-            output_names.add(oname)
-            otype = r["type"].get()
-            if otype not in self._VALID_OUTPUT_TYPES:
-                return f"Output #{i+1} has invalid type '{otype}'."
-
-        # Check for ID collision with existing agents
-        import os
-        agent_id = name.lower().replace(" ", "_")
-        existing_path = os.path.join(config.USER_AGENTS_DIR, f"{agent_id}.json")
-        if os.path.isfile(existing_path):
-            return f"An agent named '{name}' already exists. Choose a different name."
-
-        return None
+    def _remove_row(self, row_widget, row_list, container_layout):
+        container_layout.removeWidget(row_widget)
+        row_widget.deleteLater()
+        for r in row_list:
+            if r["frame"] == row_widget:
+                row_list.remove(r)
+                break
 
     def _show_error(self, message: str):
-        """Display a validation error message via messagebox."""
-        from tkinter import messagebox
-        messagebox.showwarning("Validation Error", message)
+        self.error_label.setText(f"⚠ {message}")
+        self.error_label.show()
+        # Scroll to top
+        self.scroll_area.verticalScrollBar().setValue(0)
 
     def _hide_error(self):
-        """No-op — messagebox is self-dismissing."""
-        pass
+        self.error_label.hide()
 
-    # ── Build definition ─────────────────────────────────────────
-    def _build_definition(self) -> AgentDefinition:
-        name = self.name_entry.get().strip()
-        agent_id = name.lower().replace(" ", "_")
-        category = self.category_entry.get().strip() or "Custom"
-        goal = self.goal_text.get("1.0", "end").strip()
-
-        inputs = []
+    def _gather_data(self) -> dict:
+        data = {
+            "id": self.name_entry.text().strip().lower().replace(" ", "_"),
+            "name": self.name_entry.text().strip(),
+            "category": self.category_entry.text().strip(),
+            "goal": self.desc_entry.toPlainText().strip(),
+            "conversation_guidelines": self.system_prompt_entry.toPlainText().strip(),
+            "inputs": [],
+            "constraints": [],
+            "outputs": [],
+            "tools": []
+        }
+        
         for r in self.input_rows:
-            inputs.append(AgentInput(
-                name=r["name"].get().strip(),
-                type=r["type"].get(),
-                description=r["desc"].get().strip(),
-            ))
-
-        constraints = [
-            r["entry"].get().strip()
-            for r in self.constraint_rows
-            if r["entry"].get().strip()
-        ]
-
-        outputs = []
+            name = r["name"].text().strip()
+            if name:
+                data["inputs"].append({
+                    "name": name,
+                    "type": r["type"].currentText(),
+                    "description": r["desc"].text().strip(),
+                    "required": r["req"].isChecked()
+                })
+                
+        for r in self.constraint_rows:
+            val = r["entry"].text().strip()
+            if val:
+                data["constraints"].append(val)
+                
         for r in self.output_rows:
-            outputs.append(AgentOutput(
-                name=r["name"].get().strip(),
-                type=r["type"].get(),
-                description=r["desc"].get().strip(),
-            ))
+            name = r["name"].text().strip()
+            if name:
+                data["outputs"].append({
+                    "name": name,
+                    "type": r["type"].currentText(),
+                    "description": r["desc"].text().strip()
+                })
+                
+        for tool_name, cb in self.tool_vars.items():
+            if cb.isChecked():
+                data["tools"].append(tool_name)
+                
+        return data
 
-        tools = [k for k, v in self.tool_vars.items() if v.get()]
-
-        return AgentDefinition(
-            id=agent_id,
-            name=name,
-            category=category,
-            goal=goal,
-            inputs=inputs,
-            constraints=constraints,
-            outputs=outputs,
-            tools=tools,
-            conversational=self.conversational_var.get(),
-        )
+    def _validate(self, data: dict) -> bool:
+        if not data["name"]:
+            self._show_error("Agent name is required.")
+            return False
+        if not data["goal"]:
+            self._show_error("Description/Goal is required.")
+            return False
+        if not data["conversation_guidelines"]:
+            self._show_error("System prompt is required.")
+            return False
+        if not data["inputs"]:
+            self._show_error("At least one input is required.")
+            return False
+            
+        self._hide_error()
+        return True
 
     def _save_agent(self) -> Optional[AgentDefinition]:
-        """Validate and save the agent definition. Returns the definition or None on error."""
-        import os
-
-        # Validate first
-        error = self._validate_form()
-        if error:
-            self._show_error(error)
+        data = self._gather_data()
+        if not self._validate(data):
+            return None
+            
+        filename = data["name"].lower().replace(" ", "_") + ".json"
+        filepath = os.path.join(config.USER_AGENTS_DIR, filename)
+        
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+            
+            agent_def = AgentDefinition.load_from_json(filepath)
+            
+            if self.on_agent_saved:
+                self.on_agent_saved()
+                
+            QMessageBox.information(self, "Success", f"Agent '{agent_def.name}' saved successfully!")
+            return agent_def
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save agent:\n{e}")
             return None
 
-        self._hide_error()
-        definition = self._build_definition()
-        filepath = os.path.join(config.USER_AGENTS_DIR, f"{definition.id}.json")
-        definition.save_to_json(filepath)
-
-        # Notify the app that a new agent was saved
-        if self.on_agent_saved:
-            self.on_agent_saved()
-
-        return definition
-
-    def _save_and_run(self):
-        """Save the agent and immediately switch to the Runner tab with it loaded."""
-        definition = self._save_agent()
-        if definition is None:
-            return  # Validation failed
-
-        if self.on_save_and_run:
-            self.on_save_and_run(definition)
+    def _save_and_run_agent(self):
+        agent_def = self._save_agent()
+        if agent_def and self.on_save_and_run:
+            self.on_save_and_run(agent_def)
 
     def reset_form(self):
-        self.name_entry.delete(0, "end")
-        self.category_entry.delete(0, "end")
-        self.category_entry.insert(0, "Custom")
-        self.goal_text.delete("1.0", "end")
-
-        for widget in self.inputs_container.winfo_children():
-            widget.destroy()
-        self.input_rows.clear()
-
-        for widget in self.constraints_container.winfo_children():
-            widget.destroy()
-        self.constraint_rows.clear()
-
-        for widget in self.outputs_container.winfo_children():
-            widget.destroy()
-        self.output_rows.clear()
-
-        for var in self.tool_vars.values():
-            var.set(False)
-
-        self.conversational_var.set(True)
-
         self._hide_error()
-
-    def _preview_definition(self):
-        """Show assembled agent definition JSON in an overlay before saving."""
-        definition = self._build_definition()
-        root = self.parent.winfo_toplevel()
-
-        overlay = ctk.CTkFrame(root, fg_color=("#98a3b3", "#4c5767"), corner_radius=0)
-        overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
-
-        card = ctk.CTkFrame(overlay, fg_color=("#98a3b3", "#4c5767"), corner_radius=14, width=580, height=520)
-        card.place(relx=0.5, rely=0.5, anchor="center")
-        card.pack_propagate(False)
-
-        header = ctk.CTkFrame(card, fg_color="transparent")
-        header.pack(fill="x", padx=20, pady=(16, 8))
-
-        ctk.CTkLabel(
-            header, text="Preview: Agent Definition",
-            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
-            text_color=("#121715", "#e8edeb"),
-        ).pack(side="left")
-
-        ctk.CTkButton(
-            header, text="✕", width=32, height=32, corner_radius=8,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color=("#121715", "#4c5767"), hover_color=("#2a3a34", "#1a2428"),
-            text_color=("#121715", "#ff6b6b"), command=overlay.destroy,
-        ).pack(side="right")
-
-        textbox = ctk.CTkTextbox(
-            card, corner_radius=8,
-            fg_color=("#98a3b3", "#4c5767"),
-            text_color=("#121715", "#e8edeb"),
-            font=ctk.CTkFont(family="Consolas", size=11),
-            wrap="word",
-        )
-        textbox.pack(fill="both", expand=True, padx=20, pady=(0, 20))
-        textbox.insert("1.0", json.dumps(definition.to_dict(), indent=2))
-        textbox.configure(state="disabled")
-
-        overlay.bind("<Button-1>", lambda e: overlay.destroy() if e.widget == overlay else None)
-        overlay.lift()
+        self.name_entry.clear()
+        self.category_entry.setText("Custom")
+        self.desc_entry.clear()
+        self.system_prompt_entry.clear()
+        
+        # Clear rows
+        for r in list(self.input_rows):
+            self._remove_row(r["frame"], self.input_rows, self.inputs_container)
+        for r in list(self.constraint_rows):
+            self._remove_row(r["frame"], self.constraint_rows, self.cons_container)
+        for r in list(self.output_rows):
+            self._remove_row(r["frame"], self.output_rows, self.outs_container)
+            
+        for cb in self.tool_vars.values():
+            cb.setChecked(False)
+            
+        self._add_input_row()
+        self.scroll_area.verticalScrollBar().setValue(0)

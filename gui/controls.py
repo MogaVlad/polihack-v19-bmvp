@@ -1,97 +1,61 @@
-import customtkinter as ctk
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QCheckBox, QWidget, QApplication
+from PyQt6.QtCore import Qt
+from gui.theme import get_stylesheet
 
-
-class StatusBar:
-    def __init__(self, parent):
-        self.parent = parent
-
-        self.frame = ctk.CTkFrame(
-            parent,
-            height=36,
-            corner_radius=0,
-            fg_color=("#98a3b3", "#070909"),
-            border_width=0,
-        )
-
-        inner = ctk.CTkFrame(self.frame, fg_color="transparent")
-        inner.pack(fill="x", padx=12, pady=4)
-
-        self.status_label = ctk.CTkLabel(
-            inner,
-            text="● Ready",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#b3c7c1", "#b3c7c1"),
-        )
-        self.status_label.pack(side="left")
-
-        sep1 = ctk.CTkLabel(inner, text="│", text_color=("#121715", "#b3c7c1"), font=ctk.CTkFont(size=12))
-        sep1.pack(side="left", padx=12)
-
-        self.agents_label = ctk.CTkLabel(
-            inner,
-            text="Agents: 0 loaded",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#121715", "#b3c7c1"),
-        )
-        self.agents_label.pack(side="left")
-
-        sep2 = ctk.CTkLabel(inner, text="│", text_color=("#121715", "#b3c7c1"), font=ctk.CTkFont(size=12))
-        sep2.pack(side="left", padx=12)
-
-        self.tools_label = ctk.CTkLabel(
-            inner,
-            text="Tools: 0 available",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#121715", "#b3c7c1"),
-        )
-        self.tools_label.pack(side="left")
-
-        # Dark / Light switch
-        right_frame = ctk.CTkFrame(inner, fg_color="transparent")
-        right_frame.pack(side="right")
-
-        self.mode_label = ctk.CTkLabel(
-            right_frame,
-            text="☀",
-            font=ctk.CTkFont(size=14),
-            text_color=("#121715", "#b3c7c1"),
-        )
-        self.mode_label.pack(side="left", padx=(0, 6))
-
-        self.theme_switch = ctk.CTkSwitch(
-            right_frame,
-            text="",
-            width=42,
-            height=22,
-            switch_width=38,
-            switch_height=18,
-            command=self._toggle_theme,
-            onvalue=1,
-            offvalue=0,
-            progress_color="#384c46",
-        )
-        self.theme_switch.pack(side="left")
-        self.theme_switch.select()  # Start with dark mode ON
-
-        self.moon_label = ctk.CTkLabel(
-            right_frame,
-            text="🌙",
-            font=ctk.CTkFont(size=14),
-            text_color=("#121715", "#b3c7c1"),
-        )
-        self.moon_label.pack(side="left", padx=(6, 0))
+class StatusBar(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("StatusBarFrame")
+        self.setFixedHeight(36)
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 4, 12, 4)
+        
+        self.status_label = QLabel("● Ready")
+        self.status_label.setStyleSheet("color: #b3c7c1;")
+        layout.addWidget(self.status_label)
+        
+        sep1 = QLabel("│")
+        layout.addWidget(sep1)
+        
+        self.agents_label = QLabel("Agents: 0 loaded")
+        layout.addWidget(self.agents_label)
+        
+        sep2 = QLabel("│")
+        layout.addWidget(sep2)
+        
+        self.tools_label = QLabel("Tools: 0 available")
+        layout.addWidget(self.tools_label)
+        
+        layout.addStretch()
+        
+        self.mode_label = QLabel("☀")
+        layout.addWidget(self.mode_label)
+        
+        self.theme_switch = QCheckBox()
+        self.theme_switch.setChecked(True)
+        self.theme_switch.stateChanged.connect(self._toggle_theme)
+        layout.addWidget(self.theme_switch)
+        
+        self.moon_label = QLabel("🌙")
+        layout.addWidget(self.moon_label)
 
     def _toggle_theme(self):
-        if self.theme_switch.get() == 1:
-            ctk.set_appearance_mode("dark")
-        else:
-            ctk.set_appearance_mode("light")
+        is_dark = self.theme_switch.isChecked()
+        qss = get_stylesheet(dark_mode=is_dark)
+        if QApplication.instance():
+            QApplication.instance().setStyleSheet(qss)
 
     def set_status(self, text: str, color: str = "#b3c7c1"):
-        self.status_label.configure(text=f"● {text}", text_color=(color, color))
+        self.status_label.setText(f"● {text}")
+        self.status_label.setStyleSheet(f"color: {color};")
 
     def set_agent_count(self, count: int):
-        self.agents_label.configure(text=f"Agents: {count} loaded")
+        self.agents_label.setText(f"Agents: {count} loaded")
 
     def set_tool_count(self, count: int):
-        self.tools_label.configure(text=f"Tools: {count} available")
+        self.tools_label.setText(f"Tools: {count} available")
+
+    @property
+    def frame(self):
+        return self

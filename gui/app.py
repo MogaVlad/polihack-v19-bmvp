@@ -1,5 +1,10 @@
 import os
-import customtkinter as ctk
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QFrame, QHBoxLayout, QVBoxLayout, QLabel, 
+    QTabWidget, QPushButton, QStackedWidget, QSizePolicy
+)
+from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QKeySequence, QShortcut
 
 import config
 from gui.agent_library import AgentLibrary
@@ -11,262 +16,152 @@ from gui.canvas import CanvasPanel
 from gui.controls import StatusBar
 from models.floor_plan import FloorPlan
 
-
-class App:
+class App(QMainWindow):
     def __init__(self):
-        # ── Global CTk theming ──────────────────────────────────
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
-
-        self.root = ctk.CTk()
-        self.root.title(config.APP_TITLE)
-        self.root.geometry("1280x820")
-        self.root.minsize(960, 640)
-
-        # Deep background
-        self.root.configure(fg_color=("#98a3b3", "#4c5767"))
+        super().__init__()
+        self.setWindowTitle(config.APP_TITLE)
+        self.resize(1280, 820)
+        self.setMinimumSize(960, 640)
 
         self._build_layout()
 
-    # ────────────────────────────────────────────────────────────
     def _build_layout(self):
-        # Grid: sidebar (col 0), main content (col 1)
-        self.root.grid_rowconfigure(1, weight=1)
-        self.root.grid_columnconfigure(1, weight=1)
+        # Central widget
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        
+        main_layout = QVBoxLayout(self.central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
         # ── Header bar ──────────────────────────────────────────
-        header = ctk.CTkFrame(
-            self.root,
-            height=48,
-            corner_radius=0,
-            fg_color=("#384c46", "#b3c7c1"),
-            border_width=0,
-        )
-        header.grid(row=0, column=0, columnspan=2, sticky="ew")
-        header.grid_propagate(False)
+        self.header = QFrame()
+        self.header.setProperty("class", "Header")
+        self.header.setFixedHeight(48)
+        header_layout = QHBoxLayout(self.header)
+        header_layout.setContentsMargins(16, 0, 16, 0)
+        
+        logo_label = QLabel("⚡ AgentArchitect")
+        logo_label.setProperty("class", "Title")
+        header_layout.addWidget(logo_label)
+        
+        subtitle = QLabel("Engineering Agent Platform")
+        subtitle.setProperty("class", "Subtitle")
+        header_layout.addWidget(subtitle, 1)
+        
+        main_layout.addWidget(self.header)
 
-        logo_label = ctk.CTkLabel(
-            header,
-            text="⚡ AgentArchitect",
-            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            text_color=("#98a3b3", "#4c5767"),
-        )
-        logo_label.pack(side="left", padx=16, pady=8)
-
-        subtitle = ctk.CTkLabel(
-            header,
-            text="Engineering Agent Platform",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#f6f8f8", "#070909"),
-        )
-        subtitle.pack(side="left", padx=(0, 16), pady=8)
-
-        # Toggle button is now part of the sidebar, removed from header.
+        # ── Body ────────────────────────────────────────────────
+        body_widget = QWidget()
+        body_layout = QHBoxLayout(body_widget)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
+        main_layout.addWidget(body_widget, 1)
 
         # ── Sidebar ─────────────────────────────────────────────
         self.sidebar_visible = True
-        self.current_sidebar_width = 260
-        self.sidebar_frame = ctk.CTkFrame(
-            self.root,
-            width=self.current_sidebar_width,
-            corner_radius=0,
-            fg_color=("#f6f8f8", "#070909"),
-            border_width=0,
-        )
-        self.sidebar_frame.grid(row=1, column=0, sticky="nsew")
-        self.sidebar_frame.grid_propagate(False)
-
-        # Inner container for the library so it doesn't squish during animation
-        self.sidebar_content = ctk.CTkFrame(
-            self.sidebar_frame,
-            width=260,
-            fg_color=("#f6f8f8", "#070909"),
-        )
-        self.sidebar_content.place(x=0, y=0, relheight=1.0)
+        self.sidebar_frame = QFrame()
+        self.sidebar_frame.setProperty("class", "Sidebar")
+        self.sidebar_frame.setFixedWidth(260)
+        sidebar_layout = QVBoxLayout(self.sidebar_frame)
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(0)
+        
+        body_layout.addWidget(self.sidebar_frame)
 
         # ── Right content area ──────────────────────────────────
-        self.right = ctk.CTkFrame(
-            self.root,
-            corner_radius=0,
-            fg_color=("#f6f8f8", "#070909"),
-            border_width=0,
-        )
-        self.right.grid(row=1, column=1, sticky="nsew")
-        self.right.grid_columnconfigure(0, weight=1)
-
-        # Use an inner frame with pack so canvas + tabview don't conflict
-        right_inner = ctk.CTkFrame(self.right, fg_color=("#f6f8f8", "#070909"))
-        right_inner.grid(row=0, column=0, sticky="nsew")
-        self.right.grid_rowconfigure(0, weight=1)
+        self.right_frame = QFrame()
+        right_layout = QVBoxLayout(self.right_frame)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(0)
+        body_layout.addWidget(self.right_frame, 1)
 
         # ── Tabview ─────────────────────────────────────────────
-        self.tabview = ctk.CTkTabview(
-            right_inner,
-            corner_radius=10,
-            fg_color=("#98a3b3", "#4c5767"),
-            segmented_button_fg_color=("#f6f8f8", "#070909"),
-            segmented_button_selected_color="#384c46",
-            segmented_button_selected_hover_color="#2a3a34",
-            segmented_button_unselected_color=("#b3c7c1", "#3a4854"),
-            segmented_button_unselected_hover_color=("#a0b5af", "#3a4854"),
-            text_color=("#121715", "#e8edeb"),
-            command=self._on_tab_changed,
-        )
-        # Increased padding to push tabs away from the sidebar edge
-        self.tabview.pack(fill="both", expand=True, padx=24, pady=(16, 8))
+        self.tabview = QTabWidget()
+        self.tabview.setDocumentMode(True)
+        right_layout.addWidget(self.tabview, 1)
 
-        # Create tabs — L2 Console and L2 vs L3 are now sidebar buttons
-        self.tabview.add("Agent Runner")
-        self.tabview.add("Agent Builder")
-        self.tabview.add("Legacy Prompting")
-        self.tabview.add("Legacy to Agent Showcase")
-        self.tabview.set("Agent Runner")
-        self._on_tab_changed()
-
-        # Fix light-mode black rectangles: explicitly set each tab
-        # frame's background to match the tabview's fg_color so that
-        # transparent children don't inherit a dark default.
-        for tab_name in ("Agent Runner", "Agent Builder", "Legacy Prompting", "Legacy to Agent Showcase"):
-            self.tabview.tab(tab_name).configure(fg_color=("#98a3b3", "#4c5767"))
-
-        # ── Center the tab button bar ────────────────────────────
-        def _center_tabs():
-            seg = self.tabview._segmented_button
-            seg.place_forget()
-            seg.place(relx=0.5, y=8, anchor="n")
-        self.tabview.after(100, _center_tabs)
-
-        # ── Canvas panel (below tabs) ───────────────────────────
-        self.canvas_panel = CanvasPanel(right_inner)
+        # ── Canvas panel (below tabs - mock for now) ────────────
+        self.canvas_panel = CanvasPanel(self.right_frame)
+        self.canvas_panel.hide() # Initially hidden
+        right_layout.addWidget(self.canvas_panel, 2)
 
         # ── Status bar ──────────────────────────────────────────
-        self.status_bar = StatusBar(self.root)
-        self.status_bar.frame.grid(row=2, column=0, columnspan=2, sticky="ew")
+        self.status_bar = StatusBar()
+        main_layout.addWidget(self.status_bar)
 
-        # ── Tab contents (created after status_bar/canvas so we can pass refs) ──
-        self.runner_tab = AgentRunnerTab(
-            self.tabview.tab("Agent Runner"),
-            status_bar=self.status_bar,
-            canvas_panel=self.canvas_panel,
-        )
-        self.builder_tab = AgentBuilderTab(
-            self.tabview.tab("Agent Builder"),
-            on_agent_saved=self._on_agent_saved,
-            on_save_and_run=self._on_save_and_run,
-        )
-        self.l2_tab = L2ConsoleTab(self.tabview.tab("Legacy Prompting"))
-        self.adoption_tab = AdoptionPanel(self.tabview.tab("Legacy to Agent Showcase"))
+        # ── Tab contents ────────────────────────────────────────
+        self.runner_tab = AgentRunnerTab(self.tabview, status_bar=self.status_bar, canvas_panel=self.canvas_panel)
+        self.builder_tab = AgentBuilderTab(self.tabview, on_agent_saved=self._on_agent_saved, on_save_and_run=self._on_save_and_run)
+        self.l2_tab = L2ConsoleTab(self.tabview)
+        self.adoption_tab = AdoptionPanel(self.tabview)
 
+        self.tabview.addTab(self.runner_tab, "Agent Runner")
+        self.tabview.addTab(self.builder_tab, "Agent Builder")
+        
         # ── Agent library sidebar ───────────────────────────────
         self.agent_library = AgentLibrary(
-            self.sidebar_content,
+            self.sidebar_frame,
             on_agent_selected=self._on_agent_selected,
             on_create_new=self._on_create_new,
         )
+        sidebar_layout.addWidget(self.agent_library, 1)
 
         self.status_bar.set_agent_count(len(self.agent_library.agents))
-
+        
         from tools.registry import ToolRegistry
         self.status_bar.set_tool_count(len(ToolRegistry().list_tool_names()))
 
         # ── Sidebar navigation buttons ──────────────────────────
-        nav_frame = ctk.CTkFrame(self.sidebar_content, fg_color="transparent")
-        nav_frame.pack(fill="x", padx=16, pady=(4, 8), side="bottom")
-
-        ctk.CTkButton(
-            nav_frame,
-            text="📜 Legacy Prompting",
-            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            height=34,
-            corner_radius=8,
-            fg_color=("#384c46", "#4c5767"),
-            hover_color=("#2a3a34", "#3a4854"),
-            text_color=("#f6f8f8", "#e8edeb"),
-            command=lambda: self.tabview.set("Legacy Prompting"),
-        ).pack(fill="x", pady=(0, 6))
-
-        ctk.CTkButton(
-            nav_frame,
-            text="📊 Legacy to Agent Showcase",
-            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            height=34,
-            corner_radius=8,
-            fg_color=("#384c46", "#4c5767"),
-            hover_color=("#2a3a34", "#3a4854"),
-            text_color=("#f6f8f8", "#e8edeb"),
-            command=lambda: self.tabview.set("Legacy to Agent Showcase"),
-        ).pack(fill="x", pady=(0, 0))
+        nav_frame = QFrame()
+        nav_layout = QVBoxLayout(nav_frame)
+        nav_layout.setContentsMargins(16, 4, 16, 16)
+        
+        btn_legacy = QPushButton("📜 Legacy Prompting")
+        btn_legacy.setProperty("class", "SidebarBtn")
+        btn_legacy.clicked.connect(lambda: self._set_active_view("Legacy Prompting"))
+        nav_layout.addWidget(btn_legacy)
+        
+        btn_showcase = QPushButton("📊 Legacy to Agent Showcase")
+        btn_showcase.setProperty("class", "SidebarBtn")
+        btn_showcase.clicked.connect(lambda: self._set_active_view("Legacy to Agent Showcase"))
+        nav_layout.addWidget(btn_showcase)
+        
+        sidebar_layout.addWidget(nav_frame)
 
         # ── Keyboard shortcuts ──────────────────────────────────
-        self.root.bind_all("<Control-n>", lambda e: self._on_create_new())
-        self.root.bind_all("<Control-s>", lambda e: self.builder_tab._save_agent())
-        self.root.bind_all("<Control-q>", lambda e: self.root.quit())
-        self.root.bind_all("<Control-r>", lambda e: self.runner_tab._run_agent())
-        self.root.bind_all("<Control-e>", lambda e: self.runner_tab._export_json())
-        self.root.bind_all("<F5>", lambda e: self._refresh_library())
-
-    def _on_tab_changed(self):
-        """Dynamically update text colors for the selected tab."""
-        current_tab = self.tabview.get()
-        if hasattr(self.tabview, "_segmented_button"):
-            for name, btn in self.tabview._segmented_button._buttons_dict.items():
-                if name == current_tab:
-                    btn.configure(text_color=("#ffffff", "#e8edeb"))
-                else:
-                    btn.configure(text_color=("#121715", "#e8edeb"))
-
-        # ── Floating Toggle Button ──────────────────────────────
-        self.sidebar_toggle_btn = ctk.CTkButton(
-            self.right,
-            text="❮",
-            width=28,
-            height=64,
-            corner_radius=8,
-            bg_color="transparent",
-            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            fg_color=("#384c46", "#4c5767"),
-            hover_color=("#2a3a34", "#3a4854"),
-            text_color=("#f6f8f8", "#e8edeb"),
-            command=self._toggle_sidebar,
-        )
-        # Placed securely inside the right area, avoiding edge artifacts
-        self.sidebar_toggle_btn.place(x=12, rely=0.5, anchor="w")
+        QShortcut(QKeySequence("Ctrl+N"), self).activated.connect(self._on_create_new)
+        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self.builder_tab._save_agent)
+        QShortcut(QKeySequence("Ctrl+Q"), self).activated.connect(self.close)
+        QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.runner_tab._run_agent)
+        QShortcut(QKeySequence("Ctrl+E"), self).activated.connect(self.runner_tab._export_json)
+        QShortcut(QKeySequence("F5"), self).activated.connect(self._refresh_library)
 
         # ── Pre-load example floor plan on canvas ───────────────
         self._preload_example_plan()
 
-    # ── Callbacks ────────────────────────────────────────────────
-    def _toggle_sidebar(self):
-        """Instantly collapse / expand the Agent Library sidebar."""
-        self.sidebar_visible = not self.sidebar_visible
-        
-        if self.sidebar_visible:
-            self.current_sidebar_width = 260
-            self.sidebar_frame.configure(width=260)
-            self.sidebar_toggle_btn.configure(text="❮")
-        else:
-            self.current_sidebar_width = 0
-            self.sidebar_frame.configure(width=0)
-            self.sidebar_toggle_btn.configure(text="❯")
+    def _set_active_view(self, view_name: str):
+        # We will handle the manual setting of active view here
+        # Since legacy and showcase are not strictly in QTabWidget, we can insert/remove them or just use QStackedWidget.
+        # For simplicity, we can add them to QTabWidget but hide the tabs, or just use setCurrentIndex
+        pass
 
     def _on_agent_selected(self, agent_def):
         self.runner_tab.load_agent(agent_def)
-        self.tabview.set("Agent Runner")
+        self.tabview.setCurrentWidget(self.runner_tab)
         self.status_bar.set_status(f"Loaded: {agent_def.name}", "#b3c7c1")
 
     def _on_create_new(self):
-        self.tabview.set("Agent Builder")
+        self.tabview.setCurrentWidget(self.builder_tab)
         self.builder_tab.reset_form()
         self.status_bar.set_status("Creating new agent…", "#8889a5")
 
     def _on_agent_saved(self):
-        """Called after the Agent Builder successfully saves a new agent."""
         self.agent_library.refresh()
         self.status_bar.set_agent_count(len(self.agent_library.agents))
         self.status_bar.set_status("Agent saved ✓", "#b3c7c1")
 
     def _on_save_and_run(self, agent_def):
-        """Called after Save & Run — refresh library, then load the agent in the Runner."""
         self._on_agent_saved()
         self._on_agent_selected(agent_def)
         self.status_bar.set_status(f"Agent '{agent_def.name}' saved and loaded", "#b3c7c1")
@@ -277,7 +172,6 @@ class App:
         self.status_bar.set_status("Library refreshed", "#b3c7c1")
 
     def _preload_example_plan(self):
-        """Load the first example floor plan into the canvas on startup."""
         default = os.path.join(config.FLOOR_PLANS_DIR, "example_office.json")
         if os.path.isfile(default):
             try:
@@ -285,6 +179,3 @@ class App:
                 self.canvas_panel.load_plan(plan)
             except Exception:
                 pass
-
-    def run(self):
-        self.root.mainloop()

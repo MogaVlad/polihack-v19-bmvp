@@ -1,4 +1,4 @@
 google-genai
 Pillow
 python-dotenv
-customtkinter
+PyQt6
