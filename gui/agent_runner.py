@@ -16,11 +16,14 @@ from engine.conversation import ConversationManager
 from engine.prompt_builder import PromptBuilder
 
 
-# Keywords that indicate flagged issues in agent responses
 _FLAG_KEYWORDS = re.compile(
     r"\b(violation|warning|exceeded|insufficient|blocked|narrow|missing|"
     r"non-compliant|critical|fail|danger|unsafe|risk|dead.?end)\b",
     re.IGNORECASE,
+)
+
+_LOCATION_PATTERN = re.compile(
+    r"\b((?:Room|Corridor|room|corridor)\s+[A-Za-z]?\d+|[RC]\d+)\b"
 )
 
 
@@ -35,6 +38,7 @@ class AgentRunnerTab:
         self._last_result: Optional[AgentResult] = None
         self._conversation: Optional[ConversationManager] = None
         self._engine = AgentRunner()
+        self._violation_locations: set = set()
         self._build_ui()
 
     # ── Helpers ──────────────────────────────────────────────────
@@ -220,6 +224,12 @@ class AgentRunnerTab:
         self.chat_display.tag_config("user", foreground="#e0e0e0")
         self.chat_display.tag_config("flagged", foreground="#ff6b6b")
         self.chat_display.tag_config("timestamp", foreground="#555555")
+        self.chat_display.tag_config("location", foreground="#4caf50", underline=True)
+        self.chat_display.tag_bind("location", "<Button-1>", self._on_location_click)
+        self.chat_display.tag_bind("location", "<Enter>",
+                                   lambda e: self.chat_display.configure(cursor="hand2"))
+        self.chat_display.tag_bind("location", "<Leave>",
+                                   lambda e: self.chat_display.configure(cursor=""))
 
         msg_frame = ctk.CTkFrame(chat_card, fg_color="transparent")
         msg_frame.pack(fill="x", padx=12, pady=(0, 12))
@@ -313,16 +323,35 @@ class AgentRunnerTab:
         self._auto_scroll()
 
     def _insert_with_highlights(self, text: str, base_tag: str):
-        """Insert text, highlighting flagged keywords with a distinct color."""
+        """Insert text with flagged keywords and clickable location references."""
+        spans = []
+        for m in _FLAG_KEYWORDS.finditer(text):
+            spans.append((m.start(), m.end(), "flagged"))
+        for m in _LOCATION_PATTERN.finditer(text):
+            loc_tag = f"loc_{m.group()}"
+            self.chat_display.tag_config(loc_tag, foreground="#4caf50", underline=True)
+            self.chat_display.tag_bind(loc_tag, "<Button-1>", self._on_location_click)
+            self.chat_display.tag_bind(loc_tag, "<Enter>",
+                                       lambda e: self.chat_display.configure(cursor="hand2"))
+            self.chat_display.tag_bind(loc_tag, "<Leave>",
+                                       lambda e: self.chat_display.configure(cursor=""))
+            spans.append((m.start(), m.end(), loc_tag))
+
+        spans.sort(key=lambda s: s[0])
+
+        # Remove overlapping spans (keep first)
+        merged = []
+        for s in spans:
+            if merged and s[0] < merged[-1][1]:
+                continue
+            merged.append(s)
+
         last_end = 0
-        for match in _FLAG_KEYWORDS.finditer(text):
-            # Insert normal text before the match
-            if match.start() > last_end:
-                self.chat_display.insert("end", text[last_end:match.start()], base_tag)
-            # Insert the flagged keyword
-            self.chat_display.insert("end", match.group(), "flagged")
-            last_end = match.end()
-        # Insert remaining text
+        for start, end, tag in merged:
+            if start > last_end:
+                self.chat_display.insert("end", text[last_end:start], base_tag)
+            self.chat_display.insert("end", text[start:end], tag)
+            last_end = end
         if last_end < len(text):
             self.chat_display.insert("end", text[last_end:], base_tag)
 
@@ -339,6 +368,37 @@ class AgentRunnerTab:
     def _set_status(self, text: str, color: str = "#667788"):
         """Update the status indicator in the header."""
         self.status_indicator.configure(text=f"● {text}", text_color=("gray50", color))
+
+    def _on_location_click(self, event):
+        """Handle click on a location reference in the chat — highlight it on canvas."""
+        if not self.canvas_panel:
+            return
+        idx = self.chat_display.index(f"@{event.x},{event.y}")
+        tags = self.chat_display.tag_names(idx)
+        for tag in tags:
+            if tag.startswith("loc_"):
+                raw = tag[4:]
+                loc_id = re.sub(r"^(?:Room|Corridor)\s+", "", raw)
+                self._ensure_canvas_loaded()
+                self.canvas_panel.highlight_location(loc_id)
+                return
+
+    def _ensure_canvas_loaded(self):
+        """Load floor plan into canvas from inputs if not already loaded."""
+        if not self.canvas_panel or self.canvas_panel.floor_plan:
+            return
+        for name, widget in self.input_widgets.items():
+            value = widget.get().strip()
+            if value and os.path.isfile(value) and value.endswith(".json"):
+                try:
+                    plan = FloorPlan.load_from_json(value)
+                    self.canvas_panel.load_plan(plan)
+                    if not self.canvas_panel.visible:
+                        self.canvas_panel.toggle()
+                    self.canvas_panel.fit_to_window()
+                    return
+                except Exception:
+                    pass
 
     # ── Agent loading ────────────────────────────────────────────
     def load_agent(self, agent_def: AgentDefinition):
@@ -509,39 +569,63 @@ class AgentRunnerTab:
         self._last_result = result
         self.run_btn.configure(state="normal")
 
-        if result.success:
-            self._set_status("Done", "#4caf50")
-            if self.status_bar:
-                self.status_bar.set_status(f"{self.current_agent.name}: Done ✓", "#4caf50")
-        else:
+        try:
+            if result.success:
+                self._set_status("Done", "#4caf50")
+                if self.status_bar:
+                    self.status_bar.set_status(f"{self.current_agent.name}: Done", "#4caf50")
+            else:
+                self._set_status("Error", "#f44336")
+                if self.status_bar:
+                    self.status_bar.set_status(f"Error running {self.current_agent.name}", "#f44336")
+
+            # Display structured output
+            self.output_text.configure(state="normal")
+            self.output_text.delete("1.0", "end")
+            if result.outputs:
+                self.output_text.insert("1.0", json.dumps(result.outputs, indent=2, default=str))
+            elif result.error:
+                self.output_text.insert("1.0", f"Error: {result.error}")
+            self.output_text.configure(state="disabled")
+
+            # Collect violation locations for canvas linking
+            self._violation_locations.clear()
+            for tool_data in result.tool_results.values():
+                try:
+                    parsed = json.loads(tool_data)
+                    if isinstance(parsed, list):
+                        for item in parsed:
+                            if isinstance(item, dict) and "location" in item:
+                                self._violation_locations.add(item["location"])
+                except (json.JSONDecodeError, TypeError):
+                    continue
+
+            # Show initial agent message in chat
+            explanation = result.explanation or result.error or "Agent run complete."
+            self._append_agent_message(explanation)
+
+            # Initialize conversation manager for follow-ups
+            if self.current_agent.conversational:
+                self._conversation = ConversationManager(self.current_agent, self._engine.client)
+                system_prompt = PromptBuilder.build_system_prompt(
+                    self.current_agent, result.tool_results
+                )
+                self._conversation.initialize(system_prompt, explanation, result.tool_results)
+                self._set_chat_enabled(True)
+
+            # Update metrics in status bar if available
+            self._update_metrics(result)
+
+        except Exception as e:
             self._set_status("Error", "#f44336")
+            error_msg = f"Failed to process results: {e}"
+            self.output_text.configure(state="normal")
+            self.output_text.delete("1.0", "end")
+            self.output_text.insert("1.0", error_msg)
+            self.output_text.configure(state="disabled")
+            self._append_agent_message(f"[Error: {error_msg}]")
             if self.status_bar:
-                self.status_bar.set_status(f"Error running {self.current_agent.name}", "#f44336")
-
-        # Display structured output
-        self.output_text.configure(state="normal")
-        self.output_text.delete("1.0", "end")
-        if result.outputs:
-            self.output_text.insert("1.0", json.dumps(result.outputs, indent=2, default=str))
-        elif result.error:
-            self.output_text.insert("1.0", f"Error: {result.error}")
-        self.output_text.configure(state="disabled")
-
-        # Show initial agent message in chat
-        explanation = result.explanation or result.error or "Agent run complete."
-        self._append_agent_message(explanation)
-
-        # Initialize conversation manager for follow-ups
-        if self.current_agent.conversational:
-            self._conversation = ConversationManager(self.current_agent, self._engine.client)
-            system_prompt = PromptBuilder.build_system_prompt(
-                self.current_agent, result.tool_results
-            )
-            self._conversation.initialize(system_prompt, explanation, result.tool_results)
-            self._set_chat_enabled(True)
-
-        # Update metrics in status bar if available
-        self._update_metrics(result)
+                self.status_bar.set_status(error_msg, "#f44336")
 
     def _update_metrics(self, result: AgentResult):
         """Show violation metrics in status bar if tool results contain them."""
@@ -595,7 +679,10 @@ class AgentRunnerTab:
 
     def _on_followup_complete(self, response: str):
         """Handle followup response on main thread."""
-        self._append_agent_message(response)
+        try:
+            self._append_agent_message(response)
+        except Exception as e:
+            self._append_agent_message(f"[Display error: {e}]")
         self._set_chat_enabled(True)
         self._set_status("Done", "#4caf50")
 
@@ -609,53 +696,60 @@ class AgentRunnerTab:
         """Export agent results as JSON via file save dialog."""
         if not self._last_result:
             return
-        filepath = filedialog.asksaveasfilename(
-            defaultextension=".json",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            initialfile=f"{self.current_agent.id}_results.json" if self.current_agent else "results.json",
-        )
-        if filepath:
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(self._last_result.to_dict(), f, indent=2, default=str)
+        try:
+            filepath = filedialog.asksaveasfilename(
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                initialfile=f"{self.current_agent.id}_results.json" if self.current_agent else "results.json",
+            )
+            if filepath:
+                with open(filepath, "w", encoding="utf-8") as f:
+                    json.dump(self._last_result.to_dict(), f, indent=2, default=str)
+                if self.status_bar:
+                    self.status_bar.set_status(f"Exported to {os.path.basename(filepath)}", "#4caf50")
+        except Exception as e:
+            if self.status_bar:
+                self.status_bar.set_status(f"Export failed: {e}", "#f44336")
 
     def _show_on_canvas(self):
         """Push floor plan and violations to the canvas panel."""
         if not self.canvas_panel or not self._last_result:
             return
 
-        # Try to find a floor plan in inputs or outputs
-        plan_loaded = False
-        for name, widget in self.input_widgets.items():
-            value = widget.get().strip()
-            if value and os.path.isfile(value) and value.endswith(".json"):
+        try:
+            plan_loaded = False
+            for name, widget in self.input_widgets.items():
+                value = widget.get().strip()
+                if value and os.path.isfile(value) and value.endswith(".json"):
+                    try:
+                        plan = FloorPlan.load_from_json(value)
+                        self.canvas_panel.load_plan(plan)
+                        plan_loaded = True
+                        break
+                    except Exception:
+                        pass
+
+            violations = []
+            for tool_name, tool_data in self._last_result.tool_results.items():
                 try:
-                    plan = FloorPlan.load_from_json(value)
-                    self.canvas_panel.load_plan(plan)
-                    plan_loaded = True
-                    break
-                except Exception:
-                    pass
+                    parsed = json.loads(tool_data)
+                    if isinstance(parsed, list):
+                        for item in parsed:
+                            if isinstance(item, dict) and "severity" in item:
+                                violations.append(Violation.from_dict(item))
+                except (json.JSONDecodeError, TypeError):
+                    continue
 
-        # Try to parse violations from tool results
-        violations = []
-        for tool_name, tool_data in self._last_result.tool_results.items():
-            try:
-                parsed = json.loads(tool_data)
-                if isinstance(parsed, list):
-                    for item in parsed:
-                        if isinstance(item, dict) and "severity" in item:
-                            violations.append(Violation.from_dict(item))
-            except (json.JSONDecodeError, TypeError):
-                continue
+            if violations:
+                self.canvas_panel.show_violations(violations)
 
-        if violations:
-            self.canvas_panel.show_violations(violations)
-
-        # Show canvas if hidden
-        if not self.canvas_panel.visible:
-            self.canvas_panel.toggle()
-        if plan_loaded:
-            self.canvas_panel.fit_to_window()
+            if not self.canvas_panel.visible:
+                self.canvas_panel.toggle()
+            if plan_loaded:
+                self.canvas_panel.fit_to_window()
+        except Exception as e:
+            if self.status_bar:
+                self.status_bar.set_status(f"Canvas error: {e}", "#f44336")
 
     def _browse_file(self, input_name: str):
         filepath = filedialog.askopenfilename(

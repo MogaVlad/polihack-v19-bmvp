@@ -342,6 +342,39 @@ class CanvasPanel:
             self._tooltip_window.destroy()
             self._tooltip_window = None
 
+    def highlight_location(self, location_id: str):
+        if not self.floor_plan:
+            return
+        if not self.visible:
+            self.toggle()
+
+        target = self.floor_plan.get_room(location_id) or self.floor_plan.get_corridor(location_id)
+        if not target or not target.polygon:
+            return
+
+        s, ox, oy = self.scale, self.offset_x, self.offset_y
+        cx = sum(p[0] for p in target.polygon) / len(target.polygon) * s + ox
+        cy = sum(p[1] for p in target.polygon) / len(target.polygon) * s + oy
+
+        tag = "_highlight"
+        self.canvas.delete(tag)
+        ring = self.canvas.create_oval(
+            cx - 22, cy - 22, cx + 22, cy + 22,
+            outline="#ff6b6b", width=3, dash=(6, 3), tags=tag,
+        )
+        self._flash_highlight(tag, ring, 0)
+
+    def _flash_highlight(self, tag: str, item_id: int, count: int):
+        if count >= 8:
+            self.canvas.delete(tag)
+            return
+        state = "hidden" if count % 2 else "normal"
+        try:
+            self.canvas.itemconfigure(item_id, state=state)
+        except tk.TclError:
+            return
+        self.canvas.after(300, lambda: self._flash_highlight(tag, item_id, count + 1))
+
     def clear(self):
         self.canvas.delete("all")
         self.floor_plan = None

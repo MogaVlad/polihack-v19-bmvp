@@ -12,6 +12,33 @@ AGENT_PROMPT_PAIRS = [
     ("exit_placement_advisor.json", "v1_propose_fixes.md"),
 ]
 
+_PAIR_ANNOTATIONS = [
+    [
+        "Structured I/O: L2 pastes raw image data into a prompt. L3 defines a typed 'image' input and produces a JSON floor plan schema as output.",
+        "Tool access: L3 agent uses Gemini Vision API as a registered tool — the prompt has no tool concept.",
+        "Conversation: L3 agent proactively flags ambiguous features (unusual room shapes) and asks for clarification. L2 gives a one-shot answer.",
+        "Reusability: Anyone can run the Floor Plan Parser agent without knowing how the prompt works.",
+    ],
+    [
+        "Structured I/O: L2 expects pasted JSON in a text prompt. L3 declares a typed 'json' input field and outputs a structured violation list.",
+        "Tool access: L3 agent calls P118 Validator and Pathfinding tools for real calculations. L2 relies on the LLM to guess distances and rules.",
+        "Constraints: L3 explicitly lists P118 rules (30m travel, 1.4m corridors, min 2 exits). L2 buries them in prose instructions.",
+        "Reusability: The Egress Validator agent can be re-run on any floor plan without modifying the prompt.",
+    ],
+    [
+        "Structured I/O: L2 returns free-form text explanation. L3 produces ranked diagnoses with severity and impact scores.",
+        "Conversation: L3 agent can answer follow-up questions about specific violations. L2 requires re-sending the entire prompt.",
+        "Scope boundaries: L3 agent redirects validation questions to the Egress Validator agent instead of guessing.",
+        "Constraints: L3 uses severity ranking rules to prioritize which violations to explain first.",
+    ],
+    [
+        "Structured I/O: L2 gives text suggestions. L3 produces ranked fix proposals with justification and effort estimates.",
+        "Tool access: L3 calls Pathfinding and P118 Validator to verify that proposed fixes actually resolve violations. L2 cannot verify.",
+        "Conversation: L3 handles pushback ('Can't add a south exit') and offers alternatives. L2 is one-shot.",
+        "Constraints: L3 respects building constraints and checks proposals against P118 rules before suggesting them.",
+    ],
+]
+
 
 class AdoptionPanel:
     def __init__(self, parent: ctk.CTkFrame):
@@ -127,40 +154,22 @@ class AdoptionPanel:
         self.l3_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
         # ── Annotations ─────────────────────────────────────────
-        ann_card = ctk.CTkFrame(wrapper, fg_color=("gray92", "#162d50"), corner_radius=10)
-        ann_card.pack(fill="x", padx=8, pady=(8, 8))
+        self.ann_card = ctk.CTkFrame(wrapper, fg_color=("gray92", "#162d50"), corner_radius=10)
+        self.ann_card.pack(fill="x", padx=8, pady=(8, 8))
 
         ctk.CTkLabel(
-            ann_card, text="What Changed: L2 → L3",
+            self.ann_card, text="What Changed: L2 → L3",
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
             text_color=("gray30", "#c0d0e0"),
         ).pack(anchor="w", padx=12, pady=(10, 6))
 
-        annotations = [
-            "✦  Structured I/O: Named inputs/outputs with types replace free-form text pasting",
-            "✦  Tool access: Agents can call domain tools (P118 validator, pathfinding) — prompts cannot",
-            "✦  Constraints: Domain rules are explicit and enforceable, not buried in prompt text",
-            "✦  Conversation: Multi-turn follow-up with scope boundaries, not one-shot Q&A",
-            "✦  Reusability: Anyone can run the agent without understanding the prompt",
-        ]
-        for a in annotations:
-            ctk.CTkLabel(
-                ann_card, text=a,
-                font=ctk.CTkFont(family="Segoe UI", size=11),
-                text_color=("gray30", "#8899aa"),
-                wraplength=750,
-                justify="left",
-                anchor="w",
-            ).pack(fill="x", padx=16, pady=2)
-
-        # Spacer at bottom
-        ctk.CTkFrame(ann_card, height=8, fg_color="transparent").pack()
+        self.ann_container = ctk.CTkFrame(self.ann_card, fg_color="transparent")
+        self.ann_container.pack(fill="x", padx=0, pady=(0, 8))
 
         # Load initial pair
         self._on_pair_selected(pair_names[0] if pair_names else "")
 
     def _on_pair_selected(self, selected_value):
-        # Find index by matching name
         pair_names = [p[0].replace(".json", "").replace("_", " ").title() for p in AGENT_PROMPT_PAIRS]
         if selected_value not in pair_names:
             return
@@ -191,3 +200,18 @@ class AdoptionPanel:
         else:
             self.l3_text.insert("1.0", "(Agent definition not found)")
         self.l3_text.configure(state="disabled")
+
+        # Update annotations for this pair
+        for widget in self.ann_container.winfo_children():
+            widget.destroy()
+
+        annotations = _PAIR_ANNOTATIONS[idx] if idx < len(_PAIR_ANNOTATIONS) else []
+        for a in annotations:
+            ctk.CTkLabel(
+                self.ann_container, text=f"  {a}",
+                font=ctk.CTkFont(family="Segoe UI", size=11),
+                text_color=("gray30", "#8899aa"),
+                wraplength=750,
+                justify="left",
+                anchor="w",
+            ).pack(fill="x", padx=16, pady=2)

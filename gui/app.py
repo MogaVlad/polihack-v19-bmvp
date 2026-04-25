@@ -193,6 +193,7 @@ class App:
         """Called after Save & Run — refresh library, then load the agent in the Runner."""
         self._on_agent_saved()
         self._on_agent_selected(agent_def)
+        self.status_bar.set_status(f"Agent '{agent_def.name}' saved and loaded", "#4caf50")
 
     def run(self):
         self.root.mainloop()

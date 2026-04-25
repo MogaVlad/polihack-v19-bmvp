@@ -337,6 +337,9 @@ class AgentBuilderTab:
             self.output_rows.remove(row_data)
 
     # ── Validation ───────────────────────────────────────────────
+    _VALID_INPUT_TYPES = {"json", "text", "image", "number"}
+    _VALID_OUTPUT_TYPES = {"json", "text", "number"}
+
     def _validate_form(self) -> Optional[str]:
         """Validate the builder form. Returns an error message or None if valid."""
         name = self.name_entry.get().strip()
@@ -347,15 +350,38 @@ class AgentBuilderTab:
         if not goal:
             return "Agent goal is required."
 
-        # Check input rows have names
+        # Validate inputs
+        input_names = set()
         for i, r in enumerate(self.input_rows):
-            if not r["name"].get().strip():
+            iname = r["name"].get().strip()
+            if not iname:
                 return f"Input #{i+1} is missing a name."
+            if iname in input_names:
+                return f"Duplicate input name: '{iname}'."
+            input_names.add(iname)
+            itype = r["type"].get()
+            if itype not in self._VALID_INPUT_TYPES:
+                return f"Input #{i+1} has invalid type '{itype}'."
 
-        # Check output rows have names
+        # Validate outputs
+        output_names = set()
         for i, r in enumerate(self.output_rows):
-            if not r["name"].get().strip():
+            oname = r["name"].get().strip()
+            if not oname:
                 return f"Output #{i+1} is missing a name."
+            if oname in output_names:
+                return f"Duplicate output name: '{oname}'."
+            output_names.add(oname)
+            otype = r["type"].get()
+            if otype not in self._VALID_OUTPUT_TYPES:
+                return f"Output #{i+1} has invalid type '{otype}'."
+
+        # Check for ID collision with existing agents
+        import os
+        agent_id = name.lower().replace(" ", "_")
+        existing_path = os.path.join(config.USER_AGENTS_DIR, f"{agent_id}.json")
+        if os.path.isfile(existing_path):
+            return f"An agent named '{name}' already exists. Choose a different name."
 
         return None
 
