@@ -69,6 +69,8 @@ def validate_p118(inputs: Dict) -> List[dict]:
         _check_corridor_widths,
         _check_dead_ends,
         _check_exit_count,
+        _check_room_exit_count,
+        _check_emergency_lighting,
     ]
     for check_fn in checks:
         try:
@@ -135,6 +137,14 @@ def _check_travel_distance(inputs: Dict) -> List[dict]:
                 ),
                 measured=dist,
                 threshold=max_dist,
+            ))
+        else:
+            violations.extend(_borderline_check(
+                dist, max_dist,
+                "travel_distance", "P118 Art. 3.6.4", rid,
+                f"Room '{room.get('name', rid)}' travel distance ({dist:.1f}m) is near "
+                f"the {label} limit of {max_dist}m.",
+                is_min=False,
             ))
 
     return violations
@@ -287,6 +297,21 @@ def _check_corridor_widths(inputs: Dict) -> List[dict]:
                 measured=width,
                 threshold=config.P118_MIN_CORRIDOR_WIDTH,
             ))
+        else:
+            tol = config.P118_BORDERLINE_TOLERANCE * config.P118_MIN_CORRIDOR_WIDTH
+            if width < config.P118_MIN_CORRIDOR_WIDTH + tol:
+                violations.append(_make_violation(
+                    rule="borderline_corridor_width",
+                    article="P118 Art. 3.6.12",
+                    severity="info",
+                    location=cid,
+                    description=(
+                        f"BORDERLINE: Corridor '{cname}' width ({width}m) is just above "
+                        f"the minimum {config.P118_MIN_CORRIDOR_WIDTH}m."
+                    ),
+                    measured=width,
+                    threshold=config.P118_MIN_CORRIDOR_WIDTH,
+                ))
 
     return violations
 
@@ -359,3 +384,153 @@ def _check_exit_count(inputs: Dict) -> List[dict]:
             ))
 
     return violations
+
+
+def _check_room_exit_count(inputs: Dict) -> List[dict]:
+    """
+    P118 Art. 3.6.3 — Rooms with occupancy >= 50 require at least 2 independent exits.
+    """
+    violations = []
+    plan_data = _extract_plan_data(inputs)
+    graph = _build_graph(plan_data)
+    exit_nodes = _find_exit_nodes(plan_data)
+
+    for room in plan_data.get("rooms", []):
+        rid = room["id"]
+        rname = room.get("name", rid)
+        occupancy = room.get("occupancy", 0)
+
+        if occupancy < config.P118_ROOM_HIGH_OCCUPANCY:
+            violations.extend(_borderline_check(
+                occupancy, config.P118_ROOM_HIGH_OCCUPANCY,
+                "room_exit_count", "P118 Art. 3.6.3", rid,
+                f"Room '{rname}' occupancy ({occupancy}) is near the {config.P118_ROOM_HIGH_OCCUPANCY}-person "
+                f"threshold requiring multiple exits.",
+                is_min=True,
+            ))
+            continue
+
+        neighbors = graph.get(rid, {})
+        door_count = len(neighbors)
+
+        if door_count < config.P118_ROOM_MIN_EXITS_HIGH_OCC:
+            violations.append(_make_violation(
+                rule="room_exit_count",
+                article="P118 Art. 3.6.3",
+                severity="critical",
+                location=rid,
+                description=(
+                    f"Room '{rname}' has occupancy {occupancy} "
+                    f"(>={config.P118_ROOM_HIGH_OCCUPANCY}) but only {door_count} "
+                    f"exit path(s). Minimum {config.P118_ROOM_MIN_EXITS_HIGH_OCC} "
+                    f"independent exits required."
+                ),
+                measured=float(door_count),
+                threshold=float(config.P118_ROOM_MIN_EXITS_HIGH_OCC),
+            ))
+
+    return violations
+
+
+def _check_emergency_lighting(inputs: Dict) -> List[dict]:
+    """
+    P118 Art. 4.2.1 — Emergency lighting required for:
+    - Rooms with occupancy >= 30
+    - Evacuation corridors >= 10m length
+    """
+    violations = []
+    plan_data = _extract_plan_data(inputs)
+
+    for room in plan_data.get("rooms", []):
+        rid = room["id"]
+        rname = room.get("name", rid)
+        occupancy = room.get("occupancy", 0)
+        has_lighting = room.get("emergency_lighting", False)
+
+        if occupancy >= config.P118_EMERGENCY_LIGHTING_MIN_OCCUPANCY and not has_lighting:
+            violations.append(_make_violation(
+                rule="emergency_lighting",
+                article="P118 Art. 4.2.1",
+                severity="major",
+                location=rid,
+                description=(
+                    f"Room '{rname}' has occupancy {occupancy} "
+                    f"(>={config.P118_EMERGENCY_LIGHTING_MIN_OCCUPANCY}) but no "
+                    f"emergency lighting indicated."
+                ),
+                measured=float(occupancy),
+                threshold=float(config.P118_EMERGENCY_LIGHTING_MIN_OCCUPANCY),
+            ))
+        elif occupancy < config.P118_EMERGENCY_LIGHTING_MIN_OCCUPANCY:
+            violations.extend(_borderline_check(
+                occupancy, config.P118_EMERGENCY_LIGHTING_MIN_OCCUPANCY,
+                "emergency_lighting", "P118 Art. 4.2.1", rid,
+                f"Room '{rname}' occupancy ({occupancy}) is near the "
+                f"{config.P118_EMERGENCY_LIGHTING_MIN_OCCUPANCY}-person emergency lighting threshold.",
+                is_min=True,
+            ))
+
+    for corridor in plan_data.get("corridors", []):
+        cid = corridor["id"]
+        cname = corridor.get("name", cid)
+        length = corridor.get("length", 0.0)
+        has_lighting = corridor.get("emergency_lighting", False)
+
+        if length >= config.P118_EMERGENCY_LIGHTING_CORRIDOR_MIN_LENGTH and not has_lighting:
+            violations.append(_make_violation(
+                rule="emergency_lighting",
+                article="P118 Art. 4.2.1",
+                severity="major",
+                location=cid,
+                description=(
+                    f"Corridor '{cname}' length is {length}m "
+                    f"(>={config.P118_EMERGENCY_LIGHTING_CORRIDOR_MIN_LENGTH}m) "
+                    f"but no emergency lighting indicated."
+                ),
+                measured=length,
+                threshold=config.P118_EMERGENCY_LIGHTING_CORRIDOR_MIN_LENGTH,
+            ))
+
+    return violations
+
+
+def _borderline_check(
+    value: float,
+    threshold: float,
+    rule: str,
+    article: str,
+    location: str,
+    description: str,
+    is_min: bool = False,
+) -> List[dict]:
+    """
+    Flag values within BORDERLINE_TOLERANCE of a threshold as info-level warnings.
+    Gives agents conversation context about near-miss situations.
+
+    is_min=True: value approaching threshold from below (e.g., occupancy nearing 50).
+    is_min=False: value approaching threshold from above (e.g., distance nearing 30m max).
+    """
+    tol = config.P118_BORDERLINE_TOLERANCE * threshold
+    if is_min:
+        if threshold - tol <= value < threshold:
+            return [_make_violation(
+                rule=f"borderline_{rule}",
+                article=article,
+                severity="info",
+                location=location,
+                description=f"BORDERLINE: {description}",
+                measured=value,
+                threshold=threshold,
+            )]
+    else:
+        if threshold < value <= threshold + tol:
+            return [_make_violation(
+                rule=f"borderline_{rule}",
+                article=article,
+                severity="info",
+                location=location,
+                description=f"BORDERLINE: {description}",
+                measured=value,
+                threshold=threshold,
+            )]
+    return []
