@@ -44,7 +44,7 @@ class AgentLibrary:
             height=32,
             corner_radius=8,
             border_width=1,
-            fg_color=("#e5e5e5", "#2d1a0e"),
+            fg_color=("#f8f1e9", "#2d1a0e"),
             border_color=("#543520", "#5c4a3a"),
             text_color=("#543520", "#F1DABF"),
             placeholder_text_color=("#92817A", "#92817A"),

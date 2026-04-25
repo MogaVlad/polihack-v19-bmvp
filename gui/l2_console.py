@@ -55,12 +55,12 @@ class L2ConsoleTab:
             height=30,
             corner_radius=6,
             state="readonly",
-            fg_color=("#e5e5e5", "#000500"),
+            fg_color=("#f8f1e9", "#000500"),
             border_color=("#543520", "#92817A"),
             button_color=("#543520", "#5c4a3a"),
             button_hover_color=("#6b4428", "#5c4030"),
             text_color=("#543520", "#F1DABF"),
-            dropdown_fg_color=("#e5e5e5", "#2d1a0e"),
+            dropdown_fg_color=("#f8f1e9", "#2d1a0e"),
             font=ctk.CTkFont(family="Segoe UI", size=11),
         )
         self.template_combo.pack(side="left", padx=(0, 8))
@@ -98,7 +98,7 @@ class L2ConsoleTab:
             data_card,
             height=120,
             corner_radius=8,
-            fg_color=("#e5e5e5", "#000500"),
+            fg_color=("#f8f1e9", "#000500"),
             text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=11),
             wrap="word",
@@ -127,7 +127,7 @@ class L2ConsoleTab:
             response_card,
             height=140,
             corner_radius=8,
-            fg_color=("#e5e5e5", "#000500"),
+            fg_color=("#f8f1e9", "#000500"),
             text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=11),
             state="disabled",
@@ -175,7 +175,7 @@ class L2ConsoleTab:
 
         textbox = ctk.CTkTextbox(
             win, corner_radius=8,
-            fg_color=("#e5e5e5", "#000500"),
+            fg_color=("#f8f1e9", "#000500"),
             text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=11),
             wrap="word",

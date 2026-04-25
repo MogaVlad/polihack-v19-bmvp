@@ -24,7 +24,7 @@ class App:
         self.root.minsize(960, 640)
 
         # Make the root use a deep navy background in dark mode
-        self.root.configure(fg_color=("#e5e5e5", "#000500"))
+        self.root.configure(fg_color=("#f8f1e9", "#000500"))
 
         self._build_layout()
 
@@ -39,7 +39,7 @@ class App:
             self.root,
             height=48,
             corner_radius=0,
-            fg_color=("#e5e5e5", "#2d1a0e"),
+            fg_color=("#1a0a03", "#c8a96e"),
             border_width=0,
         )
         header.grid(row=0, column=0, columnspan=2, sticky="ew")
@@ -49,7 +49,7 @@ class App:
             header,
             text="⚡ AgentArchitect",
             font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            text_color=("#543520", "#F1DABF"),
+            text_color=("#F1DABF", "#2d1a0e"),
         )
         logo_label.pack(side="left", padx=16, pady=8)
 
@@ -57,7 +57,7 @@ class App:
             header,
             text="Engineering Agent Platform",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#92817A", "#92817A"),
+            text_color=("#92817A", "#543520"),
         )
         subtitle.pack(side="left", padx=(0, 16), pady=8)
 
@@ -70,7 +70,7 @@ class App:
             self.root,
             width=self.current_sidebar_width,
             corner_radius=0,
-            fg_color=("#e7d5a5", "#2d1a0e"),
+            fg_color=("#d4c090", "#1e1009"),
             border_width=0,
         )
         self.sidebar_frame.grid(row=1, column=0, sticky="nsew")
@@ -80,7 +80,7 @@ class App:
         self.sidebar_content = ctk.CTkFrame(
             self.sidebar_frame,
             width=260,
-            fg_color="transparent",
+            fg_color=("#d4c090", "#1e1009"),
         )
         self.sidebar_content.place(x=0, y=0, relheight=1.0)
 
@@ -88,14 +88,14 @@ class App:
         self.right = ctk.CTkFrame(
             self.root,
             corner_radius=0,
-            fg_color=("#e5e5e5", "#000500"),
+            fg_color=("#e7d5a5", "#2d1a0e"),
             border_width=0,
         )
         self.right.grid(row=1, column=1, sticky="nsew")
         self.right.grid_columnconfigure(0, weight=1)
 
         # Use an inner frame with pack so canvas + tabview don't conflict
-        right_inner = ctk.CTkFrame(self.right, fg_color="transparent")
+        right_inner = ctk.CTkFrame(self.right, fg_color=("#e7d5a5", "#2d1a0e"))
         right_inner.grid(row=0, column=0, sticky="nsew")
         self.right.grid_rowconfigure(0, weight=1)
 
@@ -103,16 +103,15 @@ class App:
         self.tabview = ctk.CTkTabview(
             right_inner,
             corner_radius=10,
-            fg_color=("#e5e5e5", "#1a0e05"),
-            segmented_button_fg_color=("#e7d5a5", "#2d1a0e"),
-            segmented_button_selected_color="#92817A",
-            segmented_button_selected_hover_color="#7a6a60",
-            segmented_button_unselected_color=("#d4b896", "#162d50"),
-            segmented_button_unselected_hover_color=("#c4a882", "#3d2510"),
-            text_color=("#543520", "#F1DABF"),
+            fg_color=("#f8f1e9", "#1a0e05"),
+            segmented_button_fg_color=("#c8a96e", "#c8a96e"),
+            segmented_button_selected_color=("#7a5230", "#7a5230"),
+            segmented_button_selected_hover_color=("#6b4428", "#6b4428"),
+            segmented_button_unselected_color=("#c8a96e", "#c8a96e"),
+            segmented_button_unselected_hover_color=("#b8976a", "#b8976a"),
+            text_color=("#f8f1e9", "#f8f1e9"),
         )
-        # Increased padding to push tabs away from the sidebar edge
-        self.tabview.pack(fill="both", expand=True, padx=24, pady=(16, 8))
+        self.tabview.pack(fill="both", expand=True, padx=60, pady=(16, 8))
 
         # Create tabs
         self.tabview.add("Agent Runner")
@@ -125,7 +124,19 @@ class App:
         # frame's background to match the tabview's fg_color so that
         # transparent children don't inherit a dark default.
         for tab_name in ("Agent Runner", "Agent Builder", "L2 Console", "L2 vs L3"):
-            self.tabview.tab(tab_name).configure(fg_color=("#e5e5e5", "#1a0e05"))
+            self.tabview.tab(tab_name).configure(fg_color=("#f8f1e9", "#1a0e05"))
+
+        # ── Center the tab button bar + resize + bold font ─────
+        def _center_tabs():
+            seg = self.tabview._segmented_button
+            # Make buttons taller and bold
+            seg.configure(
+                height=36,
+                font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            )
+            seg.place_forget()
+            seg.place(relx=0.5, y=8, anchor="n")
+        self.tabview.after(100, _center_tabs)
 
         # ── Canvas panel (below tabs) ───────────────────────────
         self.canvas_panel = CanvasPanel(right_inner)

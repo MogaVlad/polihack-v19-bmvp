@@ -163,7 +163,7 @@ class AgentRunnerTab:
             output_card,
             height=120,
             corner_radius=8,
-            fg_color=("#e5e5e5", "#000500"),
+            fg_color=("#f8f1e9", "#000500"),
             text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=11),
             state="disabled",
@@ -216,7 +216,7 @@ class AgentRunnerTab:
             chat_card,
             height=100,
             corner_radius=8,
-            fg_color=("#e5e5e5", "#000500"),
+            fg_color=("#f8f1e9", "#000500"),
             text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Segoe UI", size=12),
             state="disabled",
@@ -270,7 +270,7 @@ class AgentRunnerTab:
             placeholder_text="Type a follow-up question…",
             height=34,
             corner_radius=8,
-            fg_color=("#e5e5e5", "#000500"),
+            fg_color=("#f8f1e9", "#000500"),
             border_color=("#543520", "#92817A"),
             text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Segoe UI", size=12),
@@ -478,7 +478,7 @@ class AgentRunnerTab:
             if inp.type in ("json", "text"):
                 entry = ctk.CTkEntry(
                     row, height=30, corner_radius=6,
-                    fg_color=("#e5e5e5", "#000500"),
+                    fg_color=("#f8f1e9", "#000500"),
                     border_color=("#543520", "#92817A"),
                     text_color=("#543520", "#F1DABF"),
                     font=ctk.CTkFont(size=11),
@@ -488,7 +488,7 @@ class AgentRunnerTab:
             elif inp.type == "image":
                 entry = ctk.CTkEntry(
                     row, height=30, corner_radius=6,
-                    fg_color=("#e5e5e5", "#000500"),
+                    fg_color=("#f8f1e9", "#000500"),
                     border_color=("#543520", "#92817A"),
                     text_color=("#543520", "#F1DABF"),
                     font=ctk.CTkFont(size=11),
@@ -535,9 +535,9 @@ class AgentRunnerTab:
 
         overlay = ctk.CTkFrame(root, fg_color=("#543520", "#000000"), corner_radius=0)
         overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
-        overlay.configure(fg_color=("#e5e5e5", "#1a0e05"))
+        overlay.configure(fg_color=("#f8f1e9", "#1a0e05"))
 
-        card = ctk.CTkFrame(overlay, fg_color=("#e5e5e5", "#1a0e05"), corner_radius=14, width=580, height=520)
+        card = ctk.CTkFrame(overlay, fg_color=("#f8f1e9", "#1a0e05"), corner_radius=14, width=580, height=520)
         card.place(relx=0.5, rely=0.5, anchor="center")
         card.pack_propagate(False)
 
@@ -561,7 +561,7 @@ class AgentRunnerTab:
 
         textbox = ctk.CTkTextbox(
             card, corner_radius=8,
-            fg_color=("#e5e5e5", "#000500"),
+            fg_color=("#f8f1e9", "#000500"),
             text_color=("#543520", "#F1DABF"),
             font=ctk.CTkFont(family="Consolas", size=11),
             wrap="word",
