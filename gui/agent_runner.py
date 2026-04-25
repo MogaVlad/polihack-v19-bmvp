@@ -604,6 +604,9 @@ class AgentRunnerTab:
             explanation = result.explanation or result.error or "Agent run complete."
             self._append_agent_message(explanation)
 
+            # Auto-load canvas from JSON input if available
+            self._ensure_canvas_loaded()
+
             # Initialize conversation manager for follow-ups
             if self.current_agent.conversational:
                 self._conversation = ConversationManager(self.current_agent, self._engine.client)
