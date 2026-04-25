@@ -144,33 +144,7 @@ class AgentRunnerTab:
 
         self.input_widgets = {}
 
-        # Multi-line raw input textbox
-        self.input_textbox = ctk.CTkTextbox(
-            input_card,
-            height=56,
-            corner_radius=8,
-            fg_color=("#f8f1e9", "#000500"),
-            border_color=("#543520", "#92817A"),
-            border_width=1,
-            text_color=("#543520", "#F1DABF"),
-            font=ctk.CTkFont(family="Consolas", size=11),
-            wrap="word",
-        )
-        self.input_textbox.pack(fill="x", padx=12, pady=(0, 6))
 
-        def _prevent_scroll_input(event):
-            delta = getattr(event, "delta", 0)
-            if delta != 0:
-                event.widget.yview_scroll(int(-1 * (delta / 120)), "units")
-            elif event.num == 4:
-                event.widget.yview_scroll(-1, "units")
-            elif event.num == 5:
-                event.widget.yview_scroll(1, "units")
-            return "break"
-
-        self.input_textbox._textbox.bind("<MouseWheel>", _prevent_scroll_input)
-        self.input_textbox._textbox.bind("<Button-4>", _prevent_scroll_input)
-        self.input_textbox._textbox.bind("<Button-5>", _prevent_scroll_input)
 
         self.run_btn = ctk.CTkButton(
             input_card,
@@ -529,7 +503,7 @@ class AgentRunnerTab:
         for widget in self.inputs_container.winfo_children():
             widget.destroy()
         self.input_widgets.clear()
-        self.input_textbox.delete("1.0", "end")
+
 
         for inp in agent_def.inputs:
             row = ctk.CTkFrame(self.inputs_container, fg_color="transparent")
@@ -651,10 +625,7 @@ class AgentRunnerTab:
                 except Exception:
                     pass
             inputs[name] = value
-        # Also collect from the raw input textbox if it has content
-        raw = self.input_textbox.get("1.0", "end").strip()
-        if raw:
-            inputs.setdefault("input", raw)
+
         return inputs
 
     def _run_agent(self):
