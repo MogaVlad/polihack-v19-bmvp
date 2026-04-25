@@ -1,0 +1,36 @@
+{
+  "id": "egress_validator",
+  "name": "Egress Validator",
+  "category": "Fire Safety",
+  "goal": "Check a parsed floor plan against Romanian P118 fire safety regulations and report all violations",
+  "inputs": [
+    {
+      "name": "parsed_plan",
+      "type": "json",
+      "description": "Structured floor plan JSON (rooms, walls, doors, exits, corridors)"
+    }
+  ],
+  "constraints": [
+    "Max travel distance to nearest exit: 30m (normal), 20m (dead-end)",
+    "Min door width: 0.9m (rooms), 1.2m (exits)",
+    "Min corridor width: 1.4m",
+    "Max dead-end corridor length: 12m",
+    "Exit capacity: 80 persons per 1m of exit width",
+    "Min 2 exits per floor for occupancy > 50"
+  ],
+  "outputs": [
+    {
+      "name": "violations",
+      "type": "json",
+      "description": "List of violations with severity, location, rule reference, and description"
+    },
+    {
+      "name": "compliance_summary",
+      "type": "text",
+      "description": "Overall pass/fail status with violation counts by severity"
+    }
+  ],
+  "tools": ["p118_validator", "pathfinding"],
+  "conversational": true,
+  "conversation_guidelines": "After validation, explain which rules were checked and flag borderline cases (values within 10% of thresholds). Answer questions about specific violations. Reference P118 article numbers. Stay within scope: redirect fix proposals to the Exit Placement Advisor agent."
+}

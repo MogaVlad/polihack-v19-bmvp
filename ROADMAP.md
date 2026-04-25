@@ -1,8 +1,48 @@
-# Roadmap: 24-Hour Hackathon — Fire Safety Evacuation Copilot
+# Roadmap: 24-Hour Hackathon — Engineering Agent Platform
 
-> **Stack**: Python + Tkinter · Gemini API (free tier) · Romanian P118 validation
-> **Team**: 4 Python generalists · **Goal**: Working desktop app + 90-second demo
-> **AI Adoption Level**: L3 — Agent-based development (each agent performs a distinct job, engineer controls the workflow)
+> **Stack**: Python + Tkinter · Gemini API (free tier) · Domain tools (pathfinding, P118 validator)
+> **Team**: 4 developers · **Goal**: Working desktop platform + 90-second demo
+> **AI Adoption Level**: L3 — Agent-based development (agents as structured objects, not prompts)
+> **Hackathon Theme**: Build a solution that helps engineers progress from L2 to L3
+
+---
+
+## The Product
+
+**"A platform where engineers turn domain knowledge into executable, conversational AI agents."**
+
+Engineers don't write prompts. They define agents through a structured form:
+- **Goal**: What the agent does
+- **Inputs**: What it needs (files, JSON, parameters)
+- **Constraints**: Domain rules the agent must respect
+- **Outputs**: What it produces (structured data, reports, suggestions)
+- **Tools**: Which computational tools it can use (pathfinding, P118 validator, structural checker)
+
+The platform turns that definition into a runnable, conversational agent with structured I/O, tool access, explainable results, and multi-turn follow-up.
+
+**Fire safety is the first vertical.** The app ships with 4 pre-built agents for fire evacuation analysis. Engineers can also create their own agents from scratch.
+
+### Two core workflows
+
+1. **Use an agent**: Browse the Agent Library → select an agent → provide inputs → run → get structured output → ask follow-up questions → export results
+2. **Create an agent**: Open Agent Builder → fill in goal, inputs, constraints, outputs, tools → save → agent appears in the library → run it immediately
+
+### Why this is L3, not L2 or L4
+
+| Level | What it looks like | Our platform |
+|-------|-------------------|--------------|
+| **L2** (Systematized Prompting) | Versioned prompt templates in the repo, engineer copy-pastes data, gets raw text back | We SHOW this in a "Prompt Console" tab to contrast with L3 |
+| **L3** (Agent-Based Development) | Repo contains agents as structured objects with definitions, tools, and conversational behavior | **This is us.** Agent definitions in `data/agents/`, tool registry, structured I/O, conversation |
+| **L4** (Orchestrated Workflows) | Agents coordinated via DAGs, automatic pipelines, agent-to-agent communication | **We avoid this.** No orchestrator, no pipelines, engineer controls everything |
+
+### How we showcase the L2 → L3 transition
+
+The app has a dedicated "L2 vs L3" tab that shows:
+- **Left column**: A versioned prompt template (L2 artifact from `prompts/`)
+- **Right column**: The corresponding agent definition (L3 artifact from `data/agents/`)
+- **Annotations**: What changed — structured I/O, tool access, constraints, conversational behavior, reusability
+
+During the demo, we show both the L2 Prompt Console and the L3 Agent Runner side by side. Same task, same LLM, but fundamentally different workflow. That's adoption.
 
 ---
 
@@ -10,70 +50,187 @@
 
 | Person | Codename | Owns |
 |--------|----------|------|
-| **A** | **GUI** | Tkinter shell, sector layout, canvas rendering, overlays, controls |
-| **B** | **LLM** | Gemini API integration, all agent logic (vision parse, diagnosis, fix proposals), conversational prompts |
-| **C** | **Rules** | Romanian P118 validation engine, structural anomaly detection, metrics |
-| **D** | **Glue** | JSON schema, dataclasses, example floor plans, agent sector box UI, agent chat widget, data export/import |
+| **A** | **Platform UI** | Main window shell, navigation, agent library sidebar, canvas renderer, L2 prompt console |
+| **B** | **Agent Engine** | Gemini API wrapper, agent execution engine, conversational layer, prompt assembly from definitions |
+| **C** | **Tools** | Tool registry, P118 validator, pathfinding, structural checker, metrics, domain logic |
+| **D** | **Builder + Runner** | Agent Builder form, Agent Runner UI, agent schema/models, data files, adoption showcase panel |
 
 ---
 
-## Architecture: L3 — Engineer as Middleman
+## Architecture
 
-The app contains **four independent AI agents**, each performing a distinct job. There is **no orchestrator** and **no automated pipeline**. The civil engineer (user) is the middleman:
+### Main Window Layout
 
-- The engineer decides which agent to use and in what order
-- The engineer manually passes data between agents (export output from one, import into another)
-- Each agent has its own **sector box** in the UI with file input, conversational output, and export
-- Agents are **conversational** — they flag issues, answer follow-ups, and discuss trade-offs
-- Agents **never communicate with each other** — all data flows through the engineer
+```
++------------------------------------------------------------------+
+|  Engineering Agent Platform              [Settings] [Theme]       |
++------------------------------------------------------------------+
+|          |                                                        |
+|  AGENT   |  [Agent Library] [Agent Builder] [L2 Console] [L2vsL3]|
+|  LIBRARY |  +--------------------------------------------------+ |
+|  (sidebar)|  |                                                  | |
+|          |  |          ACTIVE TAB CONTENT                       | |
+|  [Search]|  |                                                  | |
+|          |  |  (Agent Runner / Builder / Console / Showcase)    | |
+|  Fire    |  |                                                  | |
+|  Safety  |  |                                                  | |
+|   > Plan |  |                                                  | |
+|     Parse|  |                                                  | |
+|   > Egres|  |                                                  | |
+|   > Diag |  |                                                  | |
+|   > Exit |  |                                                  | |
+|     Advis|  |                                                  | |
+|          |  |                                                  | |
+|  Custom  |  +--------------------------------------------------+ |
+|   > ...  |  |        CANVAS (toggleable, bottom panel)         | |
+|          |  |        Floor plan + violation overlays            | |
+| [+Create]|  +--------------------------------------------------+ |
++------------------------------------------------------------------+
+|  Status: Ready | Agents: 4 loaded | Tools: 3 available           |
++------------------------------------------------------------------+
+```
 
-This is **L3** (agents performing distinct jobs) and explicitly **not L4** (no orchestrated workflows, no DAGs, no agent-to-agent coordination).
+### Agent Library (Sidebar)
 
-### Why L3, not L4
+- Lists all available agents (pre-built + user-created)
+- Grouped by category (e.g., "Fire Safety", "Custom")
+- Each entry shows: name, one-line goal, status icon
+- Search/filter bar at top
+- "[+ Create New Agent]" button at bottom
+- Click an agent → opens it in the Agent Runner tab
+- Right-click → "Edit Definition", "Duplicate", "Delete"
 
-| L3 (what we build) | L4 (what we avoid) |
-|---------------------|---------------------|
-| Each agent does one specific job | Agents coordinated via workflows/DAGs |
-| Engineer manually triggers each agent | Automatic pipeline triggers agents in sequence |
-| Engineer passes data between agents | Agents pass data to each other |
-| Engineer has free will in ordering | Fixed execution order |
-| Repo contains agents with definition files | Repo contains orchestration logic |
+### Agent Runner (Main Tab — when running an agent)
+
+```
++---------------------------------------------------+
+| Agent: Floor Plan Parser                    [Def]  |
+| Goal: Parse a floor plan image into structured     |
+|       room/corridor/exit data                      |
++---------------------------------------------------+
+| INPUTS                 | OUTPUTS                   |
+| Floor plan: [Browse..] | Status: Done              |
+|                        | +--- Structured Output --+|
+|       [Run Agent]      | | {rooms: 12, exits: 3,  ||
+|                        | |  corridors: 4, ...}     ||
+|                        | +------------------------+|
+|                        | [Export JSON] [To Canvas]  |
++---------------------------------------------------+
+| CONVERSATION                                       |
+| Agent: Parsed 12 rooms. Room R5 has an unusual     |
+|        L-shape — is this intentional?              |
+| You: Yes, it's an L-shaped conference room.        |
+| Agent: Understood. I've kept R5 as a single room   |
+|        with the L-polygon. Occupancy estimate: 25. |
+| [Type follow-up question...              ] [Send]  |
++---------------------------------------------------+
+| CONSTRAINTS USED           | TOOLS USED             |
+| - P118 room classification | - Gemini Vision API    |
+| - Min polygon area 4m^2    |                        |
++---------------------------------------------------+
+```
+
+### Agent Builder (Main Tab — when creating/editing an agent)
+
+```
++---------------------------------------------------+
+| CREATE NEW AGENT                                   |
++---------------------------------------------------+
+| Name:  [___________________________]               |
+| Goal:  [___________________________]               |
+|        [___________________________]               |
++---------------------------------------------------+
+| INPUTS                                             |
+| [+ Add Input]                                      |
+| 1. Name: [floor_plan] Type: [JSON v] Desc: [...]  |
+| 2. Name: [risk_zones] Type: [JSON v] Desc: [...]  |
++---------------------------------------------------+
+| CONSTRAINTS                                        |
+| [+ Add Constraint]                                 |
+| 1. [Max 30m travel distance to nearest exit   ]    |
+| 2. [At least 2 exits per floor                ]    |
++---------------------------------------------------+
+| OUTPUTS                                            |
+| [+ Add Output]                                     |
+| 1. Name: [exit_suggestions] Type: [JSON v]         |
+| 2. Name: [compliance_note] Type: [Text v]          |
++---------------------------------------------------+
+| TOOLS                                              |
+| [x] P118 Validator   [ ] Pathfinding               |
+| [x] Structural Check [ ] Metrics Calculator        |
++---------------------------------------------------+
+| Conversational: [x] Enable follow-up conversation  |
++---------------------------------------------------+
+|          [Save Agent]  [Save & Run]                |
++---------------------------------------------------+
+```
+
+### L2 Prompt Console (Tab — for transition showcase)
+
+Simple interface representing L2 (Systematized Prompting):
+- Prompt template dropdown (reads from `prompts/`)
+- "View Template" button showing the raw `.md` file
+- Data input text area (paste or load file)
+- "Send to LLM" button
+- Raw text response area (unstructured, no follow-up, no export)
+- Banner: *"This is L2: versioned prompts, manual data flow, raw text output. Switch to the Agent Library to see L3."*
+
+### L2 vs L3 Showcase (Tab — for judges)
+
+Side-by-side comparison:
+- Left: L2 prompt template (from `prompts/`)
+- Right: Corresponding L3 agent definition (from `data/agents/`)
+- Dropdown to switch between the 4 agent pairs
+- Annotations highlighting what changed: structured I/O, tool access, constraints, conversational behavior
+- Summary: "Same task. L2 = copy-paste + raw text. L3 = structured agents with tools and conversation."
+
+### Canvas (Toggleable Bottom Panel)
+
+- Renders parsed floor plans: rooms, walls, doors, exits, corridors
+- Overlay layers: violation markers (red/yellow), room labels, occupancy numbers
+- Zoom, pan, fit-to-window
+- Any agent can push output to the canvas via "Show on Canvas" button
+- Clickable violation markers linked to agent conversation
 
 ---
 
-## UI Layout: Sector Boxes
+## Agent Definition Schema
 
-The main window has two regions:
+Agents are stored as JSON files in `data/agents/` (pre-built) or `user_agents/` (user-created):
 
-1. **Agent Sectors (main area)** — four agent sector boxes arranged in a 2x2 grid (or tabbed view for smaller screens)
-2. **Shared Canvas (toggleable panel)** — floor plan rendering + violation overlays, any sector can push data to it
+```json
+{
+  "id": "floor_plan_parser",
+  "name": "Floor Plan Parser",
+  "category": "Fire Safety",
+  "goal": "Parse a floor plan image into structured room, corridor, and exit data",
+  "inputs": [
+    {"name": "floor_plan", "type": "image", "description": "Floor plan image or PDF"}
+  ],
+  "constraints": [
+    "Identify all rooms, corridors, doors, exits, and stairs",
+    "Classify rooms by type (office, corridor, stairwell, etc.)",
+    "Estimate occupancy based on room type and area",
+    "Flag ambiguous or unusual features for engineer review"
+  ],
+  "outputs": [
+    {"name": "parsed_plan", "type": "json", "description": "Structured floor plan matching the platform schema"},
+    {"name": "flagged_issues", "type": "json", "description": "List of ambiguities or unusual features found"}
+  ],
+  "tools": ["gemini_vision"],
+  "conversational": true,
+  "conversation_guidelines": "After parsing, proactively flag unusual features. Answer questions about the parse. Stay within scope — redirect validation questions to the Egress Validator agent."
+}
+```
 
-Each **agent sector box** contains:
-- Agent name, one-line description, and status indicator (idle / running / done / error)
-- **File input area** — file picker for that agent's expected input type
-- **"Run" button** — triggers the agent on the loaded input
-- **Conversational chat area** — scrollable chat-like display showing agent output and follow-up conversation
-- **"Export Output" button** — saves the agent's structured output to a file for use in another sector
-- **"Show on Canvas" button** — pushes the agent's output (plan or violations) to the shared canvas
-- **"Show Agent Definition" button** — displays the agent's `.md` definition file (L3 showcase)
+### Pre-built Fire Safety Agents
 
-### The Four Sector Boxes
-
-| Sector | Agent | Input | Output | Conversational Behavior |
-|--------|-------|-------|--------|------------------------|
-| 1 | **PlanParser** | Floor plan image/PDF | Parsed JSON (rooms, walls, doors, exits) | Flags ambiguous areas ("Room R5 polygon is unusual — verify?"), answers questions about the parse |
-| 2 | **EgressChecker** | Parsed floor plan JSON | List of violations with severities | Explains which rules were checked, flags borderline cases ("corridor C2 is exactly at 1.4m minimum — passes but barely") |
-| 3 | **EvacDiagnoser** | Violations JSON | Plain-language diagnosis ranked by severity | Discusses specific violations in detail on follow-up, explains impact |
-| 4 | **Redesigner** | Floor plan JSON + violations JSON | Ranked fix proposals | Discusses trade-offs, proposes alternatives when engineer pushes back ("What if we can't add a south exit?") |
-
-### Example Workflows (Engineer's Free Will)
-
-The engineer chooses the order. Some possibilities:
-- **Normal flow**: PlanParser → EgressChecker → EvacDiagnoser → Redesigner
-- **Skip parsing**: Load hand-crafted JSON directly into EgressChecker
-- **Skip diagnosis**: Go from EgressChecker straight to Redesigner
-- **Iterate**: Run Redesigner, then go back to EgressChecker with a modified plan
-- **Any order**: The UI imposes no constraints
+| Agent | Goal | Inputs | Outputs | Tools |
+|-------|------|--------|---------|-------|
+| **Floor Plan Parser** | Parse image → structured data | Floor plan image | Parsed JSON + flagged issues | Gemini Vision |
+| **Egress Validator** | Check P118 compliance | Parsed floor plan JSON | Violation list with severities | P118 Validator, Pathfinding |
+| **Evacuation Diagnoser** | Explain violations in plain language | Violations JSON | Ranked diagnosis + impact analysis | Gemini Text |
+| **Exit Placement Advisor** | Suggest optimal exit locations | Floor plan + violations JSON | Ranked fix proposals + justification | Pathfinding, P118 Validator |
 
 ---
 
@@ -81,238 +238,239 @@ The engineer chooses the order. Some possibilities:
 
 ```
 polihack-v19-bmvp/
-├── main.py                  # Entry point — launches the Tkinter app
-├── requirements.txt         # google-generativeai, Pillow, python-dotenv
-├── config.py                # API keys, constants, P118 thresholds
+├── main.py                       # Entry point — launches the platform
+├── requirements.txt              # google-generativeai, Pillow, python-dotenv
+├── config.py                     # API keys, P118 thresholds, tool config
 ├── models/
 │   ├── __init__.py
-│   ├── schema.py            # Dataclasses: FloorPlan, Room, Wall, Door, Exit, Corridor
-│   ├── violations.py        # Dataclasses: Violation, DiagnosisResult, FixProposal
-│   └── chat.py              # Dataclass: AgentChatMessage (role, content, timestamp, flags)
+│   ├── agent_definition.py       # AgentDefinition, AgentInput, AgentOutput, AgentConstraint
+│   ├── floor_plan.py             # FloorPlan, Room, Wall, Door, Exit, Corridor dataclasses
+│   ├── violations.py             # Violation, DiagnosisResult, FixProposal dataclasses
+│   └── chat.py                   # ChatMessage dataclass (role, content, timestamp)
 ├── gui/
 │   ├── __init__.py
-│   ├── app.py               # Main window, sector-based layout
-│   ├── canvas.py            # Floor plan canvas rendering + overlays
-│   ├── agent_sectors.py     # Reusable AgentSectorBox widget (one per agent)
-│   ├── agent_chat.py        # AgentChat widget — conversational UI within each sector
-│   ├── controls.py          # Global controls strip — example plan dropdown, reset, theme
-│   └── metrics_bar.py       # Top bar — violation counts, compliance status
-├── agents/
+│   ├── app.py                    # Main window: sidebar + tabbed content area + canvas
+│   ├── agent_library.py          # Sidebar: browse, search, select agents
+│   ├── agent_builder.py          # Tab: create/edit agent definition form
+│   ├── agent_runner.py           # Tab: run agent, show I/O, conversation panel
+│   ├── canvas.py                 # Floor plan rendering + overlays (toggleable panel)
+│   ├── l2_console.py             # Tab: L2 prompt console (transition showcase)
+│   ├── adoption_panel.py         # Tab: L2 vs L3 side-by-side comparison
+│   └── controls.py               # Status bar, theme toggle, global controls
+├── engine/
 │   ├── __init__.py
-│   ├── plan_parser.py       # PlanParser agent — image → JSON via Gemini vision
-│   ├── egress_checker.py    # EgressChecker agent — wraps validation engine
-│   ├── evac_diagnoser.py    # EvacDiagnoser agent — violations → plain language
-│   ├── redesigner.py        # Redesigner agent — propose fixes
-│   └── base.py              # Base agent class with state machine + conversational interface
-├── validation/
+│   ├── runner.py                 # Agent execution: load definition → assemble prompt → call LLM → parse output
+│   ├── prompt_builder.py         # Build LLM prompt from agent definition + inputs + constraints
+│   └── conversation.py           # Multi-turn conversation manager per agent session
+├── tools/
 │   ├── __init__.py
-│   ├── p118_rules.py        # Romanian P118 rule checks (pure functions)
-│   ├── structural.py        # Structural anomaly detection (blocked rooms, dead ends)
-│   └── metrics.py           # Metric calculations (violation counts, severities)
+│   ├── registry.py               # Tool registry: maps tool names → implementations
+│   ├── pathfinding.py            # BFS/Dijkstra shortest path to exit
+│   ├── p118_validator.py         # Romanian P118 rule checks (travel distance, exits, doors, corridors)
+│   ├── structural_checker.py     # Blocked rooms, dead ends, inaccessible areas, anomalies
+│   └── metrics.py                # Violation counts, severities, compliance scoring
 ├── llm/
 │   ├── __init__.py
-│   └── gemini_client.py     # Gemini API wrapper (vision + text + chat_followup, retries, rate limit)
+│   └── gemini_client.py          # Gemini API wrapper (vision + text + chat, retries, rate limit)
+├── prompts/                      # L2 artifacts — versioned prompt templates (transition showcase)
+│   ├── v1_parse_floor_plan.md
+│   ├── v1_check_egress.md
+│   ├── v1_diagnose_issues.md
+│   └── v1_propose_fixes.md
 ├── data/
-│   ├── example_office.json  # Example floor plan — office with violations
-│   ├── example_school.json  # Example floor plan — school, clean
-│   ├── example_hospital.json# Example floor plan — hospital with violations
-│   └── agent_definitions/   # agent.md files for each agent (L3 showcase)
-│       ├── plan_parser.md
-│       ├── egress_checker.md
-│       ├── evac_diagnoser.md
-│       └── redesigner.md
+│   ├── floor_plans/              # Example floor plans
+│   │   ├── example_office.json
+│   │   ├── example_school.json
+│   │   └── example_hospital.json
+│   └── agents/                   # Pre-built agent definitions (L3 artifacts)
+│       ├── floor_plan_parser.json
+│       ├── egress_validator.json
+│       ├── evacuation_diagnoser.json
+│       └── exit_placement_advisor.json
+├── user_agents/                  # User-created agent definitions (saved here at runtime)
+│   └── .gitkeep
 └── tests/
-    ├── test_validation.py   # Unit tests for P118 rules
-    └── test_models.py       # Unit tests for schema parsing
+    ├── test_tools.py             # Unit tests for P118 rules, pathfinding
+    └── test_models.py            # Unit tests for schema parsing
 ```
 
-**Notable removals vs. L4 design**:
-- No `agents/orchestrator.py` — the engineer is the orchestrator
-- No `gui/diagnosis_view.py` — diagnosis lives inside the EvacDiagnoser sector chat
+### Key structural differences from "just a fire safety app"
+
+| Element | Fire Safety App | Agent Platform |
+|---------|----------------|----------------|
+| `agents/` | Hardcoded agent classes | Gone — replaced by `engine/` + JSON definitions |
+| `engine/` | N/A | Generic agent runner that executes ANY definition |
+| `tools/` | N/A | Pluggable tool registry — agents SELECT which tools to use |
+| `data/agents/` | Agent `.md` files | Agent `.json` definitions with full schema |
+| `user_agents/` | N/A | User-created agents saved at runtime |
+| `gui/agent_builder.py` | N/A | Form to create new agents |
+| `gui/agent_runner.py` | N/A | Generic runner for any agent |
 
 ---
 
 ## PHASE 0 — Foundation (Hours 0–2) · ALL TOGETHER
 
-**Most important phase. Everyone in the same room. No solo work until the shared contract is locked.**
+**Everyone in the same room. No solo work until the shared contracts are locked.**
 
-### Hour 0–1: Schema & Interfaces
+### Hour 0–1: Schemas & Contracts
 
-- **ALL**: Define the JSON schema for a parsed floor plan. This is THE shared contract. Example:
-  ```json
-  {
-    "building_name": "Office Building A",
-    "floor": 1,
-    "dimensions": {"width_m": 40, "height_m": 25},
-    "rooms": [
-      {"id": "R1", "name": "Office 101", "polygon": [[0,0],[10,0],[10,8],[0,8]], "type": "office", "occupancy": 20}
-    ],
-    "walls": [
-      {"start": [0,0], "end": [10,0], "thickness_m": 0.2}
-    ],
-    "doors": [
-      {"id": "D1", "position": [5,0], "width_m": 0.9, "connects": ["R1","corridor_1"], "is_exit": false}
-    ],
-    "exits": [
-      {"id": "E1", "position": [0,12], "width_m": 1.2, "type": "main"}
-    ],
-    "corridors": [
-      {"id": "C1", "polygon": [[10,0],[12,0],[12,25],[10,25]], "width_m": 2.0}
-    ],
-    "stairs": []
-  }
-  ```
-- **D**: Write `models/schema.py` — Python dataclasses matching the schema
-- **D**: Write `models/violations.py` — Violation, DiagnosisResult, FixProposal dataclasses
-- **D**: Write `models/chat.py` — AgentChatMessage dataclass (role: user|agent, content, timestamp, flagged_issues list)
-- **ALL**: Review and agree on the dataclasses — these are the function signatures everyone codes against
+- **ALL**: Define and agree on:
+  1. **Agent Definition schema** (JSON) — the structure every agent follows (goal, inputs, constraints, outputs, tools, conversational flag)
+  2. **Floor Plan schema** (JSON) — rooms, walls, doors, exits, corridors (the data agents work with)
+  3. **Violation schema** — severity, location, rule, description
+  4. **ChatMessage schema** — role (user/agent), content, timestamp
+- **D**: Write `models/agent_definition.py` — `AgentDefinition`, `AgentInput`, `AgentOutput` dataclasses with `load_from_json()` and `save_to_json()` methods
+- **D**: Write `models/floor_plan.py`, `models/violations.py`, `models/chat.py` dataclasses
+- **ALL**: Review and agree — these are the function signatures everyone codes against
 
 ### Hour 1–2: Project Setup
 
-- **B**: Get Gemini API key (5 min on Google AI Studio). Share with team via `.env` file (gitignored)
-- **A**: Create project structure (folders, `__init__.py` files, `main.py` skeleton)
-- **A**: Write `requirements.txt`: `google-generativeai`, `Pillow`, `python-dotenv`
-- **C**: Define validation function signatures in `validation/p118_rules.py` (stubs returning empty lists)
-- **D**: Write `agents/base.py` — BaseAgent class with state enum (IDLE, RUNNING, DONE, ERROR), `run()` method, and `chat_followup(message) -> str` method for conversational interaction
-- **ALL**: `pip install -r requirements.txt`, verify everyone can import everything
-- **ALL**: Agree on git workflow (feature branches, merge to main at integration points)
+- **B**: Get Gemini API key via Google AI Studio. Share via `.env` (gitignored). Write `llm/gemini_client.py` skeleton
+- **A**: Create project structure (all folders, `__init__.py` files, `main.py` skeleton with sidebar + tabs). Write `requirements.txt`
+- **C**: Define tool function signatures in `tools/` (stubs returning empty results). Write P118 constants in `config.py`
+- **D**: Write 2 pre-built agent definition JSON files in `data/agents/` (Floor Plan Parser + Egress Validator)
+- **B**: Write the 4 L2 prompt templates in `prompts/` — versioned `.md` files with instructions + `{{DATA}}` placeholders
+- **ALL**: `pip install -r requirements.txt`, verify imports, agree on git workflow
 
-**EXIT GATE**: Everyone can run `python main.py` and see an empty Tkinter window. Schema dataclasses importable from all modules. No orchestrator interfaces — each agent is standalone.
+**EXIT GATE**: `python main.py` shows a window with sidebar + 4 tabs. Agent definition JSON files loadable. All stubs importable.
 
 ---
 
 ## PHASE 1 — Core Build (Hours 2–8) · FULL PARALLEL
 
-No cross-team dependencies. Everyone works on their own module using the agreed schema.
+No cross-dependencies. Everyone works against the agreed schemas.
 
-### Person A — GUI Shell + Sector Layout
-
-| Hour | Deliverable |
-|------|-------------|
-| 2–3 | Main window with sector-based layout: 4 agent sector boxes arranged in a 2x2 grid. Each sector is a `ttk.LabelFrame`. Shared canvas area as a toggleable/collapsible panel. Use `ttk` for modern look. |
-| 3–4 | Sector box widget template: agent name header, file input area (file picker button + drag-drop zone), "Run" button (disabled until input loaded), status indicator (colored dot/label), output area placeholder, "Export Output" button, "Show on Canvas" button. |
-| 4–5 | Shared canvas component: render a floor plan from JSON — draw room polygons as filled rectangles, walls as thick lines, doors as gaps with arcs, exits as green markers. Use Tkinter Canvas with `create_polygon`, `create_line`, `create_oval`. |
-| 5–6 | Canvas interaction: zoom (mouse wheel), pan (click-drag), fit-to-window button. Coordinate transform system (world coords <-> screen coords). |
-| 6–7 | Canvas overlays: toggle-able layer for violation markers (red/yellow circles at violation locations, clickable). Checkboxes in a small toolbar above the canvas to show/hide layers (violations, room labels, occupancy numbers). |
-| 7–8 | Global controls strip: example plan dropdown (3 pre-loaded entries), "Reset All" button, theme toggle. Top metrics bar: labels for violation count (colored), compliance status (PASS/FAIL badge), breakdown by category. Wired to accept a `MetricsUpdate` dataclass. |
-
-**Test with**: Hardcoded JSON floor plan loaded on startup. All UI elements visible and responsive even with no backend.
-
-### Person B — LLM Integration + Conversational Agents
+### Person A — Platform Shell + Canvas + L2 Console
 
 | Hour | Deliverable |
 |------|-------------|
-| 2–3 | `llm/gemini_client.py`: Gemini API wrapper. `parse_image(image_path) -> str`, `diagnose(violations_json) -> str`, `propose_fixes(plan_json, violations_json) -> str`, `chat_followup(agent_context, conversation_history, user_message) -> str`. Handle API key from env, retries on rate limit (free tier: 15 RPM for Flash). |
-| 3–5 | `agents/plan_parser.py`: PlanParser agent. Takes an image, sends to Gemini with a carefully crafted prompt that demands JSON output matching the schema. **Conversational**: system prompt instructs the agent to flag ambiguities and unusual features in the parsed plan. After initial parse, agent includes flagged issues in its response. Engineer can ask follow-ups via `chat_followup()`. **This is the hardest prompt — spend 2 hours here.** Test with 3+ floor plan images. |
-| 5–6 | `agents/evac_diagnoser.py`: EvacDiagnoser agent. Takes a list of Violations, sends to Gemini with context, gets back plain-language diagnosis. **Conversational**: engineer can ask "Tell me more about the east wing issue" or "Which violation is most dangerous?" and get focused follow-ups. Prompt: "You are a fire safety engineer reviewing a building plan. Explain each violation in plain language, rank by severity, reference specific rooms by name. Flag any borderline or surprising findings." |
-| 6–7 | `agents/redesigner.py`: Redesigner agent. Takes floor plan JSON + violations, asks Gemini to propose fixes. **Conversational**: engineer can push back ("We can't add a south exit — budget constraints") and get alternative proposals. Prompt includes instruction to discuss trade-offs and offer alternatives. Output: list of FixProposal objects. |
-| 7–8 | `agents/egress_checker.py`: Thin wrapper that calls the validation engine (Person C's code) and packages results. **Conversational**: wraps validation output with LLM explanations — flags borderline cases ("corridor C2 is exactly at the 1.4m minimum"), explains which rules were checked. Write agent definition files in `data/agent_definitions/` — each defines scope, input/output schema, prompt template, conversational guidelines. |
+| 2–3 | Main window: left sidebar (`agent_library.py` skeleton — list of agent names loaded from `data/agents/` + `user_agents/`), center area with `ttk.Notebook` (4 tabs: Agent Runner, Agent Builder, L2 Console, L2 vs L3). Status bar at bottom. |
+| 3–4 | Agent Library sidebar: load agent definitions from JSON files, display as clickable list items grouped by category. Search bar filters by name/goal. "[+ Create New Agent]" button at bottom switches to Builder tab. Click agent → switches to Runner tab with that agent loaded. |
+| 4–5 | Canvas component (`canvas.py`): render floor plan from JSON — room polygons, walls, doors, exits. Zoom (mouse wheel), pan (click-drag), fit-to-window. Canvas is a toggleable bottom panel in the main window. |
+| 5–6 | Canvas overlays: toggleable violation markers (red/yellow circles), room labels, occupancy numbers. Checkboxes for layer visibility. Click violation marker → tooltip with details. |
+| 6–7 | L2 Console tab (`l2_console.py`): prompt template dropdown (reads filenames from `prompts/`), "View Template" button (opens `.md` in `Toplevel`), data input text area, "Load File" button, "Send to LLM" button, raw response text area. Banner explaining L2. |
+| 7–8 | Global controls: status bar ("Ready" / "Running agent..." / "4 violations found"), theme toggle, example floor plan dropdown in the canvas panel. Window title, icon, resize handling. |
 
-**Test with**: Standalone scripts that call each agent and print results. Test multi-turn conversations.
+**Test with**: Hardcoded agent list in sidebar. Canvas renders a hardcoded floor plan. L2 console UI complete.
 
-### Person C — Validation Engine
-
-| Hour | Deliverable |
-|------|-------------|
-| 2–3 | Research Romanian P118 norms — key rules to implement. Write them as constants in `config.py`: max travel distance (30m normal, 20m dead-end), min door width (0.9m rooms, 1.2m exits), min corridor width (1.4m), max dead-end length (12m), exit capacity (80 persons per 1m of exit width). |
-| 3–4 | `validation/p118_rules.py` — implement `check_travel_distance(plan) -> [Violation]`: for each room, compute shortest path to nearest exit. If > threshold, violation. Use BFS/simple distance on the room-corridor-exit graph. |
-| 4–5 | Continue `p118_rules.py` — `check_exit_capacity(plan) -> [Violation]`: sum total occupancy, sum total exit width, check ratio. `check_door_widths(plan) -> [Violation]`: iterate doors, check min width. `check_dead_ends(plan) -> [Violation]`: detect corridors with only one connection, check length. |
-| 5–6 | `validation/structural.py` — `detect_blocked_rooms(plan) -> [Violation]`: rooms with no door or all doors leading to other blocked rooms (graph reachability to any exit). `detect_inaccessible_areas(plan) -> [Violation]`: rooms not connected to the corridor/exit graph. |
-| 6–7 | `validation/structural.py` — `detect_anomalies(plan) -> [Violation]`: nonsensical geometry (overlapping rooms, zero-width corridors, doors in walls that don't exist). Corridor width check vs minimum. |
-| 7–8 | `validation/metrics.py` — `compute_metrics(violations) -> MetricsUpdate`: count by severity, count by category, overall pass/fail. Write unit tests in `tests/test_validation.py` with a known-bad floor plan. |
-
-**Test with**: Unit tests. `python -m pytest tests/test_validation.py`. Create a tiny test floor plan with known violations.
-
-### Person D — Data, Sector UI Components, Agent Chat Widget
+### Person B — LLM Client + Agent Engine + Conversation
 
 | Hour | Deliverable |
 |------|-------------|
-| 2–4 | Create 2–3 example floor plans as JSON files in `data/`. **This is critical for the demo.** One office plan WITH intentional violations (blocked room, insufficient exits, narrow corridor). One school plan that is mostly clean. Design realistic-looking plans, then hand-write the JSON. These must look good on canvas. |
-| 4–5 | `gui/agent_sectors.py` — reusable `AgentSectorBox` widget class. Each instance takes: agent name, description, accepted file types, agent reference. Contains: header with name + description + status dot, file input area with picker button, "Run" button, chat output area (uses `AgentChat` widget), "Export Output" button, "Show on Canvas" button, "Show Agent Definition" button. |
-| 5–6 | `gui/agent_chat.py` — `AgentChat` widget. Scrollable message list (alternating user/agent messages, styled differently). Text input field + "Send" button for follow-up questions. Agent messages can contain **flagged issues** (highlighted in yellow/orange). Supports auto-scroll on new messages. Input field disabled until agent has run at least once. |
-| 6–7 | Data flow helpers: "Export Output" button saves agent's last structured output to a JSON file (file save dialog). "Load Input" file picker in each sector accepts files. No auto-passing between sectors — engineer must explicitly export from one and import to another. Add "Copy to Clipboard" for JSON outputs. |
-| 7–8 | Write 4 `agent.md` definition files in `data/agent_definitions/`. Each defines: scope, input schema, output schema, prompt template, conversational guidelines, retry policy. "Show Agent Definition" button in each sector opens a `Toplevel` window displaying the `.md` file. Pre-load default example plan on app startup (PlanParser sector shows a pre-loaded plan). |
+| 2–3 | `llm/gemini_client.py`: Gemini API wrapper. Methods: `send_prompt(prompt_text) -> str` (for L2 mode), `send_with_context(system_prompt, user_message, history) -> str` (for L3 agent conversations), `parse_image(image_path, prompt) -> str` (for vision). API key from env, retries on rate limit. |
+| 3–4 | `engine/prompt_builder.py`: Takes an `AgentDefinition` + user inputs → assembles a system prompt. Includes: agent goal, constraints as rules, expected output format, conversation guidelines. Injects tool results if tools were run. |
+| 4–5 | `engine/runner.py`: The core execution loop. `run_agent(definition, inputs) -> AgentResult`. Steps: (1) check which tools the agent needs, (2) run tools to get structured data, (3) build prompt from definition + inputs + tool results, (4) call LLM, (5) parse output into structured form, (6) return result with explanation. Runs in background thread. |
+| 5–6 | `engine/conversation.py`: Multi-turn conversation manager. Maintains chat history per agent session. `followup(user_message) -> str` sends the message with full conversation history + agent context to LLM. Agents stay within scope (system prompt instructs them to redirect out-of-scope questions). |
+| 6–7 | Write L2 prompt templates in `prompts/` with detailed instructions and `{{DATA}}` markers. Write `send_with_template(template_path, data) -> str` for L2 mode. Test that L2 produces useful but visibly less structured output than L3. |
+| 7–8 | Write remaining 2 pre-built agent definitions (Evacuation Diagnoser + Exit Placement Advisor) in `data/agents/`. Test engine with all 4 agents: structured output, tool integration, multi-turn conversation (3+ turns). |
 
-**Test with**: Standalone test script that creates sector widgets, loads data, and verifies export/import works.
+**Test with**: Standalone script that loads an agent definition, runs it with example data, and has a multi-turn conversation.
 
-**EXIT GATE (Hour 8)**: Each person can demo their module independently. GUI shows 4 sector boxes with chat areas. LLM agents respond conversationally with flagged issues. Validation returns violations from a test plan. Sector boxes can export/import data manually.
+### Person C — Tool Layer + Domain Logic
+
+| Hour | Deliverable |
+|------|-------------|
+| 2–3 | `tools/registry.py`: Tool registry pattern. `register_tool(name, function)`, `get_tool(name) -> function`, `list_tools() -> [ToolInfo]`. Each tool has: name, description, input type, output type. The engine calls `registry.get_tool(name)` to find the right function. |
+| 3–4 | `tools/p118_validator.py`: `validate_p118(plan) -> [Violation]`. Implement core rules: `check_travel_distance()` (max 30m, 20m dead-end), `check_exit_capacity()` (80 persons per 1m exit width), `check_door_widths()` (0.9m rooms, 1.2m exits), `check_corridor_widths()` (min 1.4m). |
+| 4–5 | `tools/p118_validator.py` continued: `check_dead_ends()` (max 12m), `check_exit_count()` (min 2 per floor for >50 occupants). Each violation includes: rule name, P118 article reference, severity, location, description. |
+| 5–6 | `tools/pathfinding.py`: `find_shortest_exit_path(plan, room_id) -> (distance, path)`. BFS/Dijkstra on room-corridor-exit graph. `find_all_travel_distances(plan) -> dict`. Used by P118 travel distance checks and by the Exit Placement Advisor agent. |
+| 6–7 | `tools/structural_checker.py`: `detect_blocked_rooms(plan) -> [Violation]` (rooms with no reachable exit), `detect_dead_ends(plan) -> [Violation]` (corridors with one connection), `detect_anomalies(plan) -> [Violation]` (overlapping rooms, zero-width corridors). |
+| 7–8 | `tools/metrics.py`: `compute_metrics(violations) -> MetricsReport` (counts by severity, by category, overall pass/fail). Register ALL tools in `registry.py`. Write unit tests in `tests/test_tools.py` with a known-bad floor plan. |
+
+**Test with**: `python -m pytest tests/test_tools.py`. Each tool callable standalone and via registry.
+
+### Person D — Agent Builder + Runner UI + Data
+
+| Hour | Deliverable |
+|------|-------------|
+| 2–3 | Create 2 example floor plans as JSON in `data/floor_plans/`. One office WITH intentional violations (blocked room, insufficient exits, narrow corridor). One school that is mostly clean. Must look good on canvas and trigger known tool failures. |
+| 3–4 | `gui/agent_runner.py`: Agent Runner tab. Layout: agent header (name, goal, [View Definition] button), inputs section (dynamic fields generated from agent definition — file pickers for image/JSON, text fields for parameters), "[Run Agent]" button, outputs section (structured output display, [Export JSON] and [Show on Canvas] buttons). |
+| 4–5 | Agent Runner conversation panel: below the I/O section, a chat area showing agent messages + user follow-ups. Text input + "Send" button. Auto-scroll. Input disabled until agent has run. Flagged issues highlighted in agent responses. "[Clear Chat]" button. |
+| 5–6 | `gui/agent_builder.py`: Agent Builder tab. Form fields: name, goal (text inputs), inputs section ([+ Add Input] button, each input has name/type/description fields), constraints section ([+ Add Constraint] button, each is a text field), outputs section ([+ Add Output] button), tools section (checkboxes from tool registry), conversational toggle. "[Save Agent]" and "[Save & Run]" buttons. |
+| 6–7 | Agent Builder save logic: validates the form, creates `AgentDefinition` object, saves to `user_agents/` as JSON. Agent Library sidebar auto-refreshes to show the new agent. "[Save & Run]" saves then switches to Runner tab with the new agent loaded. |
+| 7–8 | `gui/adoption_panel.py`: L2 vs L3 tab. Two-column layout. Left: loads prompt template from `prompts/`. Right: loads corresponding agent definition from `data/agents/`. Dropdown to switch between the 4 pairs. Annotations highlighting differences (structured I/O, tools, constraints, conversation). Create 3rd example floor plan (hospital) if time allows. |
+
+**Test with**: Standalone test — create an agent via Builder, verify JSON saved, load in Runner, verify I/O fields generated correctly.
+
+**EXIT GATE (Hour 8)**: Each person can demo independently. Platform shell with sidebar + tabs works. Engine runs agents with tools. All 4 tools work and pass tests. Builder creates agents, Runner shows I/O + conversation. L2 console UI ready.
 
 ---
 
 ## PHASE 2 — Integration Wave 1 (Hours 8–12) · PAIRED WORK
 
-### Pair A+D — Sector UI + Data Flow Wiring
+### Pair A+D — UI Wiring
 
 | Hour | Deliverable |
 |------|-------------|
-| 8–9 | Wire each sector's "Run" button to its agent (runs in background thread so GUI doesn't freeze, updates chat area with result). Wire file picker in PlanParser sector to accept images/PDFs, other sectors to accept JSON files. |
-| 9–10 | Wire "Show on Canvas" button: when PlanParser produces output, clicking "Show on Canvas" renders the parsed plan on the shared canvas. When EgressChecker produces violations, "Show on Canvas" adds violation overlay markers to the canvas. |
-| 10–11 | Wire metrics bar: when engineer runs EgressChecker, metrics bar updates with violation counts and compliance status. Wire conversational follow-up: after agent output appears in chat, text input field enables → engineer types a question → "Send" calls `chat_followup()` → response appears in chat thread. |
-| 11–12 | Polish data flow: "Export" opens a file save dialog. Other sectors' "Load Input" opens a file browse dialog. Add "Copy to Clipboard" for quick JSON sharing. Test the full manual handoff: export PlanParser output → import into EgressChecker → export violations → import into EvacDiagnoser. |
+| 8–9 | Wire sidebar: clicking an agent loads it in the Runner tab. "[+ Create]" opens Builder tab. Agent library refreshes when a new agent is saved. Wire Runner's "[View Definition]" button → opens JSON definition in a formatted `Toplevel` window. |
+| 9–10 | Wire Runner's "[Run Agent]" button → calls `engine/runner.py` in a background thread → updates status → displays structured output. Wire conversation: after run completes, text input enables → "Send" calls `conversation.followup()` → response appears in chat. |
+| 10–11 | Wire Runner's "[Show on Canvas]" → pushes floor plan or violations to the canvas panel. Wire "[Export JSON]" → file save dialog. Wire metrics display (violation counts, compliance status) in the status bar when Egress Validator runs. |
+| 11–12 | Wire L2 Console: "Send to LLM" calls `send_with_template()`, displays raw text. Wire adoption panel: dropdown loads L2/L3 pairs. Polish agent Builder → save → appears in library → run flow. Test: create a custom agent, run it, have a conversation. |
 
-### Pair B+C — LLM + Validation + Conversational Quality
+### Pair B+C — Engine + Tools Integration
 
 | Hour | Deliverable |
 |------|-------------|
-| 8–9 | Test PlanParser output against validation engine. Fix schema mismatches — the LLM output may not perfectly match the schema. Add a `normalize_parsed_plan()` function that coerces LLM output into valid dataclasses (fill defaults, fix types, clamp values). |
-| 9–10 | Fine-tune conversational prompts: PlanParser must flag ambiguities proactively, EvacDiagnoser must answer follow-ups coherently and stay on-topic, Redesigner must handle pushback and offer alternatives. Test multi-turn conversations (3+ turns). |
-| 10–11 | Fine-tune EgressChecker conversational wrapper: when validation finds borderline cases (values near thresholds), the LLM wrapper explains them conversationally. Redesigner prompt iteration: proposals must be specific and actionable ("add exit door on east wall of Room R3 at position [15, 8], width 1.2m"). |
-| 11–12 | Add **cached/fallback responses**: for each example floor plan, save a known-good LLM response as a JSON file — including initial output AND 2-3 pre-written follow-up exchanges. If the API is down or rate-limited during demo, load the cached response instead. **This is the demo safety net.** |
+| 8–9 | Integrate tools into engine: when `runner.py` executes an agent, it checks which tools the agent requests, runs them via the registry, and injects results into the LLM prompt. Test: Egress Validator agent calls P118 validator tool + pathfinding tool, results appear in LLM context. |
+| 9–10 | Prompt quality: fine-tune `prompt_builder.py` so agents produce well-structured output. Agents must reference tool results in their responses ("The pathfinding tool found that Room R3 is 34m from the nearest exit, exceeding the P118 limit of 30m"). Test multi-turn conversations with tool context preserved. |
+| 10–11 | L2 vs L3 output contrast: verify that L2 prompt templates produce useful but raw text, while L3 agents produce structured output with tool references and conversational depth. This contrast must be visible in the demo. |
+| 11–12 | Cached/fallback responses: for each pre-built agent + each example floor plan, save known-good responses (initial output + 2-3 follow-up exchanges). If API is down during demo, engine loads cached responses. Also cache L2 raw text responses. **Demo safety net.** |
 
-**EXIT GATE (Hour 12)**: Each sector box works independently. Engineer can manually run agents in any order, export/import data between them, and have follow-up conversations. Canvas shows plans and violations when engineer chooses. No automatic pipeline — all actions are engineer-initiated.
+**EXIT GATE (Hour 12)**: Full workflow works — browse agents, run them, get structured output, have conversations, export results. Agent Builder creates working agents. L2 Console works. Cached fallbacks ready.
 
 ---
 
-## PHASE 3 — Full Manual Workflow (Hours 12–16) · ALL CONVERGE
+## PHASE 3 — Full Workflow (Hours 12–16) · ALL CONVERGE
 
-Everyone works on the same branch now. Frequent commits, frequent pulls.
+Everyone on the same branch. Frequent commits.
 
 | Hour | Who | Deliverable |
 |------|-----|-------------|
-| 12–13 | **ALL** | End-to-end manual workflow test: Engineer opens app → uploads image to PlanParser sector → chats with PlanParser about flagged issues → exports JSON → loads into EgressChecker → runs validation → exports violations → loads into EvacDiagnoser → reads diagnosis → asks follow-up → loads plan+violations into Redesigner → gets fix proposals → discusses alternatives. Fix every bug that blocks this flow. |
-| 13–14 | **A** | Canvas polish: better room labels, door arcs, exit arrows, violation markers with severity colors (red = critical, yellow = warning, green = info). Click a violation marker on canvas → shows tooltip with details. Sector box layout responsiveness (resize handling). |
-| 13–14 | **B** | Conversational quality: test that agents flag issues proactively without being asked, handle follow-ups coherently, and stay within their scope. Test edge cases: asking PlanParser about violations (should say "I only parse plans — try EgressChecker for validation"). Each agent knows its boundaries. |
-| 13–14 | **C** | Edge case handling: what if a room has no polygon? What if corridors overlap? What if doors reference nonexistent rooms? Return graceful violations instead of crashing. Provide borderline case data so EgressChecker's conversational wrapper can flag them. |
-| 13–14 | **D** | Error handling per sector: if any agent fails, show error message in its chat area, don't crash the app. Allow re-running. "Clear Chat" button per sector to reset conversation. Test out-of-order workflows: run Redesigner before EvacDiagnoser, run EgressChecker without PlanParser, etc. |
-| 14–15 | **A+D** | Canvas ↔ sector linkage: clicking a violation in EgressChecker's chat highlights the location on canvas. Overlay toggle checkboxes. Polish "Show on Canvas" flow. |
-| 14–15 | **B+C** | Test with the 2nd and 3rd example plans. Fix any prompt/validation issues specific to school and hospital layouts. Test conversational follow-ups on each plan. |
-| 15–16 | **ALL** | Full run-through of the demo script. Time it. Identify any step that takes too long or looks bad. Test the "engineer skips a step" demo moment. |
+| 12–13 | **ALL** | **End-to-end test, both workflows.** (1) USE: select Floor Plan Parser → load image → run → chat about flagged issues → export JSON → select Egress Validator → load exported JSON → run → see violations on canvas → select Exit Placement Advisor → load plan+violations → get fix proposals → push back in conversation. (2) CREATE: open Builder → define a custom "Corridor Width Checker" agent → save → find it in library → run it → verify it works. Fix all blocking bugs. |
+| 13–14 | **A** | Canvas polish: room labels, door arcs, exit arrows, violation severity colors (red/yellow/green). Click violation → tooltip. Sidebar polish: category headers, agent icons/status dots, search actually filters. |
+| 13–14 | **B** | Agent scope boundaries: each agent redirects out-of-scope questions. Conversational quality: proactive flagging, coherent follow-ups, pushback handling. Verify L2 output is visibly less structured than L3 output. |
+| 13–14 | **C** | Edge cases: rooms with no polygon, overlapping corridors, doors referencing nonexistent rooms → graceful violations, not crashes. Provide borderline case data (values near P118 thresholds) so agents can flag them. |
+| 13–14 | **D** | Error handling: agent failure shows error in Runner, doesn't crash app. Builder form validation (required fields, valid types). Adoption panel annotations are accurate. Test creating agents with various tool combinations. |
+| 14–15 | **A+D** | Canvas ↔ Runner linkage: clicking a violation in the Runner conversation highlights it on canvas. Polish Builder → Library → Runner flow. |
+| 14–15 | **B+C** | Test all 4 pre-built agents on all example plans. Test user-created agents with tools. Conversational follow-ups work across all agents. |
+| 15–16 | **ALL** | **Full demo rehearsal #1.** Time it. Focus on the L2→L3 narrative and the "create an agent" moment. |
 
-**EXIT GATE (Hour 16)**: Manual workflow runs start to finish without crashes. All 4 sector boxes work independently. Conversational follow-ups work in every sector. Out-of-order workflows don't crash. Canvas shows plans and violations. Flagged issues are visible in chat.
+**EXIT GATE (Hour 16)**: Both workflows (use + create) work without crashes. Canvas works. L2 vs L3 contrast is clear. Demo rehearsal completed.
 
 ---
 
 ## PHASE 4 — Polish & Hardening (Hours 16–20) · PARALLEL
 
 ### Person A — Visual Polish
-- Better color scheme (dark sidebar, light canvas, accent colors for violations)
-- Sector box styling — clear visual separation, consistent spacing
-- App icon and window title
-- Resize handling (responsive sector grid)
-- Loading states (cursor changes, disabled buttons while agents run)
-- Tooltips on buttons and violation markers
+- Professional color scheme (dark sidebar, light content, accent colors)
+- L2 Console intentionally plainer than L3 Runner (visual contrast = adoption contrast)
+- Agent Library: polished cards with category grouping, status indicators
+- Loading states (spinner/progress while agent runs), disabled buttons during execution
+- Window title: "AgentForge — Engineering Agent Platform"
+- Resize handling, tooltips on all buttons
 
-### Person B — Robustness
-- Rate limit handling (show "waiting for API" in agent chat)
-- Timeout handling (agent stuck for >30s → show error in chat, allow retry)
-- Validate that ALL cached/fallback responses still match current schema
-- Test with edge-case images (blurry, rotated, partial floor plans)
-- Test conversational edge cases (very long follow-up chains, off-topic questions)
+### Person B — Engine Robustness
+- Rate limit handling (show "Waiting for API..." in conversation, auto-retry)
+- Timeout handling (>30s → error message in chat, retry button)
+- Validate all cached responses match current schema
+- Fine-tune L2 vs L3 output contrast — L2 = useful but raw; L3 = structured + conversational
+- Test conversation edge cases (long chains, off-topic, adversarial)
 
-### Person C — Validation Depth
-- Add 2–3 more P118 rules if time allows (min exits per room based on occupancy, emergency lighting requirements)
-- Refine severity levels (graduated: critical / major / minor / info)
-- Add rule citations: each violation references the specific P118 article number
-- Provide threshold data for borderline case flagging
+### Person C — Tool Depth
+- Add 1-2 more P118 rules if time allows (min exits per room by occupancy, emergency lighting)
+- Refine severity levels (critical / major / minor / info)
+- P118 article citations in every violation
+- Borderline case flagging data for agent conversation context
+- Ensure tool descriptions in registry are clear (shown in Agent Builder)
 
-### Person D — UX Polish
-- Keyboard shortcuts: `V` (validate in EgressChecker), `D` (diagnose in EvacDiagnoser), `R` (reset all), `F` (fit canvas to window)
-- Status bar at bottom: "Ready" / "PlanParser running..." / "4 violations found" / etc.
-- Agent chat formatting: render agent responses with basic markdown (bold, bullet lists)
-- "Show Agent Definition" button polish — display `.md` file in a formatted `Toplevel` window (the L3 proof for judges)
-- Pre-load default example plan on app startup (PlanParser sector pre-populated, no blank canvas)
+### Person D — Builder + Showcase Polish
+- Agent Builder: better form layout, field validation, preview of assembled definition
+- Keyboard shortcuts: `Ctrl+N` (new agent), `Ctrl+R` (run), `Ctrl+E` (export), `F5` (refresh library)
+- Adoption panel: visual arrows showing L2 prompt → L3 agent evolution, "What Changed" summary per pair
+- Pre-load default example plan on startup (canvas shows a floor plan immediately)
+- Agent chat formatting: bold, bullet lists, severity-colored text
 
-**EXIT GATE (Hour 20)**: App looks and feels polished. No crashes on any of the 3 example plans. Cached fallbacks work if API is down. Agent definition files are viewable and well-formatted.
+**EXIT GATE (Hour 20)**: Platform looks polished and professional. Both workflows smooth. No crashes. Cached fallbacks work. Adoption showcase is compelling.
 
 ---
 
@@ -320,23 +478,39 @@ Everyone works on the same branch now. Frequent commits, frequent pulls.
 
 | Hour | Activity |
 |------|----------|
-| 20–21 | **Full demo rehearsal #1.** One person drives, others watch. Time every step. Write down every bug, visual glitch, or awkward pause. Focus on the "engineer controls the workflow" narrative. |
-| 21–22 | **Fix everything from rehearsal.** Priority: crashes > wrong data > visual glitches > nice-to-haves. If a fix is risky, use the cached fallback instead. |
-| 22–23 | **Full demo rehearsal #2.** Different person drives. Practice the speaking parts. Make sure the "engineer as middleman" workflow is clear. Test the "skip a step" moment and the conversational follow-up moment. |
-| 23–23:30 | **Prepare backup plan.** If live API fails: cached responses ready, switch in <5 seconds. If parsing fails: start from pre-loaded JSON plan in EgressChecker sector. |
-| 23:30–24 | **Final commit. Tag release. Everyone rest before the presentation.** |
+| 20–21 | **Demo rehearsal #1.** One person drives. Time every step. Focus on: (1) L2 prompt console moment, (2) L3 agent run + conversation, (3) "Create an agent" moment, (4) L2 vs L3 showcase. Write down all issues. |
+| 21–22 | **Fix everything from rehearsal.** Priority: crashes > wrong data > visual glitches > nice-to-haves. If risky, use cached fallback. |
+| 22–23 | **Demo rehearsal #2.** Different driver. Practice speaking parts. Nail the L2→L3 transition narrative. Test backup plan (cached responses). |
+| 23–23:30 | **Backup plan finalized.** API failure: cached responses for L2 and L3. Parse failure: start from pre-loaded JSON. Builder failure: show a pre-saved user agent. |
+| 23:30–24 | **Final commit. Tag release. Rest.** |
 
 ---
 
 ## Demo Script (90 seconds)
 
-1. "Every commercial building must pass fire egress review. Architects today get this feedback weeks later from a specialist." (10s)
-2. Show the four agent sector boxes — all idle. Engineer **chooses** to start with PlanParser. (5s)
-3. Engineer uploads floor plan image to PlanParser sector → agent processes → shows parsed JSON in chat. **Agent flags an issue**: "I noticed room R5 has an unusual polygon shape — is this intentional?" Engineer responds: "Yes, it's an L-shaped room." Agent acknowledges. (15s)
-4. Engineer **exports** parsed JSON, **imports** it into EgressChecker sector → runs validation → violations appear in chat with severity colors. Agent says: "Found 4 violations, 2 critical. The east wing exit capacity is the most urgent. Corridor C2 is at exactly the 1.4m minimum — technically compliant but worth noting." Engineer clicks "Show on Canvas" — violations light up on the floor plan. (15s)
-5. Engineer **skips EvacDiagnoser** (free will!) and jumps to Redesigner → loads plan + violations → gets ranked fix proposals. Has a conversation: "What if we can't add a south exit?" Agent: "Alternative: widen the existing east exit from 1.0m to 1.8m and add an emergency door from Room R12 to corridor C1. This reduces travel distance by 8m." (20s)
-6. Show the "Agent Definition" button → opens PlanParser's `.md` file showing scope, input/output schema, prompt template. "This is L3 AI adoption — each agent has a clear definition, does one specific job, and the engineer stays in control. No black-box pipeline. The architect decides the workflow." (15s)
-7. "This is how fire safety review should work — AI agents as specialist tools, the engineer as the decision maker, powered by real Romanian P118 regulations." (10s)
+### Act 1: The Problem (10s)
+*"Engineers solve complex domain problems — fire safety, structural loads, HVAC design. AI can help, but most teams are stuck at L2: shared prompt templates, copy-paste workflows, raw text outputs. We built a platform that takes them to L3."*
+
+### Act 2: L2 — Where Most Teams Are Today (15s)
+1. Open the L2 Console tab. Show versioned prompt templates. (3s)
+2. Load example floor plan data, select a prompt, click "Send to LLM." Raw text response appears. (5s)
+3. *"This works — but I'm copy-pasting data, reading unstructured text, and starting from scratch for every follow-up. This is L2: systematized prompting."* (7s)
+
+### Act 3: L3 — Agent Workspace (35s)
+4. Switch to Agent Library. Show 4 pre-built fire safety agents. Click "Floor Plan Parser." (5s)
+5. Upload floor plan image → agent runs → structured output appears. Agent flags: *"Room R5 has an unusual shape — is this intentional?"* Engineer replies. Agent acknowledges. *"That's a conversation — L2 can't do this."* (10s)
+6. Export parsed JSON → select Egress Validator → load JSON → run → violations with severities. Click "Show on Canvas" — violations light up on the floor plan. (10s)
+7. Select Exit Placement Advisor → load plan + violations → agent proposes fixes. Push back: *"Can't add a south exit."* Agent offers alternatives with justification. (10s)
+
+### Act 4: Create Your Own Agent (15s)
+8. Click "[+ Create New Agent]." Fill in: Name = "Corridor Width Checker", Goal = "Verify all corridors meet minimum width requirements", add constraints, select P118 Validator tool. Click "Save & Run." (10s)
+9. *"An engineer just created a reusable, conversational agent — no AI expertise needed. That's L3: agents as objects, not prompts."* (5s)
+
+### Act 5: The Transition (10s)
+10. Switch to "L2 vs L3" tab. Show side-by-side: prompt template vs agent definition. *"Same LLM. Same domain. But the agent has structured I/O, tool access, constraints, and conversation. This is what AI adoption looks like."* (10s)
+
+### Act 6: Close (5s)
+*"We let engineers turn domain knowledge into executable agents. This is the L2 to L3 transition."*
 
 ---
 
@@ -344,12 +518,13 @@ Everyone works on the same branch now. Frequent commits, frequent pulls.
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Gemini free tier rate limit (15 RPM) | Can't demo live parsing or conversations | Cache all LLM responses + follow-up exchanges for example plans; load cached if API fails |
-| Vision parsing returns bad JSON | Validation and rendering break | Ship with 2-3 hand-crafted JSON plans; live parsing is a stretch goal |
-| P118 rules wrong or incomplete | Judges question accuracy | Cite specific P118 article numbers; disclaim "decision support, not certification" |
-| Tkinter looks ugly | Bad first impression | Use `ttk` themes (`clam` or `alt`), custom colors, consistent spacing |
-| Manual data passing feels clunky | Bad UX impression | Smooth export/import flow, "Copy to Clipboard" for JSON, clear file naming |
-| Conversational follow-ups go off-topic | Agent gives irrelevant answers | System prompt boundaries ("you are PlanParser — only discuss floor plan parsing"), test edge cases |
+| Gemini free tier rate limit (15 RPM) | Can't demo live agent runs | Cache all responses (L2 + L3) for every example plan; switch to cached in <5s |
+| Vision parsing returns bad JSON | Egress Validator breaks | Ship with pre-crafted JSON floor plans; live image parsing is a stretch goal |
+| Agent Builder creates broken agents | Demo embarrassment | Pre-test 2-3 custom agents; have a backup pre-saved user agent in `user_agents/` |
+| L2 vs L3 contrast not clear to judges | Miss the theme | Dedicated showcase tab + demo script explicitly narrates the difference |
+| P118 rules incomplete | Judges question accuracy | Cite P118 article numbers; disclaim "decision support, not certification" |
+| Tkinter looks unprofessional | Platform doesn't feel "mature" | `ttk` themes, custom colors, consistent spacing, professional sidebar |
+| Tool integration fragile | Agent output ignores tool data | Cached fallback responses that include tool references; test extensively |
 
 ---
 
@@ -358,12 +533,12 @@ Everyone works on the same branch now. Frequent commits, frequent pulls.
 ```
 Hour  0    2    4    6    8   10   12   14   16   18   20   22   24
       |----|----|----|----|----|----|----|----|----|----|----|----|
-A:    [SETUP] [= Sector Layout + Canvas =] [= Sector+Data =] [= All Converge =] [Polish] [DEMO]
-B:    [SETUP] [= LLM + Conversational  =] [= LLM+Valid   =] [= All Converge =] [Robust] [DEMO]
-C:    [SETUP] [= Validation Engine =====] [= LLM+Valid   =] [= All Converge =] [Depth ] [DEMO]
-D:    [SETUP] [= Data + SectorUI + Chat] [= Sector+Data =] [= All Converge =] [UX Pol] [DEMO]
+A:    [SETUP] [= Shell+Canvas+L2 ======] [= UI Wiring  =] [= Converge ==] [Visual] [DEMO]
+B:    [SETUP] [= LLM+Engine+Convo =====] [= Engine+Tool=] [= Converge ==] [Robust] [DEMO]
+C:    [SETUP] [= Tools+P118+Path ======] [= Engine+Tool=] [= Converge ==] [Depth ] [DEMO]
+D:    [SETUP] [= Builder+Runner+Data ==] [= UI Wiring  =] [= Converge ==] [Polish] [DEMO]
       |----|----|----|----|----|----|----|----|----|----|----|----|
-Phase: P0     P1 (parallel)   P2 (pairs)  P3 (all)  P4 (par) P5(all)
+Phase: P0     P1 (full parallel) P2 (pairs)  P3 (all)  P4 (par) P5
 ```
 
 ---
@@ -372,38 +547,52 @@ Phase: P0     P1 (parallel)   P2 (pairs)  P3 (all)  P4 (par) P5(all)
 
 | File / Folder | Owner | Others touch? |
 |---------------|-------|---------------|
-| `models/` | D (initial), then shared | Everyone reads, nobody else writes |
-| `gui/app.py`, `gui/canvas.py`, `gui/controls.py`, `gui/metrics_bar.py` | A | D helps wire sectors |
-| `gui/agent_sectors.py` | D | A helps with layout |
-| `gui/agent_chat.py` | D | B provides conversational logic |
-| `llm/gemini_client.py` | B | Nobody else touches |
-| `agents/plan_parser.py`, `agents/evac_diagnoser.py`, `agents/redesigner.py` | B | D calls from sector UI |
-| `agents/egress_checker.py`, `agents/base.py` | D (base), B (agent logic) | Split ownership |
-| `validation/` | C | B wraps in egress_checker |
-| `data/*.json` | D | B uses for prompt testing |
-| `data/agent_definitions/` | B writes content, D displays in UI | Shared |
-| `config.py` | C (rules), B (API) | Split ownership |
-| `main.py` | A | Entry point, kept minimal |
-| `tests/` | C | B adds LLM output tests |
-
-**No `agents/orchestrator.py`** — the engineer is the orchestrator.
+| `models/` | D (initial), then shared | Everyone reads |
+| `gui/app.py`, `gui/canvas.py`, `gui/controls.py` | A | D helps with wiring |
+| `gui/agent_library.py`, `gui/l2_console.py` | A | — |
+| `gui/agent_runner.py`, `gui/agent_builder.py` | D | A helps with layout |
+| `gui/adoption_panel.py` | D | B reviews L2/L3 content |
+| `engine/runner.py`, `engine/prompt_builder.py`, `engine/conversation.py` | B | C provides tool integration |
+| `llm/gemini_client.py` | B | — |
+| `tools/registry.py`, `tools/p118_validator.py`, `tools/pathfinding.py` | C | B calls via engine |
+| `tools/structural_checker.py`, `tools/metrics.py` | C | — |
+| `prompts/` | B writes content | A displays in L2 console |
+| `data/agents/` | B writes definitions | D displays in UI, A loads in sidebar |
+| `data/floor_plans/` | D | B uses for testing, C uses for validation tests |
+| `user_agents/` | D (save logic) | Runtime only |
+| `config.py` | C (rules), B (API) | Split |
+| `main.py` | A | Minimal entry point |
+| `tests/` | C (tools), D (models) | — |
 
 ---
 
-## L3 Compliance Checklist
+## L2→L3 Compliance Checklist
 
-**L3 requirements (must have)**:
-- [ ] Repository contains agents performing distinct jobs
-- [ ] Agent definition files (`.md`) in `data/agent_definitions/`
-- [ ] Each agent has clear scope, input/output schema
-- [ ] Engineer manually triggers each agent
-- [ ] Engineer controls workflow order (free will)
-- [ ] Agents are conversational (flag issues, answer follow-ups)
-- [ ] "Show Agent Definition" button proves L3 to judges
+### L2 elements (the "before" — what we show for contrast)
+- [ ] `prompts/` directory with versioned prompt templates committed to repo
+- [ ] L2 Prompt Console tab — functional, not just a mockup
+- [ ] L2 mode produces useful output (proves L2 works, shows limitations)
+- [ ] Templates use `{{PLACEHOLDER}}` markers for data injection
 
-**L4 elements (must NOT have)**:
+### L3 elements (the "after" — what we build)
+- [ ] Repository contains agent definitions as structured JSON objects
+- [ ] Agent definitions include: goal, inputs, constraints, outputs, tools, conversation guidelines
+- [ ] Agents are reusable — anyone can run them without prompt knowledge
+- [ ] Agents have access to domain tools (P118 validator, pathfinding), not just LLM
+- [ ] Agents produce structured output with explanations
+- [ ] Agents are conversational — multi-turn follow-up, proactive flagging, scope boundaries
+- [ ] Engineers can CREATE new agents via the Builder (not just use pre-built ones)
+- [ ] Agent definitions are viewable in the UI (the L3 proof for judges)
+
+### L2→L3 transition showcase
+- [ ] "L2 vs L3" tab with side-by-side comparison
+- [ ] Visible contrast: L2 raw text vs L3 structured + conversational output
+- [ ] Demo script explicitly narrates the transition
+- [ ] Annotations explaining what changed (I/O, tools, constraints, conversation, reusability)
+
+### L4 elements (must NOT have)
 - ~~Orchestrator coordinating agents~~
-- ~~Automatic pipeline (parse → validate → diagnose → propose)~~
+- ~~Automatic pipeline between agents~~
 - ~~Agents passing data to each other~~
 - ~~DAG or workflow definition~~
 - ~~Agent-to-agent communication~~

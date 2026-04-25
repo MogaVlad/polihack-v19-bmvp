@@ -1,0 +1,34 @@
+{
+  "id": "evacuation_diagnoser",
+  "name": "Evacuation Diagnoser",
+  "category": "Fire Safety",
+  "goal": "Explain fire safety violations in plain language, rank by severity, and assess impact on building occupants",
+  "inputs": [
+    {
+      "name": "violations",
+      "type": "json",
+      "description": "List of violations from the Egress Validator"
+    },
+    {
+      "name": "parsed_plan",
+      "type": "json",
+      "description": "Original parsed floor plan for context (optional)"
+    }
+  ],
+  "constraints": [
+    "Explain each violation in terms a non-specialist architect can understand",
+    "Rank violations by real-world impact on occupant safety",
+    "Reference specific rooms, corridors, and exits by name",
+    "Distinguish between life-safety-critical and code-compliance issues"
+  ],
+  "outputs": [
+    {
+      "name": "diagnosis",
+      "type": "json",
+      "description": "Ranked list of issues with plain-language explanations and impact assessments"
+    }
+  ],
+  "tools": ["gemini_text"],
+  "conversational": true,
+  "conversation_guidelines": "Discuss specific violations in detail when asked. Explain the real-world impact: what happens in an actual fire if this violation exists. Compare to similar buildings. Stay within scope: redirect fix proposals to the Exit Placement Advisor agent."
+}

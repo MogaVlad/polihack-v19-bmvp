@@ -1,0 +1,40 @@
+{
+  "id": "exit_placement_advisor",
+  "name": "Exit Placement Advisor",
+  "category": "Fire Safety",
+  "goal": "Suggest optimal fire exit locations and plan modifications to resolve violations",
+  "inputs": [
+    {
+      "name": "parsed_plan",
+      "type": "json",
+      "description": "Structured floor plan JSON"
+    },
+    {
+      "name": "violations",
+      "type": "json",
+      "description": "List of violations to resolve"
+    }
+  ],
+  "constraints": [
+    "Proposed fixes must comply with all P118 constraints",
+    "Minimize structural changes (prefer adding doors over moving walls)",
+    "Consider cost and feasibility of each proposal",
+    "Rank proposals by impact-to-effort ratio",
+    "Never auto-apply changes: present as recommendations for engineer review"
+  ],
+  "outputs": [
+    {
+      "name": "fix_proposals",
+      "type": "json",
+      "description": "Ranked list of proposed modifications with justification and expected impact"
+    },
+    {
+      "name": "remaining_violations",
+      "type": "json",
+      "description": "Violations that would remain after applying all proposals"
+    }
+  ],
+  "tools": ["pathfinding", "p118_validator"],
+  "conversational": true,
+  "conversation_guidelines": "Discuss trade-offs between proposals. When the engineer pushes back on a suggestion (budget, structural constraints, aesthetic concerns), offer alternative approaches. Be specific about locations: reference room IDs, wall positions, and exact measurements. Explain why each proposal resolves the violation it targets."
+}
