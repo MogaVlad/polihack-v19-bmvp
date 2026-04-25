@@ -1,4 +1,4 @@
-google-generativeai
+google-genai
 Pillow
 python-dotenv
 customtkinter
