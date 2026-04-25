@@ -70,7 +70,7 @@ class App:
             self.root,
             width=self.current_sidebar_width,
             corner_radius=0,
-            fg_color=("#d4c090", "#1e1009"),
+            fg_color=("#e7d5a5", "#2d1a0e"),
             border_width=0,
         )
         self.sidebar_frame.grid(row=1, column=0, sticky="nsew")
@@ -80,7 +80,7 @@ class App:
         self.sidebar_content = ctk.CTkFrame(
             self.sidebar_frame,
             width=260,
-            fg_color=("#d4c090", "#1e1009"),
+            fg_color=("#e7d5a5", "#2d1a0e"),
         )
         self.sidebar_content.place(x=0, y=0, relheight=1.0)
 
@@ -104,14 +104,15 @@ class App:
             right_inner,
             corner_radius=10,
             fg_color=("#f8f1e9", "#1a0e05"),
-            segmented_button_fg_color=("#c8a96e", "#c8a96e"),
-            segmented_button_selected_color=("#7a5230", "#7a5230"),
-            segmented_button_selected_hover_color=("#6b4428", "#6b4428"),
-            segmented_button_unselected_color=("#c8a96e", "#c8a96e"),
-            segmented_button_unselected_hover_color=("#b8976a", "#b8976a"),
-            text_color=("#f8f1e9", "#f8f1e9"),
+            segmented_button_fg_color=("#e7d5a5", "#2d1a0e"),
+            segmented_button_selected_color="#92817A",
+            segmented_button_selected_hover_color="#7a6a60",
+            segmented_button_unselected_color=("#d4b896", "#3d2510"),
+            segmented_button_unselected_hover_color=("#c4a882", "#3d2510"),
+            text_color=("#543520", "#F1DABF"),
         )
-        self.tabview.pack(fill="both", expand=True, padx=60, pady=(16, 8))
+        # Increased padding to push tabs away from the sidebar edge
+        self.tabview.pack(fill="both", expand=True, padx=24, pady=(16, 8))
 
         # Create tabs
         self.tabview.add("Agent Runner")
@@ -126,14 +127,9 @@ class App:
         for tab_name in ("Agent Runner", "Agent Builder", "L2 Console", "L2 vs L3"):
             self.tabview.tab(tab_name).configure(fg_color=("#f8f1e9", "#1a0e05"))
 
-        # ── Center the tab button bar + resize + bold font ─────
+        # ── Center the tab button bar ────────────────────────────
         def _center_tabs():
             seg = self.tabview._segmented_button
-            # Make buttons taller and bold
-            seg.configure(
-                height=36,
-                font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            )
             seg.place_forget()
             seg.place(relx=0.5, y=8, anchor="n")
         self.tabview.after(100, _center_tabs)

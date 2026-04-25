@@ -47,6 +47,7 @@ class AgentRunnerTab:
         self._conversation: Optional[ConversationManager] = None
         self._engine = AgentRunner()
         self._violation_locations: set = set()
+        self._output_expanded = False  # collapsed by default
         self._build_ui()
 
     # ── Helpers ──────────────────────────────────────────────────
@@ -59,28 +60,19 @@ class AgentRunnerTab:
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             text_color=("#92817A", "#92817A"),
         ).pack(side="left")
-        # Separator line
         sep = ctk.CTkFrame(frame, height=1, fg_color=("#543520", "#92817A"))
         sep.pack(side="left", fill="x", expand=True, padx=(10, 0), pady=1)
         return frame
 
     # ── Build UI ─────────────────────────────────────────────────
     def _build_ui(self):
-        wrapper = ctk.CTkScrollableFrame(
-            self.parent,
-            fg_color="transparent",
-            scrollbar_button_color=("#543520", "#92817A"),
-        )
-        wrapper.pack(fill="both", expand=True, padx=4, pady=4)
-
         # ── Header ──────────────────────────────────────────────
-        header = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
-        header.pack(fill="x", padx=8, pady=(4, 8))
+        header = ctk.CTkFrame(self.parent, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        header.pack(fill="x", padx=8, pady=(6, 6))
 
         header_inner = ctk.CTkFrame(header, fg_color="transparent")
-        header_inner.pack(fill="x", padx=16, pady=12)
+        header_inner.pack(fill="x", padx=16, pady=10)
 
-        # Top row: agent name + status indicator
         top_row = ctk.CTkFrame(header_inner, fg_color="transparent")
         top_row.pack(fill="x")
 
@@ -122,23 +114,63 @@ class AgentRunnerTab:
         )
         self.view_def_btn.pack(anchor="e", pady=(4, 0))
 
-        # ── I/O Section ─────────────────────────────────────────
-        io_frame = ctk.CTkFrame(wrapper, fg_color="transparent")
-        io_frame.pack(fill="both", expand=True, padx=8, pady=4)
-        io_frame.grid_columnconfigure(0, weight=1)
-        io_frame.grid_columnconfigure(1, weight=1)
-        io_frame.grid_rowconfigure(0, weight=1)
+        # ── Two-column body ──────────────────────────────────────
+        body = ctk.CTkFrame(self.parent, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=8, pady=(0, 6))
+        body.grid_columnconfigure(0, weight=4)
+        body.grid_columnconfigure(1, weight=5)
+        body.grid_rowconfigure(0, weight=1)
 
-        # Inputs
-        input_card = ctk.CTkFrame(io_frame, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
-        input_card.grid(row=0, column=0, sticky="nsew", padx=(0, 4), pady=0)
+        # ══════════════════════════════════════════════════════════
+        # LEFT COLUMN — scrollable
+        # ══════════════════════════════════════════════════════════
+        left_scroll = ctk.CTkScrollableFrame(
+            body,
+            fg_color="transparent",
+            scrollbar_button_color=("#543520", "#92817A"),
+            scrollbar_button_hover_color=("#6b4428", "#7a6a60"),
+        )
+        left_scroll.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+
+        # ── INPUTS ──────────────────────────────────────────────
+        input_card = ctk.CTkFrame(left_scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        input_card.pack(fill="x", padx=0, pady=(0, 6))
 
         self._section_header(input_card, "INPUTS").pack(fill="x", padx=12, pady=(12, 6))
 
+        # Dynamic per-agent field widgets (file paths, selectors, etc.)
         self.inputs_container = ctk.CTkFrame(input_card, fg_color="transparent")
-        self.inputs_container.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+        self.inputs_container.pack(fill="x", padx=12, pady=(0, 4))
 
         self.input_widgets = {}
+
+        # Multi-line raw input textbox
+        self.input_textbox = ctk.CTkTextbox(
+            input_card,
+            height=56,
+            corner_radius=8,
+            fg_color=("#f8f1e9", "#000500"),
+            border_color=("#543520", "#92817A"),
+            border_width=1,
+            text_color=("#543520", "#F1DABF"),
+            font=ctk.CTkFont(family="Consolas", size=11),
+            wrap="word",
+        )
+        self.input_textbox.pack(fill="x", padx=12, pady=(0, 6))
+
+        def _prevent_scroll_input(event):
+            delta = getattr(event, "delta", 0)
+            if delta != 0:
+                event.widget.yview_scroll(int(-1 * (delta / 120)), "units")
+            elif event.num == 4:
+                event.widget.yview_scroll(-1, "units")
+            elif event.num == 5:
+                event.widget.yview_scroll(1, "units")
+            return "break"
+
+        self.input_textbox._textbox.bind("<MouseWheel>", _prevent_scroll_input)
+        self.input_textbox._textbox.bind("<Button-4>", _prevent_scroll_input)
+        self.input_textbox._textbox.bind("<Button-5>", _prevent_scroll_input)
 
         self.run_btn = ctk.CTkButton(
             input_card,
@@ -151,17 +183,38 @@ class AgentRunnerTab:
             text_color="#ffffff",
             command=self._run_agent,
         )
-        self.run_btn.pack(padx=12, pady=(4, 14))
+        self.run_btn.pack(fill="x", padx=12, pady=(0, 12))
 
-        # Outputs
-        output_card = ctk.CTkFrame(io_frame, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
-        output_card.grid(row=0, column=1, sticky="nsew", padx=(4, 0), pady=0)
+        # ── OUTPUTS (collapsible dropdown) ───────────────────────
+        output_card = ctk.CTkFrame(left_scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        output_card.pack(fill="x", padx=0, pady=(0, 6))
 
-        self._section_header(output_card, "OUTPUTS").pack(fill="x", padx=12, pady=(12, 6))
+        # Header row acts as the toggle
+        output_header = ctk.CTkFrame(output_card, fg_color="transparent", cursor="hand2")
+        output_header.pack(fill="x", padx=12, pady=(10, 0))
+
+        self._section_header(output_header, "OUTPUTS").pack(side="left", fill="x", expand=True)
+
+        self.output_toggle_lbl = ctk.CTkLabel(
+            output_header,
+            text="▶",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color=("#92817A", "#92817A"),
+            cursor="hand2",
+        )
+        self.output_toggle_lbl.pack(side="right", padx=(8, 0))
+
+        # Bind both the frame and arrow label to toggle
+        output_header.bind("<Button-1>", lambda e: self._toggle_outputs())
+        self.output_toggle_lbl.bind("<Button-1>", lambda e: self._toggle_outputs())
+
+        # Collapsible content frame
+        self.output_content = ctk.CTkFrame(output_card, fg_color="transparent")
+        # Not packed initially (collapsed)
 
         self.output_text = ctk.CTkTextbox(
-            output_card,
-            height=120,
+            self.output_content,
+            height=160,
             corner_radius=8,
             fg_color=("#f8f1e9", "#000500"),
             text_color=("#543520", "#F1DABF"),
@@ -169,10 +222,25 @@ class AgentRunnerTab:
             state="disabled",
             wrap="word",
         )
-        self.output_text.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+        self.output_text.pack(fill="both", expand=True, padx=12, pady=(6, 6))
 
-        export_frame = ctk.CTkFrame(output_card, fg_color="transparent")
-        export_frame.pack(fill="x", padx=12, pady=(0, 14))
+        # Prevent scroll propagation on output textbox
+        def _prevent_scroll_output(event):
+            delta = getattr(event, "delta", 0)
+            if delta != 0:
+                event.widget.yview_scroll(int(-1 * (delta / 120)), "units")
+            elif event.num == 4:
+                event.widget.yview_scroll(-1, "units")
+            elif event.num == 5:
+                event.widget.yview_scroll(1, "units")
+            return "break"
+
+        self.output_text._textbox.bind("<MouseWheel>", _prevent_scroll_output)
+        self.output_text._textbox.bind("<Button-4>", _prevent_scroll_output)
+        self.output_text._textbox.bind("<Button-5>", _prevent_scroll_output)
+
+        export_frame = ctk.CTkFrame(self.output_content, fg_color="transparent")
+        export_frame.pack(fill="x", padx=12, pady=(0, 10))
 
         ctk.CTkButton(
             export_frame, text="Export JSON", width=110, height=28, corner_radius=6,
@@ -188,20 +256,60 @@ class AgentRunnerTab:
             text_color=("#e7d5a5", "#F1DABF"), command=self._show_on_canvas,
         ).pack(side="left")
 
-        # ── Conversation ────────────────────────────────────────
-        chat_card = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
-        chat_card.pack(fill="both", expand=True, padx=8, pady=(8, 4))
+        # Collapsed padding spacer
+        self.output_collapsed_pad = ctk.CTkFrame(output_card, fg_color="transparent", height=6)
+        self.output_collapsed_pad.pack()
 
-        # Conversation header with Clear Chat button
-        chat_header_frame = ctk.CTkFrame(chat_card, fg_color="transparent")
-        chat_header_frame.pack(fill="x", padx=12, pady=(12, 6))
+        # ── CONSTRAINTS USED ────────────────────────────────────
+        constraints_card = ctk.CTkFrame(left_scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        constraints_card.pack(fill="x", padx=0, pady=(0, 6))
+
+        self._section_header(constraints_card, "CONSTRAINTS USED").pack(fill="x", padx=12, pady=(10, 4))
+        self.constraints_label = ctk.CTkLabel(
+            constraints_card,
+            text="—",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=("#92817A", "#92817A"),
+            wraplength=300,
+            justify="left",
+            anchor="nw",
+        )
+        self.constraints_label.pack(fill="x", padx=14, pady=(0, 10))
+
+        # ── TOOLS USED ───────────────────────────────────────────
+        tools_card = ctk.CTkFrame(left_scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        tools_card.pack(fill="x", padx=0, pady=(0, 6))
+
+        self._section_header(tools_card, "TOOLS USED").pack(fill="x", padx=12, pady=(10, 4))
+        self.tools_label = ctk.CTkLabel(
+            tools_card,
+            text="—",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=("#92817A", "#92817A"),
+            wraplength=300,
+            justify="left",
+            anchor="nw",
+        )
+        self.tools_label.pack(fill="x", padx=14, pady=(0, 10))
+
+        # ══════════════════════════════════════════════════════════
+        # RIGHT COLUMN — conversation (AI responses only)
+        # ══════════════════════════════════════════════════════════
+        right_card = ctk.CTkFrame(body, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        right_card.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+        right_card.grid_rowconfigure(1, weight=1)
+        right_card.grid_columnconfigure(0, weight=1)
+
+        # Conversation header
+        chat_header_frame = ctk.CTkFrame(right_card, fg_color="transparent")
+        chat_header_frame.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
 
         self._section_header(chat_header_frame, "CONVERSATION").pack(side="left", fill="x", expand=True)
 
         self.clear_chat_btn = ctk.CTkButton(
             chat_header_frame,
-            text="Clear Chat",
-            width=90,
+            text="Clear",
+            width=72,
             height=24,
             corner_radius=6,
             font=ctk.CTkFont(family="Segoe UI", size=10),
@@ -212,9 +320,9 @@ class AgentRunnerTab:
         )
         self.clear_chat_btn.pack(side="right", padx=(8, 0))
 
+        # Chat display — fills the right column
         self.chat_display = ctk.CTkTextbox(
-            chat_card,
-            height=100,
+            right_card,
             corner_radius=8,
             fg_color=("#f8f1e9", "#000500"),
             text_color=("#543520", "#F1DABF"),
@@ -222,14 +330,10 @@ class AgentRunnerTab:
             state="disabled",
             wrap="word",
         )
-        self.chat_display.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+        self.chat_display.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 8))
 
-        # Configure tag colours for chat messages
-        # Note: CTkTextbox forbids 'font' in tag_config due to scaling
-        self.chat_display.tag_config("agent_label", foreground="#92817A")
-        self.chat_display.tag_config("agent", foreground="#92817A")
-        self.chat_display.tag_config("user_label", foreground="#e8b84d")
-        self.chat_display.tag_config("user", foreground="#e0e0e0")
+        # Configure tag colours
+        self.chat_display.tag_config("agent", foreground="#F1DABF")
         self.chat_display.tag_config("flagged", foreground="#ff6b6b")
         self.chat_display.tag_config("timestamp", foreground="#555555")
         self.chat_display.tag_config("bold", foreground="#e0e0e0")
@@ -244,8 +348,8 @@ class AgentRunnerTab:
         self.chat_display.tag_bind("location", "<Leave>",
                                    lambda e: self.chat_display.configure(cursor=""))
 
-        # Fix: prevent mouse wheel from propagating to the parent scrollable frame
-        def _prevent_scroll(event):
+        # Prevent scroll propagation on chat display
+        def _prevent_scroll_chat(event):
             delta = getattr(event, "delta", 0)
             if delta != 0:
                 event.widget.yview_scroll(int(-1 * (delta / 120)), "units")
@@ -255,15 +359,13 @@ class AgentRunnerTab:
                 event.widget.yview_scroll(1, "units")
             return "break"
 
-        self.chat_display._textbox.bind("<MouseWheel>", _prevent_scroll)
-        self.chat_display._textbox.bind("<Button-4>", _prevent_scroll)
-        self.chat_display._textbox.bind("<Button-5>", _prevent_scroll)
-        self.output_text._textbox.bind("<MouseWheel>", _prevent_scroll)
-        self.output_text._textbox.bind("<Button-4>", _prevent_scroll)
-        self.output_text._textbox.bind("<Button-5>", _prevent_scroll)
+        self.chat_display._textbox.bind("<MouseWheel>", _prevent_scroll_chat)
+        self.chat_display._textbox.bind("<Button-4>", _prevent_scroll_chat)
+        self.chat_display._textbox.bind("<Button-5>", _prevent_scroll_chat)
 
-        msg_frame = ctk.CTkFrame(chat_card, fg_color="transparent")
-        msg_frame.pack(fill="x", padx=12, pady=(0, 12))
+        # Message input row
+        msg_frame = ctk.CTkFrame(right_card, fg_color="transparent")
+        msg_frame.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 12))
 
         self.chat_input = ctk.CTkEntry(
             msg_frame,
@@ -294,68 +396,36 @@ class AgentRunnerTab:
         )
         self.send_btn.pack(side="right")
 
-        # ── Constraints + Tools footer ──────────────────────────
-        footer_frame = ctk.CTkFrame(wrapper, fg_color="transparent")
-        footer_frame.pack(fill="x", padx=8, pady=(4, 8))
-        footer_frame.grid_columnconfigure(0, weight=1)
-        footer_frame.grid_columnconfigure(1, weight=1)
-
-        constraints_card = ctk.CTkFrame(footer_frame, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
-        constraints_card.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
-
-        self._section_header(constraints_card, "CONSTRAINTS USED").pack(fill="x", padx=12, pady=(10, 4))
-        self.constraints_label = ctk.CTkLabel(
-            constraints_card,
-            text="—",
-            font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color=("#92817A", "#92817A"),
-            wraplength=350,
-            justify="left",
-            anchor="nw",
-        )
-        self.constraints_label.pack(fill="x", padx=14, pady=(0, 10))
-
-        tools_card = ctk.CTkFrame(footer_frame, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
-        tools_card.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
-
-        self._section_header(tools_card, "TOOLS USED").pack(fill="x", padx=12, pady=(10, 4))
-        self.tools_label = ctk.CTkLabel(
-            tools_card,
-            text="—",
-            font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color=("#92817A", "#92817A"),
-            wraplength=350,
-            justify="left",
-            anchor="nw",
-        )
-        self.tools_label.pack(fill="x", padx=14, pady=(0, 10))
+    # ── Output dropdown toggle ────────────────────────────────────
+    def _toggle_outputs(self):
+        """Expand or collapse the outputs section."""
+        self._output_expanded = not self._output_expanded
+        if self._output_expanded:
+            self.output_collapsed_pad.pack_forget()
+            self.output_content.pack(fill="x")
+            self.output_toggle_lbl.configure(text="▼")
+        else:
+            self.output_content.pack_forget()
+            self.output_collapsed_pad.pack()
+            self.output_toggle_lbl.configure(text="▶")
 
     # ── Chat message helpers ─────────────────────────────────────
     def _append_agent_message(self, text: str):
-        """Append an agent message to the chat display with formatting."""
+        """Append an AI-only response to the chat display with formatting."""
         self.chat_display.configure(state="normal")
-        # Add spacing if not the first message
         if self.chat_display.get("1.0", "end").strip():
             self.chat_display.insert("end", "\n\n")
-        self.chat_display.insert("end", "Agent: ", "agent_label")
-        # Insert text with flagged-issue highlighting
         self._insert_with_highlights(text, "agent")
         self.chat_display.configure(state="disabled")
         self._auto_scroll()
 
     def _append_user_message(self, text: str):
-        """Append a user message to the chat display with formatting."""
-        self.chat_display.configure(state="normal")
-        if self.chat_display.get("1.0", "end").strip():
-            self.chat_display.insert("end", "\n\n")
-        self.chat_display.insert("end", "You: ", "user_label")
-        self.chat_display.insert("end", text, "user")
-        self.chat_display.configure(state="disabled")
-        self._auto_scroll()
+        """Store user message context but do NOT display it in the conversation panel."""
+        # User messages are intentionally hidden; conversation shows AI responses only.
+        pass
 
     def _insert_with_highlights(self, text: str, base_tag: str):
         """Insert text with bold, bullets, severity colors, flagged keywords, and clickable locations."""
-        # First pass: strip **bold** markers and record bold spans
         clean_parts = []
         bold_spans = []
         last = 0
@@ -408,21 +478,17 @@ class AgentRunnerTab:
             self.chat_display.insert("end", clean_text[last_end:], base_tag)
 
     def _auto_scroll(self):
-        """Scroll the chat display to the bottom."""
         self.chat_display.see("end")
 
     def _set_chat_enabled(self, enabled: bool):
-        """Enable or disable the chat input and send button."""
         state = "normal" if enabled else "disabled"
         self.chat_input.configure(state=state)
         self.send_btn.configure(state=state)
 
     def _set_status(self, text: str, color: str = "#667788"):
-        """Update the status indicator in the header."""
         self.status_indicator.configure(text=f"● {text}", text_color=("#92817A", color))
 
     def _on_location_click(self, event):
-        """Handle click on a location reference in the chat — highlight it on canvas."""
         if not self.canvas_panel:
             return
         idx = self.chat_display.index(f"@{event.x},{event.y}")
@@ -436,7 +502,6 @@ class AgentRunnerTab:
                 return
 
     def _ensure_canvas_loaded(self):
-        """Load floor plan into canvas from inputs if not already loaded."""
         if not self.canvas_panel or self.canvas_panel.floor_plan:
             return
         for name, widget in self.input_widgets.items():
@@ -464,6 +529,7 @@ class AgentRunnerTab:
         for widget in self.inputs_container.winfo_children():
             widget.destroy()
         self.input_widgets.clear()
+        self.input_textbox.delete("1.0", "end")
 
         for inp in agent_def.inputs:
             row = ctk.CTkFrame(self.inputs_container, fg_color="transparent")
@@ -494,26 +560,28 @@ class AgentRunnerTab:
                     font=ctk.CTkFont(size=11),
                 )
                 entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
-
                 ctk.CTkButton(
                     row, text="Browse…", width=80, height=28, corner_radius=6,
                     font=ctk.CTkFont(size=11),
                     fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
                     command=lambda n=inp.name: self._browse_file(n),
                 ).pack(side="right")
-
                 self.input_widgets[inp.name] = entry
 
-        # Clear outputs
+        # Clear outputs textbox
         self.output_text.configure(state="normal")
         self.output_text.delete("1.0", "end")
         self.output_text.configure(state="disabled")
+
+        # Collapse outputs section when a new agent is loaded
+        if self._output_expanded:
+            self._toggle_outputs()
 
         # Clear chat and disable input
         self._clear_chat()
         self._set_chat_enabled(False)
 
-        # Update constraints & tools footer
+        # Update constraints & tools
         if agent_def.constraints:
             constraints_text = "\n".join(f"• {c}" for c in agent_def.constraints)
         else:
@@ -532,7 +600,6 @@ class AgentRunnerTab:
             return
 
         root = self.parent.winfo_toplevel()
-
         overlay = ctk.CTkFrame(root, fg_color=("#543520", "#000000"), corner_radius=0)
         overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
         overlay.configure(fg_color=("#f8f1e9", "#1a0e05"))
@@ -574,22 +641,23 @@ class AgentRunnerTab:
         overlay.lift()
 
     def _collect_inputs(self) -> dict:
-        """Collect input values from widgets. For file paths, read file contents."""
         inputs = {}
         for name, widget in self.input_widgets.items():
             value = widget.get().strip()
-            # If the value looks like a file path, try to read the file
             if value and os.path.isfile(value):
                 try:
                     with open(value, "r", encoding="utf-8") as f:
                         value = f.read()
                 except Exception:
-                    pass  # keep raw value if read fails
+                    pass
             inputs[name] = value
+        # Also collect from the raw input textbox if it has content
+        raw = self.input_textbox.get("1.0", "end").strip()
+        if raw:
+            inputs.setdefault("input", raw)
         return inputs
 
     def _run_agent(self):
-        """Run the agent via engine in a background thread."""
         if not self.current_agent or self._is_running:
             return
 
@@ -603,11 +671,9 @@ class AgentRunnerTab:
         inputs = self._collect_inputs()
 
         def on_status(msg):
-            # Schedule UI update on main thread
             self.parent.after(0, lambda: self._set_status(msg, "#c47b2a"))
 
         def on_complete(result: AgentResult):
-            # Schedule UI update on main thread
             self.parent.after(0, lambda: self._on_run_complete(result))
 
         self._engine.run_agent_async(
@@ -615,7 +681,6 @@ class AgentRunnerTab:
         )
 
     def _on_run_complete(self, result: AgentResult):
-        """Handle agent run completion on the main thread."""
         self._is_running = False
         self._has_run = True
         self._last_result = result
@@ -631,14 +696,18 @@ class AgentRunnerTab:
                 if self.status_bar:
                     self.status_bar.set_status(f"Error running {self.current_agent.name}", "#f44336")
 
-            # Display structured output
+            # Populate output textbox with JSON only
             self.output_text.configure(state="normal")
             self.output_text.delete("1.0", "end")
             if result.outputs:
                 self.output_text.insert("1.0", json.dumps(result.outputs, indent=2, default=str))
             elif result.error:
-                self.output_text.insert("1.0", f"Error: {result.error}")
+                self.output_text.insert("1.0", json.dumps({"error": result.error}, indent=2))
             self.output_text.configure(state="disabled")
+
+            # Auto-expand outputs after a run
+            if not self._output_expanded:
+                self._toggle_outputs()
 
             # Collect violation locations for canvas linking
             self._violation_locations.clear()
@@ -652,7 +721,7 @@ class AgentRunnerTab:
                 except (json.JSONDecodeError, TypeError):
                     continue
 
-            # Show initial agent message in chat
+            # Show AI explanation in conversation panel
             explanation = result.explanation or result.error or "Agent run complete."
             self._append_agent_message(explanation)
 
@@ -668,7 +737,6 @@ class AgentRunnerTab:
                 self._conversation.initialize(system_prompt, explanation, result.tool_results)
                 self._set_chat_enabled(True)
 
-            # Update metrics in status bar if available
             self._update_metrics(result)
 
         except Exception as e:
@@ -676,21 +744,19 @@ class AgentRunnerTab:
             error_msg = f"Failed to process results: {e}"
             self.output_text.configure(state="normal")
             self.output_text.delete("1.0", "end")
-            self.output_text.insert("1.0", error_msg)
+            self.output_text.insert("1.0", json.dumps({"error": error_msg}, indent=2))
             self.output_text.configure(state="disabled")
             self._append_agent_message(f"[Error: {error_msg}]")
             if self.status_bar:
                 self.status_bar.set_status(error_msg, "#f44336")
 
     def _update_metrics(self, result: AgentResult):
-        """Show violation metrics in status bar if tool results contain them."""
         if not self.status_bar:
             return
         for tool_name, tool_data in result.tool_results.items():
             try:
                 parsed = json.loads(tool_data)
                 if isinstance(parsed, list) and len(parsed) > 0:
-                    # Count violations by severity
                     sevs = {}
                     for item in parsed:
                         if isinstance(item, dict) and "severity" in item:
@@ -707,13 +773,12 @@ class AgentRunnerTab:
                 continue
 
     def _send_message(self):
-        """Send a follow-up message via ConversationManager."""
         if not self._has_run or self._is_running:
             return
         text = self.chat_input.get().strip()
         if not text:
             return
-        self._append_user_message(text)
+        # User text is consumed but NOT shown in the conversation panel
         self.chat_input.delete(0, "end")
         self._set_chat_enabled(False)
         self._set_status("Thinking…", "#c47b2a")
@@ -733,7 +798,6 @@ class AgentRunnerTab:
             self._set_status("Done", "#92817A")
 
     def _on_followup_complete(self, response: str):
-        """Handle followup response on main thread."""
         try:
             self._append_agent_message(response)
         except Exception as e:
@@ -742,13 +806,11 @@ class AgentRunnerTab:
         self._set_status("Done", "#92817A")
 
     def _clear_chat(self):
-        """Clear all messages from the conversation panel."""
         self.chat_display.configure(state="normal")
         self.chat_display.delete("1.0", "end")
         self.chat_display.configure(state="disabled")
 
     def _export_json(self):
-        """Export agent results as JSON via file save dialog."""
         if not self._last_result:
             return
         try:
@@ -767,10 +829,8 @@ class AgentRunnerTab:
                 self.status_bar.set_status(f"Export failed: {e}", "#f44336")
 
     def _show_on_canvas(self):
-        """Push floor plan and violations to the canvas panel."""
         if not self.canvas_panel or not self._last_result:
             return
-
         try:
             plan_loaded = False
             for name, widget in self.input_widgets.items():
