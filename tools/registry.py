@@ -28,6 +28,14 @@ class ToolRegistry:
         from tools.structural_checker import detect_blocked_rooms, detect_dead_ends, detect_anomalies
         from tools.metrics import compute_metrics
 
+        def structural_check_all(inputs):
+            """Combined structural checker — runs all three sub-checks."""
+            results = []
+            results.extend(detect_blocked_rooms(inputs))
+            results.extend(detect_dead_ends(inputs))
+            results.extend(detect_anomalies(inputs))
+            return results
+
         self.register_tool(
             "p118_validator",
             "P118 Validator",
@@ -50,7 +58,7 @@ class ToolRegistry:
             "Detects blocked rooms, dead ends, and structural anomalies",
             "FloorPlan",
             "List[Violation]",
-            detect_blocked_rooms,
+            structural_check_all,
         )
         self.register_tool(
             "metrics",
