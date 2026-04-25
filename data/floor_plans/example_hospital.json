@@ -1,0 +1,95 @@
+{
+  "id": "hospital_floor1",
+  "name": "Example Hospital — Ground Floor",
+  "floor": 0,
+  "rooms": [
+    {
+      "id": "R1",
+      "name": "Emergency Room",
+      "type": "office",
+      "polygon": [[0, 0], [12, 0], [12, 10], [0, 10]],
+      "area": 120.0,
+      "occupancy": 20,
+      "floor": 0
+    },
+    {
+      "id": "R2",
+      "name": "Ward A",
+      "type": "office",
+      "polygon": [[14, 0], [26, 0], [26, 8], [14, 8]],
+      "area": 96.0,
+      "occupancy": 16,
+      "floor": 0
+    },
+    {
+      "id": "R3",
+      "name": "Ward B",
+      "type": "office",
+      "polygon": [[14, 10], [26, 10], [26, 18], [14, 18]],
+      "area": 96.0,
+      "occupancy": 16,
+      "floor": 0
+    },
+    {
+      "id": "R4",
+      "name": "Operating Theater",
+      "type": "office",
+      "polygon": [[28, 0], [38, 0], [38, 10], [28, 10]],
+      "area": 100.0,
+      "occupancy": 8,
+      "floor": 0
+    },
+    {
+      "id": "R5",
+      "name": "Pharmacy",
+      "type": "storage",
+      "polygon": [[28, 12], [34, 12], [34, 18], [28, 18]],
+      "area": 36.0,
+      "occupancy": 4,
+      "floor": 0
+    },
+    {
+      "id": "R6",
+      "name": "Waiting Room",
+      "type": "office",
+      "polygon": [[0, 12], [12, 12], [12, 20], [0, 20]],
+      "area": 96.0,
+      "occupancy": 40,
+      "floor": 0
+    }
+  ],
+  "corridors": [
+    {
+      "id": "C1",
+      "name": "Main Corridor",
+      "width": 2.4,
+      "length": 38.0,
+      "connects": ["R1", "R2", "R3", "R4", "R5", "R6"],
+      "polygon": [[12, 0], [14, 0], [14, 20], [12, 20]],
+      "floor": 0
+    },
+    {
+      "id": "C2",
+      "name": "East Wing Corridor",
+      "width": 2.0,
+      "length": 18.0,
+      "connects": ["R2", "R3", "R4", "R5"],
+      "polygon": [[26, 0], [28, 0], [28, 18], [26, 18]],
+      "floor": 0
+    }
+  ],
+  "doors": [
+    {"id": "D1", "connects": ["R1", "C1"], "width": 1.4, "position": [12, 5], "is_exit": false},
+    {"id": "D2", "connects": ["R2", "C1"], "width": 1.2, "position": [14, 4], "is_exit": false},
+    {"id": "D3", "connects": ["R3", "C1"], "width": 1.2, "position": [14, 14], "is_exit": false},
+    {"id": "D4", "connects": ["R4", "C2"], "width": 1.2, "position": [28, 5], "is_exit": false},
+    {"id": "D5", "connects": ["R5", "C2"], "width": 1.0, "position": [28, 15], "is_exit": false},
+    {"id": "D6", "connects": ["R6", "C1"], "width": 1.4, "position": [12, 16], "is_exit": false}
+  ],
+  "exits": [
+    {"id": "E1", "room_id": "R1", "position": [0, 5], "width": 1.8, "leads_outside": true},
+    {"id": "E2", "room_id": "C1", "position": [13, 20], "width": 1.4, "leads_outside": true},
+    {"id": "E3", "room_id": "R4", "position": [38, 5], "width": 1.4, "leads_outside": true}
+  ],
+  "walls": []
+}

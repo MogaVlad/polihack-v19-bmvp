@@ -1,0 +1,103 @@
+{
+  "id": "office_floor1",
+  "name": "Example Office — Ground Floor",
+  "floor": 0,
+  "rooms": [
+    {
+      "id": "R1",
+      "name": "Reception",
+      "type": "office",
+      "polygon": [[0, 0], [10, 0], [10, 8], [0, 8]],
+      "area": 80.0,
+      "occupancy": 10,
+      "floor": 0
+    },
+    {
+      "id": "R2",
+      "name": "Open Office A",
+      "type": "office",
+      "polygon": [[12, 0], [30, 0], [30, 10], [12, 10]],
+      "area": 180.0,
+      "occupancy": 30,
+      "floor": 0
+    },
+    {
+      "id": "R3",
+      "name": "Open Office B",
+      "type": "office",
+      "polygon": [[12, 12], [30, 12], [30, 22], [12, 22]],
+      "area": 180.0,
+      "occupancy": 30,
+      "floor": 0
+    },
+    {
+      "id": "R4",
+      "name": "Server Room",
+      "type": "storage",
+      "polygon": [[32, 0], [38, 0], [38, 6], [32, 6]],
+      "area": 36.0,
+      "occupancy": 2,
+      "floor": 0
+    },
+    {
+      "id": "R5",
+      "name": "Conference Room",
+      "type": "office",
+      "polygon": [[32, 8], [40, 8], [40, 14], [36, 14], [36, 18], [32, 18]],
+      "area": 72.0,
+      "occupancy": 20,
+      "floor": 0
+    },
+    {
+      "id": "R6",
+      "name": "Break Room",
+      "type": "office",
+      "polygon": [[0, 10], [10, 10], [10, 18], [0, 18]],
+      "area": 80.0,
+      "occupancy": 15,
+      "floor": 0
+    },
+    {
+      "id": "R7",
+      "name": "Storage Closet",
+      "type": "storage",
+      "polygon": [[32, 20], [36, 20], [36, 24], [32, 24]],
+      "area": 16.0,
+      "occupancy": 0,
+      "floor": 0
+    }
+  ],
+  "corridors": [
+    {
+      "id": "C1",
+      "name": "Main Corridor",
+      "width": 1.6,
+      "length": 30.0,
+      "connects": ["R1", "R2", "R3", "R6", "C2"],
+      "polygon": [[10, 0], [12, 0], [12, 22], [10, 22]],
+      "floor": 0
+    },
+    {
+      "id": "C2",
+      "name": "East Corridor",
+      "width": 1.2,
+      "length": 24.0,
+      "connects": ["R2", "R3", "R4", "R5", "R7"],
+      "polygon": [[30, 0], [32, 0], [32, 24], [30, 24]],
+      "floor": 0
+    }
+  ],
+  "doors": [
+    {"id": "D1", "connects": ["R1", "C1"], "width": 0.9, "position": [10, 4], "is_exit": false},
+    {"id": "D2", "connects": ["R2", "C1"], "width": 0.9, "position": [12, 5], "is_exit": false},
+    {"id": "D3", "connects": ["R3", "C1"], "width": 0.9, "position": [12, 17], "is_exit": false},
+    {"id": "D4", "connects": ["R4", "C2"], "width": 0.8, "position": [32, 3], "is_exit": false},
+    {"id": "D5", "connects": ["R5", "C2"], "width": 0.9, "position": [32, 11], "is_exit": false},
+    {"id": "D6", "connects": ["R6", "C1"], "width": 0.9, "position": [10, 14], "is_exit": false},
+    {"id": "D7", "connects": ["R7", "C2"], "width": 0.7, "position": [32, 22], "is_exit": false}
+  ],
+  "exits": [
+    {"id": "E1", "room_id": "R1", "position": [0, 4], "width": 1.2, "leads_outside": true}
+  ],
+  "walls": []
+}

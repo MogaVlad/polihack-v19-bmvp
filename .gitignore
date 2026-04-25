@@ -1,2 +1,11 @@
 .idea/
 *.pdf
+env/
+venv/
+.env
+__pycache__/
+*.pyc
+*.pyo
+.vs/
+user_agents/*.json
+!user_agents/.gitkeep

@@ -1,0 +1,95 @@
+{
+  "id": "school_floor1",
+  "name": "Example School — Ground Floor",
+  "floor": 0,
+  "rooms": [
+    {
+      "id": "R1",
+      "name": "Classroom 1",
+      "type": "office",
+      "polygon": [[0, 0], [8, 0], [8, 6], [0, 6]],
+      "area": 48.0,
+      "occupancy": 25,
+      "floor": 0
+    },
+    {
+      "id": "R2",
+      "name": "Classroom 2",
+      "type": "office",
+      "polygon": [[0, 8], [8, 8], [8, 14], [0, 14]],
+      "area": 48.0,
+      "occupancy": 25,
+      "floor": 0
+    },
+    {
+      "id": "R3",
+      "name": "Classroom 3",
+      "type": "office",
+      "polygon": [[0, 16], [8, 16], [8, 22], [0, 22]],
+      "area": 48.0,
+      "occupancy": 25,
+      "floor": 0
+    },
+    {
+      "id": "R4",
+      "name": "Teachers Lounge",
+      "type": "office",
+      "polygon": [[12, 0], [20, 0], [20, 6], [12, 6]],
+      "area": 48.0,
+      "occupancy": 10,
+      "floor": 0
+    },
+    {
+      "id": "R5",
+      "name": "Library",
+      "type": "office",
+      "polygon": [[12, 8], [20, 8], [20, 22], [12, 22]],
+      "area": 112.0,
+      "occupancy": 30,
+      "floor": 0
+    },
+    {
+      "id": "R6",
+      "name": "Gymnasium",
+      "type": "office",
+      "polygon": [[22, 0], [38, 0], [38, 22], [22, 22]],
+      "area": 352.0,
+      "occupancy": 60,
+      "floor": 0
+    }
+  ],
+  "corridors": [
+    {
+      "id": "C1",
+      "name": "Main Corridor",
+      "width": 2.0,
+      "length": 22.0,
+      "connects": ["R1", "R2", "R3", "R4", "R5", "R6"],
+      "polygon": [[8, 0], [12, 0], [12, 22], [8, 22]],
+      "floor": 0
+    },
+    {
+      "id": "C2",
+      "name": "Gym Corridor",
+      "width": 1.8,
+      "length": 8.0,
+      "connects": ["R5", "R6"],
+      "polygon": [[20, 8], [22, 8], [22, 14], [20, 14]],
+      "floor": 0
+    }
+  ],
+  "doors": [
+    {"id": "D1", "connects": ["R1", "C1"], "width": 1.0, "position": [8, 3], "is_exit": false},
+    {"id": "D2", "connects": ["R2", "C1"], "width": 1.0, "position": [8, 11], "is_exit": false},
+    {"id": "D3", "connects": ["R3", "C1"], "width": 1.0, "position": [8, 19], "is_exit": false},
+    {"id": "D4", "connects": ["R4", "C1"], "width": 0.9, "position": [12, 3], "is_exit": false},
+    {"id": "D5", "connects": ["R5", "C1"], "width": 1.0, "position": [12, 15], "is_exit": false},
+    {"id": "D6", "connects": ["R6", "C1"], "width": 1.2, "position": [20, 11], "is_exit": false}
+  ],
+  "exits": [
+    {"id": "E1", "room_id": "C1", "position": [10, 0], "width": 1.4, "leads_outside": true},
+    {"id": "E2", "room_id": "C1", "position": [10, 22], "width": 1.4, "leads_outside": true},
+    {"id": "E3", "room_id": "R6", "position": [38, 11], "width": 1.8, "leads_outside": true}
+  ],
+  "walls": []
+}
