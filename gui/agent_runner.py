@@ -47,11 +47,8 @@ class AgentRunnerTab:
         self._conversation: Optional[ConversationManager] = None
         self._engine = AgentRunner()
         self._violation_locations: set = set()
-<<<<<<< Updated upstream
-        self._output_expanded = False  # collapsed by default
+        self._output_expanded = False
         self._followup_can_retry = False
-=======
->>>>>>> Stashed changes
         self._build_ui()
 
     # ── Helpers ──────────────────────────────────────────────────
@@ -784,12 +781,8 @@ class AgentRunnerTab:
         self._append_user_message(text)
         self.chat_input.delete(0, "end")
         self._set_chat_enabled(False)
-<<<<<<< Updated upstream
         self._set_retry_enabled(False)
-        self._set_status("Thinking…", "#c47b2a")
-=======
         self._set_status("Thinking…", "#8889a5")
->>>>>>> Stashed changes
 
         if self._conversation and self._conversation.is_active:
             user_msg = text
