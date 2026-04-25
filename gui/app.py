@@ -108,7 +108,11 @@ class App:
 
         # ── Tab contents ────────────────────────────────────────
         self.runner_tab = AgentRunnerTab(self.tabview.tab("Agent Runner"))
-        self.builder_tab = AgentBuilderTab(self.tabview.tab("Agent Builder"))
+        self.builder_tab = AgentBuilderTab(
+            self.tabview.tab("Agent Builder"),
+            on_agent_saved=self._on_agent_saved,
+            on_save_and_run=self._on_save_and_run,
+        )
         self.l2_tab = L2ConsoleTab(self.tabview.tab("L2 Console"))
         self.adoption_tab = AdoptionPanel(self.tabview.tab("L2 vs L3"))
 
@@ -141,6 +145,17 @@ class App:
         self.tabview.set("Agent Builder")
         self.builder_tab.reset_form()
         self.status_bar.set_status("Creating new agent…", "#ff9800")
+
+    def _on_agent_saved(self):
+        """Called after the Agent Builder successfully saves a new agent."""
+        self.agent_library.refresh()
+        self.status_bar.set_agent_count(len(self.agent_library.agents))
+        self.status_bar.set_status("Agent saved ✓", "#4caf50")
+
+    def _on_save_and_run(self, agent_def):
+        """Called after Save & Run — refresh library, then load the agent in the Runner."""
+        self._on_agent_saved()
+        self._on_agent_selected(agent_def)
 
     def run(self):
         self.root.mainloop()
