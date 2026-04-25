@@ -41,6 +41,26 @@ def _make_violation(
     return v.to_dict()
 
 
+def _bbox(polygon: list):
+    xs = [p[0] for p in polygon]
+    ys = [p[1] for p in polygon]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _bboxes_overlap(poly_a: list, poly_b: list) -> bool:
+    ax1, ay1, ax2, ay2 = _bbox(poly_a)
+    bx1, by1, bx2, by2 = _bbox(poly_b)
+    if ax2 <= bx1 or bx2 <= ax1 or ay2 <= by1 or by2 <= ay1:
+        return False
+    overlap_x = min(ax2, bx2) - max(ax1, bx1)
+    overlap_y = min(ay2, by2) - max(ay1, by1)
+    overlap_area = overlap_x * overlap_y
+    area_a = (ax2 - ax1) * (ay2 - ay1)
+    area_b = (bx2 - bx1) * (by2 - by1)
+    min_area = min(area_a, area_b) if min(area_a, area_b) > 0 else 1
+    return (overlap_area / min_area) > 0.1
+
+
 def detect_blocked_rooms(inputs: Dict) -> List[dict]:
     """
     Detect rooms that have no reachable path to any exit.
@@ -217,6 +237,34 @@ def detect_anomalies(inputs: Dict) -> List[dict]:
                 ),
                 measured=length,
             ))
+
+    # Check for overlapping rooms/corridors (bounding-box test)
+    all_polys = []
+    for r in plan_data.get("rooms", []):
+        poly = r.get("polygon", [])
+        if poly and len(poly) >= 3:
+            all_polys.append((r["id"], r.get("name", r["id"]), "room", poly))
+    for c in plan_data.get("corridors", []):
+        poly = c.get("polygon", [])
+        if poly and len(poly) >= 3:
+            all_polys.append((c["id"], c.get("name", c["id"]), "corridor", poly))
+
+    for i in range(len(all_polys)):
+        for j in range(i + 1, len(all_polys)):
+            id_a, name_a, type_a, poly_a = all_polys[i]
+            id_b, name_b, type_b, poly_b = all_polys[j]
+            if _bboxes_overlap(poly_a, poly_b):
+                violations.append(_make_violation(
+                    rule="anomaly_overlapping_spaces",
+                    article="N/A",
+                    severity="minor",
+                    location=f"{id_a}, {id_b}",
+                    description=(
+                        f"{type_a.title()} '{name_a}' ({id_a}) and "
+                        f"{type_b.title()} '{name_b}' ({id_b}) have overlapping "
+                        f"bounding boxes — verify spatial layout."
+                    ),
+                ))
 
     # Check doors referencing nonexistent rooms/corridors
     all_node_ids = set()

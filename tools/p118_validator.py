@@ -62,12 +62,25 @@ def validate_p118(inputs: Dict) -> List[dict]:
     _violation_counter = 0
 
     violations = []
-    violations.extend(_check_travel_distance(inputs))
-    violations.extend(_check_exit_capacity(inputs))
-    violations.extend(_check_door_widths(inputs))
-    violations.extend(_check_corridor_widths(inputs))
-    violations.extend(_check_dead_ends(inputs))
-    violations.extend(_check_exit_count(inputs))
+    checks = [
+        _check_travel_distance,
+        _check_exit_capacity,
+        _check_door_widths,
+        _check_corridor_widths,
+        _check_dead_ends,
+        _check_exit_count,
+    ]
+    for check_fn in checks:
+        try:
+            violations.extend(check_fn(inputs))
+        except Exception as e:
+            violations.append(_make_violation(
+                rule="validator_error",
+                article="N/A",
+                severity="info",
+                location="building",
+                description=f"Check '{check_fn.__name__}' failed: {e}",
+            ))
     return violations
 
 

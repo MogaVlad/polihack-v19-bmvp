@@ -31,9 +31,12 @@ class ToolRegistry:
         def structural_check_all(inputs):
             """Combined structural checker — runs all three sub-checks."""
             results = []
-            results.extend(detect_blocked_rooms(inputs))
-            results.extend(detect_dead_ends(inputs))
-            results.extend(detect_anomalies(inputs))
+            for fn in (detect_blocked_rooms, detect_dead_ends, detect_anomalies):
+                try:
+                    results.extend(fn(inputs))
+                except Exception as e:
+                    results.append({"id": "ERR", "rule": "checker_error", "severity": "info",
+                                    "location": "building", "description": f"{fn.__name__} failed: {e}"})
             return results
 
         def gemini_vision_parse(inputs):
