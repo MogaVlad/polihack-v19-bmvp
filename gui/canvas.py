@@ -265,25 +265,40 @@ class CanvasPanel:
                     width=1, dash=(4, 2), tags="corridor",
                 )
 
-        # Exits
+        # Exits — draw as directional arrow marker
         for exit_ in plan.exits:
             ex, ey = exit_.position[0] * s + ox, exit_.position[1] * s + oy
+            # Background circle
             self.canvas.create_oval(
-                ex - 7, ey - 7, ex + 7, ey + 7,
+                ex - 8, ey - 8, ex + 8, ey + 8,
                 fill="#4caf50", outline="#2e7d32", width=2, tags="exit",
+            )
+            # Arrow pointing up (exit direction)
+            self.canvas.create_line(
+                ex, ey + 5, ex, ey - 5,
+                fill="#ffffff", width=2, arrow="last",
+                arrowshape=(6, 8, 3), tags="exit",
             )
             if self.show_labels_var.get():
                 self.canvas.create_text(
-                    ex, ey - 14, text="EXIT",
+                    ex, ey - 18, text="EXIT",
                     font=("Segoe UI", 7, "bold"), fill="#4caf50",
                 )
 
-        # Doors
+        # Doors — draw as arc (door swing)
         for door in plan.doors:
             dx, dy = door.position[0] * s + ox, door.position[1] * s + oy
-            self.canvas.create_rectangle(
-                dx - 4, dy - 4, dx + 4, dy + 4,
-                fill="#ff9800", outline="#e65100", tags="door",
+            r = max(6, s * 0.4)
+            # Door frame line
+            self.canvas.create_line(
+                dx - r * 0.5, dy, dx + r * 0.5, dy,
+                fill="#ff9800", width=2, tags="door",
+            )
+            # Door swing arc
+            self.canvas.create_arc(
+                dx - r, dy - r, dx + r, dy + r,
+                start=0, extent=90,
+                style="arc", outline="#ff9800", width=2, tags="door",
             )
 
         # Violations

@@ -107,9 +107,26 @@ class AgentLibrary:
                 )
                 cat_label.pack(fill="x", padx=8, pady=(6, 2))
 
-            # Agent card button
-            card = ctk.CTkButton(
+            # Agent card — frame with status dot + button
+            card_frame = ctk.CTkFrame(
                 self.scroll_frame,
+                fg_color="transparent",
+                height=36,
+            )
+            card_frame.pack(fill="x", padx=4, pady=1)
+
+            # Status dot: green for pre-built, blue for user agents
+            dot_color = "#4a9eff" if getattr(agent, "category", None) == "Custom" else "#4caf50"
+            ctk.CTkLabel(
+                card_frame,
+                text="●",
+                font=ctk.CTkFont(size=8),
+                text_color=dot_color,
+                width=14,
+            ).pack(side="left", padx=(4, 0))
+
+            card = ctk.CTkButton(
+                card_frame,
                 text=agent.name,
                 anchor="w",
                 height=34,
@@ -120,7 +137,7 @@ class AgentLibrary:
                 font=ctk.CTkFont(family="Segoe UI", size=12),
                 command=lambda a=agent: self.on_agent_selected(a),
             )
-            card.pack(fill="x", padx=4, pady=1)
+            card.pack(side="left", fill="x", expand=True)
             self._agent_buttons.append((card, agent))
 
     def _filter_agents(self):
