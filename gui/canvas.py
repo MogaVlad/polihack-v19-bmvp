@@ -46,9 +46,9 @@ class CanvasPanel:
             height=28,
             corner_radius=6,
             font=ctk.CTkFont(family="Segoe UI", size=11),
-            fg_color=("#543520", "#2d1a0e"),
-            hover_color=("#6b4428", "#3d2510"),
-            text_color=("#e7d5a5", "#F1DABF"),
+            fg_color=("#384c46", "#4c5767"),
+            hover_color=("#2a3a34", "#3a4854"),
+            text_color=("#f6f8f8", "#e8edeb"),
             command=self.toggle,
         )
         self.toggle_btn.pack(side="left", padx=(0, 12))
@@ -63,30 +63,30 @@ class CanvasPanel:
                 self.toggle_frame, text=text, variable=var,
                 width=24, height=24,
                 font=ctk.CTkFont(size=11),
-                text_color=("#543520", "#92817A"),
-                fg_color="#92817A", hover_color="#7a6a60",
-                border_color=("#543520", "#92817A"),
+                text_color=("#121715", "#b3c7c1"),
+                fg_color="#384c46", hover_color="#2a3a34",
+                border_color=("#384c46", "#b3c7c1"),
                 command=self._redraw,
             ).pack(side="left", padx=6)
 
         ctk.CTkButton(
             self.toggle_frame, text="Fit", width=50, height=28, corner_radius=6,
             font=ctk.CTkFont(size=11),
-            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
-            text_color=("#e7d5a5", "#F1DABF"), command=self.fit_to_window,
+            fg_color=("#384c46", "#4c5767"), hover_color=("#2a3a34", "#3a4854"),
+            text_color=("#f6f8f8", "#e8edeb"), command=self.fit_to_window,
         ).pack(side="right", padx=4)
 
         # ── Canvas panel (hidden initially) ─────────────────────
         self.panel_frame = ctk.CTkFrame(
             self.parent,
-            fg_color=("#e7d5a5", "#2d1a0e"),
+            fg_color=("#f6f8f8", "#070909"),
             corner_radius=10,
         )
 
         # The tk.Canvas itself (no CTk equivalent)
         self.canvas = tk.Canvas(
             self.panel_frame,
-            bg="#000500",
+            bg="#070909",
             height=280,
             highlightthickness=0,
             cursor="crosshair",
@@ -205,7 +205,7 @@ class CanvasPanel:
             if room.polygon:
                 coords = [coord for pt in room.polygon for coord in (pt[0] * s + ox, pt[1] * s + oy)]
                 self.canvas.create_polygon(
-                    coords, fill="#1a0e05", outline="#92817A",
+                    coords, fill="#070909", outline="#b3c7c1",
                     width=2, tags="room",
                 )
 
@@ -231,7 +231,7 @@ class CanvasPanel:
             if corridor.polygon:
                 coords = [coord for pt in corridor.polygon for coord in (pt[0] * s + ox, pt[1] * s + oy)]
                 self.canvas.create_polygon(
-                    coords, fill="#000500", outline="#3a5070",
+                    coords, fill="#070909", outline="#3a5070",
                     width=1, dash=(4, 2), tags="corridor",
                 )
 
@@ -241,7 +241,7 @@ class CanvasPanel:
             # Background circle
             self.canvas.create_oval(
                 ex - 8, ey - 8, ex + 8, ey + 8,
-                fill="#92817A", outline="#5c4a3a", width=2, tags="exit",
+                fill="#b3c7c1", outline="#4c5767", width=2, tags="exit",
             )
             # Arrow pointing up (exit direction)
             self.canvas.create_line(
@@ -252,7 +252,7 @@ class CanvasPanel:
             if self.show_labels_var.get():
                 self.canvas.create_text(
                     ex, ey - 18, text="EXIT",
-                    font=("Segoe UI", 7, "bold"), fill="#92817A",
+                    font=("Segoe UI", 7, "bold"), fill="#b3c7c1",
                 )
 
         # Doors — draw as arc (door swing)

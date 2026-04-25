@@ -47,8 +47,11 @@ class AgentRunnerTab:
         self._conversation: Optional[ConversationManager] = None
         self._engine = AgentRunner()
         self._violation_locations: set = set()
+<<<<<<< Updated upstream
         self._output_expanded = False  # collapsed by default
         self._followup_can_retry = False
+=======
+>>>>>>> Stashed changes
         self._build_ui()
 
     # ── Helpers ──────────────────────────────────────────────────
@@ -59,16 +62,16 @@ class AgentRunnerTab:
             frame,
             text=text,
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=("#92817A", "#92817A"),
+            text_color=("#b3c7c1", "#b3c7c1"),
         ).pack(side="left")
-        sep = ctk.CTkFrame(frame, height=1, fg_color=("#543520", "#92817A"))
+        sep = ctk.CTkFrame(frame, height=1, fg_color=("#121715", "#b3c7c1"))
         sep.pack(side="left", fill="x", expand=True, padx=(10, 0), pady=1)
         return frame
 
     # ── Build UI ─────────────────────────────────────────────────
     def _build_ui(self):
         # ── Header ──────────────────────────────────────────────
-        header = ctk.CTkFrame(self.parent, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        header = ctk.CTkFrame(self.parent, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
         header.pack(fill="x", padx=8, pady=(6, 6))
 
         header_inner = ctk.CTkFrame(header, fg_color="transparent")
@@ -81,7 +84,7 @@ class AgentRunnerTab:
             top_row,
             text="No agent loaded",
             font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            text_color=("#543520", "#F1DABF"),
+            text_color=("#121715", "#e8edeb"),
         )
         self.agent_name_label.pack(side="left")
 
@@ -89,7 +92,7 @@ class AgentRunnerTab:
             top_row,
             text="● Ready",
             font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color=("#92817A", "#92817A"),
+            text_color=("#b3c7c1", "#b3c7c1"),
         )
         self.status_indicator.pack(side="right")
 
@@ -97,7 +100,7 @@ class AgentRunnerTab:
             header_inner,
             text="Select an agent from the library to begin.",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#92817A", "#92817A"),
+            text_color=("#b3c7c1", "#b3c7c1"),
         )
         self.agent_goal_label.pack(anchor="w", pady=(2, 0))
 
@@ -108,9 +111,9 @@ class AgentRunnerTab:
             height=28,
             corner_radius=6,
             font=ctk.CTkFont(family="Segoe UI", size=11),
-            fg_color=("#543520", "#2d1a0e"),
-            hover_color=("#6b4428", "#3d2510"),
-            text_color=("#e7d5a5", "#F1DABF"),
+            fg_color=("#384c46", "#4c5767"),
+            hover_color=("#2a3a34", "#3a4854"),
+            text_color=("#f6f8f8", "#e8edeb"),
             command=self._view_definition,
         )
         self.view_def_btn.pack(anchor="e", pady=(4, 0))
@@ -128,13 +131,13 @@ class AgentRunnerTab:
         left_scroll = ctk.CTkScrollableFrame(
             body,
             fg_color="transparent",
-            scrollbar_button_color=("#543520", "#92817A"),
-            scrollbar_button_hover_color=("#6b4428", "#7a6a60"),
+            scrollbar_button_color=("#384c46", "#b3c7c1"),
+            scrollbar_button_hover_color=("#2a3a34", "#8889a5"),
         )
         left_scroll.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
 
         # ── INPUTS ──────────────────────────────────────────────
-        input_card = ctk.CTkFrame(left_scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        input_card = ctk.CTkFrame(left_scroll, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
         input_card.pack(fill="x", padx=0, pady=(0, 6))
 
         self._section_header(input_card, "INPUTS").pack(fill="x", padx=12, pady=(12, 6))
@@ -153,15 +156,15 @@ class AgentRunnerTab:
             height=36,
             corner_radius=8,
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            fg_color="#92817A",
-            hover_color="#7a6a60",
+            fg_color="#384c46",
+            hover_color="#2a3a34",
             text_color="#ffffff",
             command=self._run_agent,
         )
         self.run_btn.pack(fill="x", padx=12, pady=(0, 12))
 
         # ── OUTPUTS (collapsible dropdown) ───────────────────────
-        output_card = ctk.CTkFrame(left_scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        output_card = ctk.CTkFrame(left_scroll, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
         output_card.pack(fill="x", padx=0, pady=(0, 6))
 
         # Header row acts as the toggle
@@ -174,7 +177,7 @@ class AgentRunnerTab:
             output_header,
             text="▶",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=("#92817A", "#92817A"),
+            text_color=("#b3c7c1", "#b3c7c1"),
             cursor="hand2",
         )
         self.output_toggle_lbl.pack(side="right", padx=(8, 0))
@@ -183,16 +186,16 @@ class AgentRunnerTab:
         output_header.bind("<Button-1>", lambda e: self._toggle_outputs())
         self.output_toggle_lbl.bind("<Button-1>", lambda e: self._toggle_outputs())
 
-        # Collapsible content frame
+        # Content frame — always visible (not collapsible)
         self.output_content = ctk.CTkFrame(output_card, fg_color="transparent")
-        # Not packed initially (collapsed)
+        self.output_content.pack(fill="x")
 
         self.output_text = ctk.CTkTextbox(
             self.output_content,
             height=160,
             corner_radius=8,
-            fg_color=("#f8f1e9", "#000500"),
-            text_color=("#543520", "#F1DABF"),
+            fg_color=("#98a3b3", "#4c5767"),
+            text_color=("#121715", "#e8edeb"),
             font=ctk.CTkFont(family="Consolas", size=11),
             state="disabled",
             wrap="word",
@@ -220,15 +223,15 @@ class AgentRunnerTab:
         ctk.CTkButton(
             export_frame, text="Export JSON", width=110, height=28, corner_radius=6,
             font=ctk.CTkFont(size=11),
-            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
-            text_color=("#e7d5a5", "#F1DABF"), command=self._export_json,
+            fg_color=("#384c46", "#4c5767"), hover_color=("#2a3a34", "#3a4854"),
+            text_color=("#f6f8f8", "#e8edeb"), command=self._export_json,
         ).pack(side="left", padx=(0, 6))
 
         ctk.CTkButton(
             export_frame, text="Show on Canvas", width=120, height=28, corner_radius=6,
             font=ctk.CTkFont(size=11),
-            fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
-            text_color=("#e7d5a5", "#F1DABF"), command=self._show_on_canvas,
+            fg_color=("#384c46", "#4c5767"), hover_color=("#2a3a34", "#3a4854"),
+            text_color=("#f6f8f8", "#e8edeb"), command=self._show_on_canvas,
         ).pack(side="left")
 
         # Collapsed padding spacer
@@ -236,7 +239,7 @@ class AgentRunnerTab:
         self.output_collapsed_pad.pack()
 
         # ── CONSTRAINTS USED ────────────────────────────────────
-        constraints_card = ctk.CTkFrame(left_scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        constraints_card = ctk.CTkFrame(left_scroll, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
         constraints_card.pack(fill="x", padx=0, pady=(0, 6))
 
         self._section_header(constraints_card, "CONSTRAINTS USED").pack(fill="x", padx=12, pady=(10, 4))
@@ -244,7 +247,7 @@ class AgentRunnerTab:
             constraints_card,
             text="—",
             font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color=("#92817A", "#92817A"),
+            text_color=("#b3c7c1", "#b3c7c1"),
             wraplength=300,
             justify="left",
             anchor="nw",
@@ -252,7 +255,7 @@ class AgentRunnerTab:
         self.constraints_label.pack(fill="x", padx=14, pady=(0, 10))
 
         # ── TOOLS USED ───────────────────────────────────────────
-        tools_card = ctk.CTkFrame(left_scroll, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        tools_card = ctk.CTkFrame(left_scroll, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
         tools_card.pack(fill="x", padx=0, pady=(0, 6))
 
         self._section_header(tools_card, "TOOLS USED").pack(fill="x", padx=12, pady=(10, 4))
@@ -260,7 +263,7 @@ class AgentRunnerTab:
             tools_card,
             text="—",
             font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color=("#92817A", "#92817A"),
+            text_color=("#b3c7c1", "#b3c7c1"),
             wraplength=300,
             justify="left",
             anchor="nw",
@@ -270,7 +273,7 @@ class AgentRunnerTab:
         # ══════════════════════════════════════════════════════════
         # RIGHT COLUMN — conversation (AI responses only)
         # ══════════════════════════════════════════════════════════
-        right_card = ctk.CTkFrame(body, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        right_card = ctk.CTkFrame(body, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
         right_card.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
         right_card.grid_rowconfigure(1, weight=1)
         right_card.grid_columnconfigure(0, weight=1)
@@ -288,9 +291,9 @@ class AgentRunnerTab:
             height=24,
             corner_radius=6,
             font=ctk.CTkFont(family="Segoe UI", size=10),
-            fg_color=("#543520", "#2d1a0e"),
-            hover_color=("#6b4428", "#3d2510"),
-            text_color=("#e7d5a5", "#F1DABF"),
+            fg_color=("#384c46", "#4c5767"),
+            hover_color=("#2a3a34", "#3a4854"),
+            text_color=("#f6f8f8", "#e8edeb"),
             command=self._clear_chat,
         )
         self.clear_chat_btn.pack(side="right", padx=(8, 0))
@@ -299,8 +302,8 @@ class AgentRunnerTab:
         self.chat_display = ctk.CTkTextbox(
             right_card,
             corner_radius=8,
-            fg_color=("#f8f1e9", "#000500"),
-            text_color=("#543520", "#F1DABF"),
+            fg_color=("#98a3b3", "#4c5767"),
+            text_color=("#121715", "#e8edeb"),
             font=ctk.CTkFont(family="Segoe UI", size=12),
             state="disabled",
             wrap="word",
@@ -308,7 +311,9 @@ class AgentRunnerTab:
         self.chat_display.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 8))
 
         # Configure tag colours
-        self.chat_display.tag_config("agent", foreground="#F1DABF")
+        self.chat_display.tag_config("agent", foreground="#e8edeb")
+        self.chat_display.tag_config("user_prefix", foreground="#8889a5")
+        self.chat_display.tag_config("agent_prefix", foreground="#b3c7c1")
         self.chat_display.tag_config("flagged", foreground="#ff6b6b")
         self.chat_display.tag_config("timestamp", foreground="#555555")
         self.chat_display.tag_config("bold", foreground="#e0e0e0")
@@ -316,7 +321,7 @@ class AgentRunnerTab:
         self.chat_display.tag_config("sev_critical", foreground="#f44336")
         self.chat_display.tag_config("sev_major", foreground="#c47b2a")
         self.chat_display.tag_config("sev_minor", foreground="#fdd835")
-        self.chat_display.tag_config("location", foreground="#92817A", underline=True)
+        self.chat_display.tag_config("location", foreground="#b3c7c1", underline=True)
         self.chat_display.tag_bind("location", "<Button-1>", self._on_location_click)
         self.chat_display.tag_bind("location", "<Enter>",
                                    lambda e: self.chat_display.configure(cursor="hand2"))
@@ -347,9 +352,9 @@ class AgentRunnerTab:
             placeholder_text="Type a follow-up question…",
             height=34,
             corner_radius=8,
-            fg_color=("#f8f1e9", "#000500"),
-            border_color=("#543520", "#92817A"),
-            text_color=("#543520", "#F1DABF"),
+            fg_color=("#98a3b3", "#4c5767"),
+            border_color=("#384c46", "#b3c7c1"),
+            text_color=("#121715", "#e8edeb"),
             font=ctk.CTkFont(family="Segoe UI", size=12),
             state="disabled",
         )
@@ -362,8 +367,8 @@ class AgentRunnerTab:
             width=70,
             height=34,
             corner_radius=8,
-            fg_color="#92817A",
-            hover_color="#7a6a60",
+            fg_color="#384c46",
+            hover_color="#2a3a34",
             text_color="#ffffff",
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
             command=self._send_message,
@@ -388,31 +393,29 @@ class AgentRunnerTab:
 
     # ── Output dropdown toggle ────────────────────────────────────
     def _toggle_outputs(self):
-        """Expand or collapse the outputs section."""
-        self._output_expanded = not self._output_expanded
-        if self._output_expanded:
-            self.output_collapsed_pad.pack_forget()
-            self.output_content.pack(fill="x")
-            self.output_toggle_lbl.configure(text="▼")
-        else:
-            self.output_content.pack_forget()
-            self.output_collapsed_pad.pack()
-            self.output_toggle_lbl.configure(text="▶")
+        """No-op — outputs section is always visible now."""
+        pass
 
     # ── Chat message helpers ─────────────────────────────────────
     def _append_agent_message(self, text: str):
-        """Append an AI-only response to the chat display with formatting."""
+        """Append an AI Agent response to the chat display with prefix and formatting."""
         self.chat_display.configure(state="normal")
         if self.chat_display.get("1.0", "end").strip():
             self.chat_display.insert("end", "\n\n")
+        self.chat_display.insert("end", "AI Agent: ", "agent_prefix")
         self._insert_with_highlights(text, "agent")
         self.chat_display.configure(state="disabled")
         self._auto_scroll()
 
     def _append_user_message(self, text: str):
-        """Store user message context but do NOT display it in the conversation panel."""
-        # User messages are intentionally hidden; conversation shows AI responses only.
-        pass
+        """Display the user message in the conversation panel with a prefix."""
+        self.chat_display.configure(state="normal")
+        if self.chat_display.get("1.0", "end").strip():
+            self.chat_display.insert("end", "\n\n")
+        self.chat_display.insert("end", "User: ", "user_prefix")
+        self.chat_display.insert("end", text, "agent")
+        self.chat_display.configure(state="disabled")
+        self._auto_scroll()
 
     def _insert_with_highlights(self, text: str, base_tag: str):
         """Insert text with bold, bullets, severity colors, flagged keywords, and clickable locations."""
@@ -480,7 +483,7 @@ class AgentRunnerTab:
         self.retry_btn.configure(state="normal" if enabled else "disabled")
 
     def _set_status(self, text: str, color: str = "#667788"):
-        self.status_indicator.configure(text=f"● {text}", text_color=("#92817A", color))
+        self.status_indicator.configure(text=f"● {text}", text_color=("#b3c7c1", color))
 
     def _on_location_click(self, event):
         if not self.canvas_panel:
@@ -532,15 +535,15 @@ class AgentRunnerTab:
             ctk.CTkLabel(
                 row, text=f"{inp.name}:", width=100, anchor="w",
                 font=ctk.CTkFont(family="Segoe UI", size=12),
-                text_color=("#543520", "#92817A"),
+                text_color=("#121715", "#b3c7c1"),
             ).pack(side="left")
 
             if inp.type in ("json", "text"):
                 entry = ctk.CTkEntry(
                     row, height=30, corner_radius=6,
-                    fg_color=("#f8f1e9", "#000500"),
-                    border_color=("#543520", "#92817A"),
-                    text_color=("#543520", "#F1DABF"),
+                    fg_color=("#98a3b3", "#4c5767"),
+                    border_color=("#384c46", "#b3c7c1"),
+                    text_color=("#121715", "#e8edeb"),
                     font=ctk.CTkFont(size=11),
                 )
                 entry.pack(side="left", fill="x", expand=True)
@@ -548,16 +551,16 @@ class AgentRunnerTab:
             elif inp.type == "image":
                 entry = ctk.CTkEntry(
                     row, height=30, corner_radius=6,
-                    fg_color=("#f8f1e9", "#000500"),
-                    border_color=("#543520", "#92817A"),
-                    text_color=("#543520", "#F1DABF"),
+                    fg_color=("#98a3b3", "#4c5767"),
+                    border_color=("#384c46", "#b3c7c1"),
+                    text_color=("#121715", "#e8edeb"),
                     font=ctk.CTkFont(size=11),
                 )
                 entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
                 ctk.CTkButton(
                     row, text="Browse…", width=80, height=28, corner_radius=6,
                     font=ctk.CTkFont(size=11),
-                    fg_color=("#543520", "#2d1a0e"), hover_color=("#6b4428", "#3d2510"),
+                    fg_color=("#384c46", "#4c5767"), hover_color=("#2a3a34", "#3a4854"),
                     command=lambda n=inp.name: self._browse_file(n),
                 ).pack(side="right")
                 self.input_widgets[inp.name] = entry
@@ -567,9 +570,7 @@ class AgentRunnerTab:
         self.output_text.delete("1.0", "end")
         self.output_text.configure(state="disabled")
 
-        # Collapse outputs section when a new agent is loaded
-        if self._output_expanded:
-            self._toggle_outputs()
+        # Output is always visible now, no collapsing needed
 
         # Clear chat and disable input
         self._clear_chat()
@@ -595,11 +596,11 @@ class AgentRunnerTab:
             return
 
         root = self.parent.winfo_toplevel()
-        overlay = ctk.CTkFrame(root, fg_color=("#543520", "#000000"), corner_radius=0)
+        overlay = ctk.CTkFrame(root, fg_color=("#121715", "#000000"), corner_radius=0)
         overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
-        overlay.configure(fg_color=("#f8f1e9", "#1a0e05"))
+        overlay.configure(fg_color=("#98a3b3", "#4c5767"))
 
-        card = ctk.CTkFrame(overlay, fg_color=("#f8f1e9", "#1a0e05"), corner_radius=14, width=580, height=520)
+        card = ctk.CTkFrame(overlay, fg_color=("#98a3b3", "#4c5767"), corner_radius=14, width=580, height=520)
         card.place(relx=0.5, rely=0.5, anchor="center")
         card.pack_propagate(False)
 
@@ -610,21 +611,21 @@ class AgentRunnerTab:
             header,
             text=f"Definition: {self.current_agent.name}",
             font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
-            text_color=("#543520", "#F1DABF"),
+            text_color=("#121715", "#e8edeb"),
         ).pack(side="left")
 
         ctk.CTkButton(
             header, text="✕", width=32, height=32, corner_radius=8,
             font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color=("#543520", "#2a2a3e"), hover_color=("#6b4428", "#3a3a50"),
-            text_color=("#543520", "#ff6b6b"),
+            fg_color=("#384c46", "#4c5767"), hover_color=("#2a3a34", "#3a4854"),
+            text_color=("#121715", "#ff6b6b"),
             command=overlay.destroy,
         ).pack(side="right")
 
         textbox = ctk.CTkTextbox(
             card, corner_radius=8,
-            fg_color=("#f8f1e9", "#000500"),
-            text_color=("#543520", "#F1DABF"),
+            fg_color=("#98a3b3", "#4c5767"),
+            text_color=("#121715", "#e8edeb"),
             font=ctk.CTkFont(family="Consolas", size=11),
             wrap="word",
         )
@@ -779,11 +780,16 @@ class AgentRunnerTab:
         text = self.chat_input.get().strip()
         if not text:
             return
-        # User text is consumed but NOT shown in the conversation panel
+        # Display user message in conversation and clear input
+        self._append_user_message(text)
         self.chat_input.delete(0, "end")
         self._set_chat_enabled(False)
+<<<<<<< Updated upstream
         self._set_retry_enabled(False)
         self._set_status("Thinking…", "#c47b2a")
+=======
+        self._set_status("Thinking…", "#8889a5")
+>>>>>>> Stashed changes
 
         if self._conversation and self._conversation.is_active:
             user_msg = text
@@ -803,7 +809,7 @@ class AgentRunnerTab:
         else:
             self._append_agent_message("Conversation not available for this agent.")
             self._set_chat_enabled(True)
-            self._set_status("Done", "#92817A")
+            self._set_status("Done", "#b3c7c1")
 
     def _on_followup_complete(self, response: str):
         try:

@@ -14,28 +14,28 @@ AGENT_PROMPT_PAIRS = [
 
 _PAIR_ANNOTATIONS = [
     [
-        "Structured I/O: L2 pastes raw image data into a prompt. L3 defines a typed 'image' input and produces a JSON floor plan schema as output.",
-        "Tool access: L3 agent uses Gemini Vision API as a registered tool — the prompt has no tool concept.",
-        "Conversation: L3 agent proactively flags ambiguous features (unusual room shapes) and asks for clarification. L2 gives a one-shot answer.",
+        "Structured I/O: Legacy pastes raw image data into a prompt. Agent defines a typed 'image' input and produces a JSON floor plan schema as output.",
+        "Tool access: Agent uses Gemini Vision API as a registered tool — the prompt has no tool concept.",
+        "Conversation: Agent proactively flags ambiguous features (unusual room shapes) and asks for clarification. Legacy gives a one-shot answer.",
         "Reusability: Anyone can run the Floor Plan Parser agent without knowing how the prompt works.",
     ],
     [
-        "Structured I/O: L2 expects pasted JSON in a text prompt. L3 declares a typed 'json' input field and outputs a structured violation list.",
-        "Tool access: L3 agent calls P118 Validator and Pathfinding tools for real calculations. L2 relies on the LLM to guess distances and rules.",
-        "Constraints: L3 explicitly lists P118 rules (30m travel, 1.4m corridors, min 2 exits). L2 buries them in prose instructions.",
+        "Structured I/O: Legacy expects pasted JSON in a text prompt. Agent declares a typed 'json' input field and outputs a structured violation list.",
+        "Tool access: Agent calls P118 Validator and Pathfinding tools for real calculations. Legacy relies on the LLM to guess distances and rules.",
+        "Constraints: Agent explicitly lists P118 rules (30m travel, 1.4m corridors, min 2 exits). Legacy buries them in prose instructions.",
         "Reusability: The Egress Validator agent can be re-run on any floor plan without modifying the prompt.",
     ],
     [
-        "Structured I/O: L2 returns free-form text explanation. L3 produces ranked diagnoses with severity and impact scores.",
-        "Conversation: L3 agent can answer follow-up questions about specific violations. L2 requires re-sending the entire prompt.",
-        "Scope boundaries: L3 agent redirects validation questions to the Egress Validator agent instead of guessing.",
-        "Constraints: L3 uses severity ranking rules to prioritize which violations to explain first.",
+        "Structured I/O: Legacy returns free-form text explanation. Agent produces ranked diagnoses with severity and impact scores.",
+        "Conversation: Agent can answer follow-up questions about specific violations. Legacy requires re-sending the entire prompt.",
+        "Scope boundaries: Agent redirects validation questions to the Egress Validator agent instead of guessing.",
+        "Constraints: Agent uses severity ranking rules to prioritize which violations to explain first.",
     ],
     [
-        "Structured I/O: L2 gives text suggestions. L3 produces ranked fix proposals with justification and effort estimates.",
-        "Tool access: L3 calls Pathfinding and P118 Validator to verify that proposed fixes actually resolve violations. L2 cannot verify.",
-        "Conversation: L3 handles pushback ('Can't add a south exit') and offers alternatives. L2 is one-shot.",
-        "Constraints: L3 respects building constraints and checks proposals against P118 rules before suggesting them.",
+        "Structured I/O: Legacy gives text suggestions. Agent produces ranked fix proposals with justification and effort estimates.",
+        "Tool access: Agent calls Pathfinding and P118 Validator to verify that proposed fixes actually resolve violations. Legacy cannot verify.",
+        "Conversation: Agent handles pushback ('Can't add a south exit') and offers alternatives. Legacy is one-shot.",
+        "Constraints: Agent respects building constraints and checks proposals against P118 rules before suggesting them.",
     ],
 ]
 
@@ -49,27 +49,27 @@ class AdoptionPanel:
         wrapper = ctk.CTkScrollableFrame(
             self.parent,
             fg_color="transparent",
-            scrollbar_button_color=("#543520", "#92817A"),
+            scrollbar_button_color=("#384c46", "#b3c7c1"),
         )
         wrapper.pack(fill="both", expand=True, padx=4, pady=4)
 
         # ── Title ───────────────────────────────────────────────
         ctk.CTkLabel(
             wrapper,
-            text="📊  L2 vs L3 — Side-by-Side Comparison",
+            text="📊  Legacy vs Agent — Side-by-Side Comparison",
             font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-            text_color=("#543520", "#F1DABF"),
+            text_color=("#121715", "#e8edeb"),
         ).pack(anchor="w", padx=12, pady=(8, 6))
 
         # ── Summary banner ──────────────────────────────────────
-        banner = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=8)
+        banner = ctk.CTkFrame(wrapper, fg_color=("#f6f8f8", "#070909"), corner_radius=8)
         banner.pack(fill="x", padx=8, pady=(0, 10))
 
         ctk.CTkLabel(
             banner,
-            text="Same task. L2 = copy-paste + raw text. L3 = structured agents with tools and conversation.",
+            text="Same task. Legacy = copy-paste + raw text. Agent = structured agents with tools and conversation.",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#543520", "#92817A"),
+            text_color=("#121715", "#b3c7c1"),
             wraplength=750,
             justify="left",
         ).pack(padx=14, pady=10)
@@ -81,7 +81,7 @@ class AdoptionPanel:
         ctk.CTkLabel(
             selector, text="Select pair:",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("#543520", "#92817A"),
+            text_color=("#121715", "#b3c7c1"),
         ).pack(side="left", padx=(4, 8))
 
         pair_names = [p[0].replace(".json", "").replace("_", " ").title() for p in AGENT_PROMPT_PAIRS]
@@ -93,12 +93,12 @@ class AdoptionPanel:
             height=30,
             corner_radius=6,
             state="readonly",
-            fg_color=("#f8f1e9", "#000500"),
-            border_color=("#543520", "#92817A"),
-            button_color=("#543520", "#5c4a3a"),
-            button_hover_color=("#6b4428", "#5c4030"),
-            text_color=("#543520", "#F1DABF"),
-            dropdown_fg_color=("#f8f1e9", "#2d1a0e"),
+            fg_color=("#98a3b3", "#4c5767"),
+            border_color=("#384c46", "#b3c7c1"),
+            button_color=("#384c46", "#070909"),
+            button_hover_color=("#2a3a34", "#1a2428"),
+            text_color=("#121715", "#e8edeb"),
+            dropdown_fg_color=("#f6f8f8", "#4c5767"),
             font=ctk.CTkFont(family="Segoe UI", size=12),
             command=self._on_pair_selected,
         )
@@ -114,21 +114,21 @@ class AdoptionPanel:
         columns.grid_columnconfigure(2, weight=5)
         columns.grid_rowconfigure(0, weight=1)
 
-        # L2 side
-        left_card = ctk.CTkFrame(columns, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        # Legacy side
+        left_card = ctk.CTkFrame(columns, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
         left_card.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
 
         ctk.CTkLabel(
-            left_card, text="L2 — Prompt Template",
+            left_card, text="Legacy — Prompt Template",
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            text_color=("#543520", "#ffc107"),
+            text_color=("#121715", "#8889a5"),
         ).pack(anchor="w", padx=12, pady=(10, 6))
 
         self.l2_text = ctk.CTkTextbox(
             left_card,
             corner_radius=8,
-            fg_color=("#f8f1e9", "#000500"),
-            text_color=("#543520", "#F1DABF"),
+            fg_color=("#98a3b3", "#4c5767"),
+            text_color=("#121715", "#e8edeb"),
             font=ctk.CTkFont(family="Consolas", size=10),
             wrap="word",
         )
@@ -142,36 +142,36 @@ class AdoptionPanel:
         ctk.CTkLabel(
             arrow_frame, text="→",
             font=ctk.CTkFont(family="Segoe UI", size=28, weight="bold"),
-            text_color=("#92817A", "#92817A"),
+            text_color=("#b3c7c1", "#b3c7c1"),
         ).place(relx=0.5, rely=0.35, anchor="center")
 
         ctk.CTkLabel(
-            arrow_frame, text="L2→L3",
+            arrow_frame, text="Legacy→Agent",
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            text_color=("#543520", "#667788"),
+            text_color=("#121715", "#667788"),
         ).place(relx=0.5, rely=0.5, anchor="center")
 
         ctk.CTkLabel(
             arrow_frame, text="→",
             font=ctk.CTkFont(family="Segoe UI", size=28, weight="bold"),
-            text_color=("#92817A", "#92817A"),
+            text_color=("#b3c7c1", "#b3c7c1"),
         ).place(relx=0.5, rely=0.65, anchor="center")
 
-        # L3 side
-        right_card = ctk.CTkFrame(columns, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        # Agent side
+        right_card = ctk.CTkFrame(columns, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
         right_card.grid(row=0, column=2, sticky="nsew", padx=(4, 0))
 
         ctk.CTkLabel(
-            right_card, text="L3 — Agent Definition",
+            right_card, text="Agent — Agent Definition",
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            text_color=("#543520", "#92817A"),
+            text_color=("#121715", "#b3c7c1"),
         ).pack(anchor="w", padx=12, pady=(10, 6))
 
         self.l3_text = ctk.CTkTextbox(
             right_card,
             corner_radius=8,
-            fg_color=("#f8f1e9", "#000500"),
-            text_color=("#543520", "#F1DABF"),
+            fg_color=("#98a3b3", "#4c5767"),
+            text_color=("#121715", "#e8edeb"),
             font=ctk.CTkFont(family="Consolas", size=10),
             wrap="word",
         )
@@ -196,13 +196,13 @@ class AdoptionPanel:
         self.l3_text._textbox.bind("<Button-5>", _prevent_scroll)
 
         # ── Annotations ─────────────────────────────────────────
-        self.ann_card = ctk.CTkFrame(wrapper, fg_color=("#e7d5a5", "#2d1a0e"), corner_radius=10)
+        self.ann_card = ctk.CTkFrame(wrapper, fg_color=("#f6f8f8", "#070909"), corner_radius=10)
         self.ann_card.pack(fill="x", padx=8, pady=(8, 8))
 
         ctk.CTkLabel(
-            self.ann_card, text="What Changed: L2 → L3",
+            self.ann_card, text="What Changed: Legacy → Agent",
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            text_color=("#543520", "#c0d0e0"),
+            text_color=("#121715", "#b3c7c1"),
         ).pack(anchor="w", padx=12, pady=(10, 6))
 
         self.ann_container = ctk.CTkFrame(self.ann_card, fg_color="transparent")
@@ -222,7 +222,7 @@ class AdoptionPanel:
         prompt_path = os.path.join(config.PROMPTS_DIR, prompt_file)
         agent_path = os.path.join(config.AGENTS_DIR, agent_file)
 
-        # L2 side
+        # Legacy side
         self.l2_text.configure(state="normal")
         self.l2_text.delete("1.0", "end")
         if os.path.isfile(prompt_path):
@@ -232,7 +232,7 @@ class AdoptionPanel:
             self.l2_text.insert("1.0", "(Template not found)")
         self.l2_text.configure(state="disabled")
 
-        # L3 side
+        # Agent side
         self.l3_text.configure(state="normal")
         self.l3_text.delete("1.0", "end")
         if os.path.isfile(agent_path):
@@ -252,7 +252,7 @@ class AdoptionPanel:
             ctk.CTkLabel(
                 self.ann_container, text=f"  {a}",
                 font=ctk.CTkFont(family="Segoe UI", size=11),
-                text_color=("#543520", "#92817A"),
+                text_color=("#121715", "#b3c7c1"),
                 wraplength=750,
                 justify="left",
                 anchor="w",
