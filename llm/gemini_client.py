@@ -12,7 +12,7 @@ class GeminiClient:
 
     MAX_RETRIES = 3
     RETRY_BASE_DELAY = 2
-    MODEL = "gemma-3-27b-it"
+    MODEL = "gemini-2.5-flash-lite"
 
     def __init__(self):
         self._client = None
