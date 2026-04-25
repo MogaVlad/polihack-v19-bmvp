@@ -4,8 +4,9 @@ from gui.theme import get_stylesheet
 
 
 class StatusBar(QFrame):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, on_theme_change=None):
         super().__init__(parent)
+        self._on_theme_change = on_theme_change
         self.setObjectName("StatusBarFrame")
         self.setFixedHeight(32)
 
@@ -41,9 +42,12 @@ class StatusBar(QFrame):
 
     def _toggle_theme(self):
         is_dark = self.theme_switch.isChecked()
-        qss = get_stylesheet(dark_mode=is_dark)
-        if QApplication.instance():
-            QApplication.instance().setStyleSheet(qss)
+        if self._on_theme_change:
+            self._on_theme_change(is_dark)
+        else:
+            from gui.theme import get_stylesheet
+            if QApplication.instance():
+                QApplication.instance().setStyleSheet(get_stylesheet(dark_mode=is_dark))
 
     def set_status(self, text: str, _color: str = ""):
         self.status_label.setText(text)

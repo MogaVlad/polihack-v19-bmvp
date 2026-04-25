@@ -1,9 +1,9 @@
 import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QFrame, QHBoxLayout, QVBoxLayout, QLabel,
-    QPushButton, QStackedWidget, QSizePolicy
+    QPushButton, QStackedWidget, QApplication
 )
-from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve
+from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, Qt, QSize
 from PyQt6.QtGui import QKeySequence, QShortcut, QIcon, QPixmap
 
 import config
@@ -27,6 +27,8 @@ class App(QMainWindow):
         self.resize(1280, 820)
         self.setMinimumSize(960, 640)
 
+        self._dark_mode = True
+        self._icons_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "icons")
         self._build_layout()
 
     def _build_layout(self):
@@ -37,7 +39,7 @@ class App(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # ── Header bar ──────────────────────────────────────────
+        # Header bar
         self.header = QFrame()
         self.header.setProperty("class", "Header")
         self.header.setFixedHeight(48)
@@ -50,24 +52,9 @@ class App(QMainWindow):
         self.sidebar_toggle_btn.clicked.connect(self._toggle_sidebar)
         header_layout.addWidget(self.sidebar_toggle_btn)
 
-        # icons live in gui/assets/icons/ (same folder as this file)
-        _here = os.path.dirname(os.path.abspath(__file__))
-        _icons = os.path.join(_here, "assets", "icons")
-
-        def _px(name, size=20):
-            lbl = QLabel()
-            p = os.path.join(_icons, name)
-            if os.path.isfile(p):
-                lbl.setPixmap(QPixmap(p).scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-            return lbl
-
-        def _ico(name):
-            return QIcon(os.path.join(_icons, name))
-
-        # window icon
-        self.setWindowIcon(_ico("appicon.png"))
-
-        header_layout.addWidget(_px("nexttotitle.png", 24))
+        self._title_icon_lbl = QLabel()
+        self._title_icon_lbl.setFixedSize(26, 26)
+        header_layout.addWidget(self._title_icon_lbl)
 
         logo_label = QLabel("AgentArchitect")
         logo_label.setProperty("class", "Title")
@@ -79,14 +66,14 @@ class App(QMainWindow):
 
         main_layout.addWidget(self.header)
 
-        # ── Body ────────────────────────────────────────────────
+        # Body
         body_widget = QWidget()
         body_layout = QHBoxLayout(body_widget)
         body_layout.setContentsMargins(0, 0, 0, 0)
         body_layout.setSpacing(0)
         main_layout.addWidget(body_widget, 1)
 
-        # ── Sidebar ─────────────────────────────────────────────
+        # Sidebar
         self.sidebar_expanded = True
         self.sidebar_frame = QFrame()
         self.sidebar_frame.setProperty("class", "Sidebar")
@@ -98,29 +85,33 @@ class App(QMainWindow):
 
         body_layout.addWidget(self.sidebar_frame)
 
-        # ── Right content area ──────────────────────────────────
+        # Right content area
         self.right_frame = QFrame()
         right_layout = QVBoxLayout(self.right_frame)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(0)
         body_layout.addWidget(self.right_frame, 1)
 
-        # ── Stacked pages (no tab bar) ─────────────────────────
+        # Stacked pages
         self.pages = QStackedWidget()
         right_layout.addWidget(self.pages, 1)
 
-        # ── Canvas panel ────────────────────────────────────────
+        # Canvas panel
         self.canvas_panel = CanvasPanel(self.right_frame)
         self.canvas_panel.hide()
         right_layout.addWidget(self.canvas_panel, 2)
 
-        # ── Status bar ──────────────────────────────────────────
-        self.status_bar = StatusBar()
+        # Status bar
+        self.status_bar = StatusBar(on_theme_change=self.apply_theme)
         main_layout.addWidget(self.status_bar)
 
-        # ── Page contents ───────────────────────────────────────
+        # Page contents
         self.runner_tab = AgentRunnerTab(self.pages, status_bar=self.status_bar, canvas_panel=self.canvas_panel)
-        self.builder_tab = AgentBuilderTab(self.pages, on_agent_saved=self._on_agent_saved, on_save_and_run=self._on_save_and_run)
+        self.builder_tab = AgentBuilderTab(
+            self.pages,
+            on_agent_saved=self._on_agent_saved,
+            on_save_and_run=self._on_save_and_run
+        )
         self.l2_tab = L2ConsoleTab(self.pages)
         self.adoption_tab = AdoptionPanel(self.pages)
 
@@ -129,7 +120,7 @@ class App(QMainWindow):
         self.pages.addWidget(self.l2_tab)
         self.pages.addWidget(self.adoption_tab)
 
-        # ── Agent library sidebar ───────────────────────────────
+        # Agent library sidebar
         self.agent_library = AgentLibrary(
             self.sidebar_frame,
             on_agent_selected=self._on_agent_selected,
@@ -142,29 +133,27 @@ class App(QMainWindow):
         from tools.registry import ToolRegistry
         self.status_bar.set_tool_count(len(ToolRegistry().list_tool_names()))
 
-        # ── Sidebar navigation buttons ──────────────────────────
+        # Sidebar navigation buttons
         nav_frame = QFrame()
         nav_layout = QVBoxLayout(nav_frame)
         nav_layout.setContentsMargins(12, 4, 12, 12)
         nav_layout.setSpacing(6)
 
-        btn_legacy = QPushButton("  Legacy Prompting")
-        btn_legacy.setProperty("class", "SidebarBtn")
-        btn_legacy.setIcon(_ico("legacy.png"))
-        btn_legacy.setIconSize(QSize(18, 18))
-        btn_legacy.clicked.connect(lambda: self._set_active_view("Legacy Prompting"))
-        nav_layout.addWidget(btn_legacy)
+        self._btn_legacy = QPushButton("  Legacy Prompting")
+        self._btn_legacy.setProperty("class", "SidebarBtn")
+        self._btn_legacy.setIconSize(QSize(18, 18))
+        self._btn_legacy.clicked.connect(lambda: self._set_active_view("Legacy Prompting"))
+        nav_layout.addWidget(self._btn_legacy)
 
-        btn_showcase = QPushButton("  Legacy → Agent")
-        btn_showcase.setProperty("class", "SidebarBtn")
-        btn_showcase.setIcon(_ico("l2tol3.png"))
-        btn_showcase.setIconSize(QSize(18, 18))
-        btn_showcase.clicked.connect(lambda: self._set_active_view("Legacy to Agent Showcase"))
-        nav_layout.addWidget(btn_showcase)
+        self._btn_showcase = QPushButton("  Legacy → Agent")
+        self._btn_showcase.setProperty("class", "SidebarBtn")
+        self._btn_showcase.setIconSize(QSize(18, 18))
+        self._btn_showcase.clicked.connect(lambda: self._set_active_view("Legacy to Agent Showcase"))
+        nav_layout.addWidget(self._btn_showcase)
 
         sidebar_layout.addWidget(nav_frame)
 
-        # ── Keyboard shortcuts ──────────────────────────────────
+        # Keyboard shortcuts
         QShortcut(QKeySequence("Ctrl+N"), self).activated.connect(self._on_create_new)
         QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self.builder_tab._save_agent)
         QShortcut(QKeySequence("Ctrl+Q"), self).activated.connect(self.close)
@@ -173,34 +162,53 @@ class App(QMainWindow):
         QShortcut(QKeySequence("F5"), self).activated.connect(self._refresh_library)
         QShortcut(QKeySequence("Ctrl+B"), self).activated.connect(self._toggle_sidebar)
 
+        self._apply_icons()
         self._preload_example_plan()
 
-    # ── Sidebar collapse ────────────────────────────────────────
+    # ── Icon helpers ────────────────────────────────────────────
+    def _icon_path(self, name: str) -> str:
+        suffix = "dark" if self._dark_mode else "light"
+        return os.path.join(self._icons_dir, f"{name}_{suffix}.png")
+
+    def _make_icon(self, name: str) -> QIcon:
+        return QIcon(self._icon_path(name))
+
+    def _make_pixmap(self, name: str, size: int) -> QPixmap:
+        p = self._icon_path(name)
+        if os.path.isfile(p):
+            return QPixmap(p).scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        return QPixmap()
+
+    def _apply_icons(self):
+        p = os.path.join(self._icons_dir, "appicon_light.png")
+        if os.path.isfile(p):
+            self.setWindowIcon(QIcon(p))
+        self._title_icon_lbl.setPixmap(self._make_pixmap("nexttotitle", 24))
+        self._btn_legacy.setIcon(self._make_icon("legacy"))
+        self._btn_showcase.setIcon(self._make_icon("l2tol3"))
+
+    def apply_theme(self, dark_mode: bool):
+        from gui.theme import get_stylesheet
+        self._dark_mode = dark_mode
+        app = QApplication.instance()
+        if app:
+            app.setStyleSheet(get_stylesheet(dark_mode=dark_mode))
+        self._apply_icons()
+
     def _toggle_sidebar(self):
         if self.sidebar_expanded:
             start, end = SIDEBAR_WIDTH, SIDEBAR_COLLAPSED
         else:
             start, end = SIDEBAR_COLLAPSED, SIDEBAR_WIDTH
 
-        # Animate maximumWidth for the slide effect
         self._anim = QPropertyAnimation(self.sidebar_frame, b"maximumWidth")
         self._anim.setDuration(200)
         self._anim.setStartValue(start)
         self._anim.setEndValue(end)
         self._anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
-
-        # When expanding we must unlock minimumWidth first so it can grow;
-        # when collapsing we animate minimumWidth down together.
-        if self.sidebar_expanded:
-            # collapsing: shrink min alongside max
-            self.sidebar_frame.setMinimumWidth(0)
-        else:
-            # expanding: set min to 0 now so the frame can start at 0,
-            # then snap it to SIDEBAR_WIDTH once fully open
-            self.sidebar_frame.setMinimumWidth(0)
+        self.sidebar_frame.setMinimumWidth(0)
 
         def _on_finished():
-            # Snap both constraints to the final value so layout can't drift
             self.sidebar_frame.setMinimumWidth(end)
             self.sidebar_frame.setMaximumWidth(end)
 
@@ -208,7 +216,14 @@ class App(QMainWindow):
         self._anim.start()
         self.sidebar_expanded = not self.sidebar_expanded
 
-    # ── Navigation ──────────────────────────────────────────────
+    def apply_theme(self, dark_mode: bool):
+        from gui.theme import get_stylesheet
+        self._dark_mode = dark_mode
+        app = QApplication.instance()
+        if app:
+            app.setStyleSheet(get_stylesheet(dark_mode=dark_mode))
+        self._apply_icons()
+
     def _set_active_view(self, view_name: str):
         tab_map = {
             "Legacy Prompting": self.l2_tab,
@@ -226,12 +241,12 @@ class App(QMainWindow):
     def _on_create_new(self):
         self.pages.setCurrentWidget(self.builder_tab)
         self.builder_tab.reset_form()
-        self.status_bar.set_status("Creating new agent…", "#8889a5")
+        self.status_bar.set_status("Creating new agent...", "#8889a5")
 
     def _on_agent_saved(self):
         self.agent_library.refresh()
         self.status_bar.set_agent_count(len(self.agent_library.agents))
-        self.status_bar.set_status("Agent saved ✓", "#b3c7c1")
+        self.status_bar.set_status("Agent saved", "#b3c7c1")
 
     def _on_save_and_run(self, agent_def):
         self._on_agent_saved()
