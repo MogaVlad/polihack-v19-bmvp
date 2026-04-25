@@ -109,8 +109,9 @@ class AdoptionPanel:
         # ── Two-column comparison ───────────────────────────────
         columns = ctk.CTkFrame(wrapper, fg_color="transparent")
         columns.pack(fill="both", expand=True, padx=8, pady=4)
-        columns.grid_columnconfigure(0, weight=1)
-        columns.grid_columnconfigure(1, weight=1)
+        columns.grid_columnconfigure(0, weight=5)
+        columns.grid_columnconfigure(1, weight=0)
+        columns.grid_columnconfigure(2, weight=5)
         columns.grid_rowconfigure(0, weight=1)
 
         # L2 side
@@ -133,9 +134,32 @@ class AdoptionPanel:
         )
         self.l2_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
+        # Arrow column
+        arrow_frame = ctk.CTkFrame(columns, fg_color="transparent", width=48)
+        arrow_frame.grid(row=0, column=1, sticky="ns", padx=2)
+        arrow_frame.grid_propagate(False)
+
+        ctk.CTkLabel(
+            arrow_frame, text="→",
+            font=ctk.CTkFont(family="Segoe UI", size=28, weight="bold"),
+            text_color=("gray50", "#4a9eff"),
+        ).place(relx=0.5, rely=0.35, anchor="center")
+
+        ctk.CTkLabel(
+            arrow_frame, text="L2→L3",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            text_color=("gray60", "#667788"),
+        ).place(relx=0.5, rely=0.5, anchor="center")
+
+        ctk.CTkLabel(
+            arrow_frame, text="→",
+            font=ctk.CTkFont(family="Segoe UI", size=28, weight="bold"),
+            text_color=("gray50", "#4a9eff"),
+        ).place(relx=0.5, rely=0.65, anchor="center")
+
         # L3 side
         right_card = ctk.CTkFrame(columns, fg_color=("gray92", "#162d50"), corner_radius=10)
-        right_card.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+        right_card.grid(row=0, column=2, sticky="nsew", padx=(4, 0))
 
         ctk.CTkLabel(
             right_card, text="L3 — Agent Definition",

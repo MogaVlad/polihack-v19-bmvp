@@ -31,9 +31,7 @@ class ResponseCache:
         path = self._cache_path(agent_id, input_hash)
 
         if not os.path.isfile(path):
-            path = self._find_by_agent_id(agent_id)
-            if not path:
-                return None
+            return None
 
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -53,9 +51,7 @@ class ResponseCache:
         path = self._cache_path(agent_id, input_hash)
 
         if not os.path.isfile(path):
-            path = self._find_by_agent_id(agent_id)
-            if not path:
-                return None
+            return None
 
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -124,9 +120,7 @@ class L2ResponseCache:
         path = self._cache_path(template_name, data_hash)
 
         if not os.path.isfile(path):
-            path = self._find_by_template(template_name)
-            if not path:
-                return None
+            return None
 
         try:
             with open(path, "r", encoding="utf-8") as f:

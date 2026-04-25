@@ -26,6 +26,14 @@ _LOCATION_PATTERN = re.compile(
     r"\b((?:Room|Corridor|room|corridor)\s+[A-Za-z]?\d+|[RC]\d+)\b"
 )
 
+_SEVERITY_PATTERN = re.compile(
+    r"\b(CRITICAL|MAJOR|MINOR|INFO)\b", re.IGNORECASE
+)
+
+_BOLD_PATTERN = re.compile(r"\*\*(.+?)\*\*")
+
+_BULLET_PATTERN = re.compile(r"^(\s*[-•]\s)", re.MULTILINE)
+
 
 class AgentRunnerTab:
     def __init__(self, parent: ctk.CTkFrame, status_bar=None, canvas_panel=None):
@@ -224,6 +232,11 @@ class AgentRunnerTab:
         self.chat_display.tag_config("user", foreground="#e0e0e0")
         self.chat_display.tag_config("flagged", foreground="#ff6b6b")
         self.chat_display.tag_config("timestamp", foreground="#555555")
+        self.chat_display.tag_config("bold", foreground="#e0e0e0")
+        self.chat_display.tag_config("bullet", foreground="#8899aa")
+        self.chat_display.tag_config("sev_critical", foreground="#f44336")
+        self.chat_display.tag_config("sev_major", foreground="#ff9800")
+        self.chat_display.tag_config("sev_minor", foreground="#fdd835")
         self.chat_display.tag_config("location", foreground="#4caf50", underline=True)
         self.chat_display.tag_bind("location", "<Button-1>", self._on_location_click)
         self.chat_display.tag_bind("location", "<Enter>",
@@ -323,11 +336,31 @@ class AgentRunnerTab:
         self._auto_scroll()
 
     def _insert_with_highlights(self, text: str, base_tag: str):
-        """Insert text with flagged keywords and clickable location references."""
+        """Insert text with bold, bullets, severity colors, flagged keywords, and clickable locations."""
+        # First pass: strip **bold** markers and record bold spans
+        clean_parts = []
+        bold_spans = []
+        last = 0
+        for m in _BOLD_PATTERN.finditer(text):
+            clean_parts.append(text[last:m.start()])
+            bold_start = sum(len(p) for p in clean_parts)
+            clean_parts.append(m.group(1))
+            bold_spans.append((bold_start, bold_start + len(m.group(1))))
+            last = m.end()
+        clean_parts.append(text[last:])
+        clean_text = "".join(clean_parts)
+
         spans = []
-        for m in _FLAG_KEYWORDS.finditer(text):
+        for bs, be in bold_spans:
+            spans.append((bs, be, "bold"))
+        for m in _FLAG_KEYWORDS.finditer(clean_text):
             spans.append((m.start(), m.end(), "flagged"))
-        for m in _LOCATION_PATTERN.finditer(text):
+        for m in _SEVERITY_PATTERN.finditer(clean_text):
+            word = m.group().upper()
+            tag = {"CRITICAL": "sev_critical", "MAJOR": "sev_major",
+                   "MINOR": "sev_minor", "INFO": "bullet"}.get(word, base_tag)
+            spans.append((m.start(), m.end(), tag))
+        for m in _LOCATION_PATTERN.finditer(clean_text):
             loc_tag = f"loc_{m.group()}"
             self.chat_display.tag_config(loc_tag, foreground="#4caf50", underline=True)
             self.chat_display.tag_bind(loc_tag, "<Button-1>", self._on_location_click)
@@ -336,10 +369,11 @@ class AgentRunnerTab:
             self.chat_display.tag_bind(loc_tag, "<Leave>",
                                        lambda e: self.chat_display.configure(cursor=""))
             spans.append((m.start(), m.end(), loc_tag))
+        for m in _BULLET_PATTERN.finditer(clean_text):
+            spans.append((m.start(), m.end(), "bullet"))
 
         spans.sort(key=lambda s: s[0])
 
-        # Remove overlapping spans (keep first)
         merged = []
         for s in spans:
             if merged and s[0] < merged[-1][1]:
@@ -349,11 +383,11 @@ class AgentRunnerTab:
         last_end = 0
         for start, end, tag in merged:
             if start > last_end:
-                self.chat_display.insert("end", text[last_end:start], base_tag)
-            self.chat_display.insert("end", text[start:end], tag)
+                self.chat_display.insert("end", clean_text[last_end:start], base_tag)
+            self.chat_display.insert("end", clean_text[start:end], tag)
             last_end = end
-        if last_end < len(text):
-            self.chat_display.insert("end", text[last_end:], base_tag)
+        if last_end < len(clean_text):
+            self.chat_display.insert("end", clean_text[last_end:], base_tag)
 
     def _auto_scroll(self):
         """Scroll the chat display to the bottom."""

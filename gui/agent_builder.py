@@ -1,3 +1,4 @@
+import json
 import customtkinter as ctk
 from tkinter import messagebox
 from typing import Callable, List, Optional
@@ -197,6 +198,13 @@ class AgentBuilderTab:
         # ── Action buttons ──────────────────────────────────────
         btn_frame = ctk.CTkFrame(self.scroll, fg_color="transparent")
         btn_frame.pack(fill="x", padx=12, pady=(8, 20))
+
+        ctk.CTkButton(
+            btn_frame, text="Preview JSON", width=130, height=36, corner_radius=8,
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            fg_color=("gray78", "#1a3a5c"), hover_color=("gray68", "#2a4a6c"),
+            text_color=("gray10", "#c0d0e0"), command=self._preview_definition,
+        ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
             btn_frame, text="Save Agent", width=140, height=36, corner_radius=8,
@@ -491,3 +499,45 @@ class AgentBuilderTab:
         self.conversational_var.set(True)
 
         self._hide_error()
+
+    def _preview_definition(self):
+        """Show assembled agent definition JSON in an overlay before saving."""
+        definition = self._build_definition()
+        root = self.parent.winfo_toplevel()
+
+        overlay = ctk.CTkFrame(root, fg_color=("gray20", "gray14"), corner_radius=0)
+        overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+
+        card = ctk.CTkFrame(overlay, fg_color=("gray96", "#1a1a2e"), corner_radius=14, width=580, height=520)
+        card.place(relx=0.5, rely=0.5, anchor="center")
+        card.pack_propagate(False)
+
+        header = ctk.CTkFrame(card, fg_color="transparent")
+        header.pack(fill="x", padx=20, pady=(16, 8))
+
+        ctk.CTkLabel(
+            header, text="Preview: Agent Definition",
+            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            text_color=("gray10", "#e0e0e0"),
+        ).pack(side="left")
+
+        ctk.CTkButton(
+            header, text="✕", width=32, height=32, corner_radius=8,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("gray78", "#2a2a3e"), hover_color=("gray68", "#3a3a50"),
+            text_color=("gray10", "#ff6b6b"), command=overlay.destroy,
+        ).pack(side="right")
+
+        textbox = ctk.CTkTextbox(
+            card, corner_radius=8,
+            fg_color=("white", "#0e1117"),
+            text_color=("gray10", "#c0d0e0"),
+            font=ctk.CTkFont(family="Consolas", size=11),
+            wrap="word",
+        )
+        textbox.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        textbox.insert("1.0", json.dumps(definition.to_dict(), indent=2))
+        textbox.configure(state="disabled")
+
+        overlay.bind("<Button-1>", lambda e: overlay.destroy() if e.widget == overlay else None)
+        overlay.lift()

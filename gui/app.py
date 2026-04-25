@@ -1,3 +1,4 @@
+import os
 import customtkinter as ctk
 
 import config
@@ -8,6 +9,7 @@ from gui.l2_console import L2ConsoleTab
 from gui.adoption_panel import AdoptionPanel
 from gui.canvas import CanvasPanel
 from gui.controls import StatusBar
+from models.floor_plan import FloorPlan
 
 
 class App:
@@ -161,6 +163,15 @@ class App:
         from tools.registry import ToolRegistry
         self.status_bar.set_tool_count(len(ToolRegistry().list_tool_names()))
 
+        # ── Keyboard shortcuts ──────────────────────────────────
+        self.root.bind_all("<Control-n>", lambda e: self._on_create_new())
+        self.root.bind_all("<Control-r>", lambda e: self.runner_tab._run_agent())
+        self.root.bind_all("<Control-e>", lambda e: self.runner_tab._export_json())
+        self.root.bind_all("<F5>", lambda e: self._refresh_library())
+
+        # ── Pre-load example floor plan on canvas ───────────────
+        self._preload_example_plan()
+
     # ── Callbacks ────────────────────────────────────────────────
     def _toggle_sidebar(self):
         """Collapse / expand the Agent Library sidebar."""
@@ -194,6 +205,21 @@ class App:
         self._on_agent_saved()
         self._on_agent_selected(agent_def)
         self.status_bar.set_status(f"Agent '{agent_def.name}' saved and loaded", "#4caf50")
+
+    def _refresh_library(self):
+        self.agent_library.refresh()
+        self.status_bar.set_agent_count(len(self.agent_library.agents))
+        self.status_bar.set_status("Library refreshed", "#4a9eff")
+
+    def _preload_example_plan(self):
+        """Load the first example floor plan into the canvas on startup."""
+        default = os.path.join(config.FLOOR_PLANS_DIR, "example_office.json")
+        if os.path.isfile(default):
+            try:
+                plan = FloorPlan.load_from_json(default)
+                self.canvas_panel.load_plan(plan)
+            except Exception:
+                pass
 
     def run(self):
         self.root.mainloop()
