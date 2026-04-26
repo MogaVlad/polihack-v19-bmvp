@@ -49,7 +49,8 @@ def _build_graph(plan_data: dict) -> Dict[str, Dict[str, float]]:
         graph.setdefault(cid, {})
         centroids[cid] = _centroid(corridor.get("polygon", []))
 
-    # Add edges from doors — each door connects exactly two nodes
+    # Add edges from doors — each door connects exactly two nodes.
+    # Doors are the ONLY way to connect rooms to corridors (physical passageways).
     for door in plan_data.get("doors", []):
         connects = door.get("connects", [])
         if len(connects) == 2:
@@ -59,26 +60,18 @@ def _build_graph(plan_data: dict) -> Dict[str, Dict[str, float]]:
                 graph.setdefault(a, {})[b] = dist
                 graph.setdefault(b, {})[a] = dist
 
-    # Add edges from corridor.connects for any pairs not already connected via doors
-    for corridor in plan_data.get("corridors", []):
-        cid = corridor["id"]
-        for node_id in corridor.get("connects", []):
-            if node_id in centroids and cid in centroids:
-                if node_id not in graph.get(cid, {}):
-                    dist = _distance_between(centroids[cid], centroids[node_id])
-                    graph.setdefault(cid, {})[node_id] = dist
-                    graph.setdefault(node_id, {})[cid] = dist
-
-    # Also connect corridors to each other if they share connections
+    # Connect corridors to each other via corridor.connects (open passages).
+    # Room-to-corridor edges are NOT created here — those require doors above.
     corridor_ids = {c["id"] for c in plan_data.get("corridors", [])}
     for corridor in plan_data.get("corridors", []):
         cid = corridor["id"]
         for node_id in corridor.get("connects", []):
             if node_id in corridor_ids and node_id != cid:
-                if node_id not in graph.get(cid, {}):
-                    dist = _distance_between(centroids[cid], centroids[node_id])
-                    graph.setdefault(cid, {})[node_id] = dist
-                    graph.setdefault(node_id, {})[cid] = dist
+                if node_id in centroids and cid in centroids:
+                    if node_id not in graph.get(cid, {}):
+                        dist = _distance_between(centroids[cid], centroids[node_id])
+                        graph.setdefault(cid, {})[node_id] = dist
+                        graph.setdefault(node_id, {})[cid] = dist
 
     return graph
 

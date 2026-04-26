@@ -4,9 +4,10 @@ import re
 import html
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton,
-    QTextEdit, QLineEdit, QScrollArea, QFileDialog, QDialog, QSplitter, QProgressBar, QMessageBox
+    QTextEdit, QTextBrowser, QLineEdit, QScrollArea, QFileDialog, QDialog,
+    QSplitter, QProgressBar, QMessageBox
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl
 from PyQt6.QtGui import QTextCursor
 
 from models.agent_definition import AgentDefinition
@@ -17,6 +18,15 @@ from engine.runner import AgentRunner
 from engine.conversation import ConversationManager
 from engine.prompt_builder import PromptBuilder
 import config
+
+
+_LOCATION_ID_RE = re.compile(r'\b([RCDE]\d+)\b')
+_SEV_CHAT_COLORS = {
+    "critical": "#e05555",
+    "major": "#d4943a",
+    "minor": "#c0a040",
+    "info": "#8b81a2",
+}
 
 
 class AgentRunnerWorker(QThread):
@@ -229,8 +239,11 @@ class AgentRunnerTab(QWidget):
         right_layout = QVBoxLayout(right_card)
         right_layout.addWidget(self._section_header("CONVERSATION"))
 
-        self.chat_display = QTextEdit()
+        self.chat_display = QTextBrowser()
         self.chat_display.setReadOnly(True)
+        self.chat_display.setOpenExternalLinks(False)
+        self.chat_display.setOpenLinks(False)
+        self.chat_display.anchorClicked.connect(self._on_chat_link_clicked)
         right_layout.addWidget(self.chat_display, 1)
 
         msg_frame = QHBoxLayout()
@@ -363,16 +376,19 @@ class AgentRunnerTab(QWidget):
         if message.strip().startswith("{") or message.strip().startswith("["):
             data = self._try_parse_json(message)
             if data is not None:
-                return self._report_to_html(self._json_to_report(data))
+                raw = self._report_to_html(self._json_to_report(data))
+                return self._inject_severity_colors(self._inject_location_links(raw))
 
         # Default: escape and keep line breaks.
         safe = html.escape(message).replace("\n", "<br>")
         for token, tag in placeholders.items():
             safe = safe.replace(token, tag)
-            
+
         for pid, html_str in html_blocks.items():
             safe = safe.replace(pid, html_str)
-            
+
+        safe = self._inject_location_links(safe)
+        safe = self._inject_severity_colors(safe)
         return safe
 
     @staticmethod
@@ -421,6 +437,27 @@ class AgentRunnerTab(QWidget):
         return "<br>".join(safe_lines)
 
     @staticmethod
+    def _inject_location_links(text: str) -> str:
+        def _replace(m):
+            id_ = m.group(0)
+            return (
+                f'<a href="loc:{id_}" style="color:#5ba3cf;'
+                f'text-decoration:none;font-weight:bold">{id_}</a>'
+            )
+        return _LOCATION_ID_RE.sub(_replace, text)
+
+    @staticmethod
+    def _inject_severity_colors(text: str) -> str:
+        for sev, color in _SEV_CHAT_COLORS.items():
+            text = re.sub(
+                rf'\b({sev})\b',
+                rf'<span style="color:{color};font-weight:bold">\1</span>',
+                text,
+                flags=re.IGNORECASE,
+            )
+        return text
+
+    @staticmethod
     def _format_value(value) -> str:
         if value is None:
             return "—"
@@ -453,6 +490,13 @@ class AgentRunnerTab(QWidget):
     def _set_chat_enabled(self, enabled: bool):
         self.chat_input.setEnabled(enabled)
         self.send_btn.setEnabled(enabled)
+
+    def _on_chat_link_clicked(self, url: QUrl):
+        url_str = url.toString()
+        if url_str.startswith("loc:"):
+            location_id = url_str[4:]
+            if self.canvas_panel:
+                self.canvas_panel.highlight_location(location_id)
 
     def _set_retry_enabled(self, enabled: bool):
         self._followup_can_retry = enabled
@@ -664,40 +708,47 @@ class AgentRunnerTab(QWidget):
                 return plan
         return None
 
-    def _extract_violations_payload(self, payload):
+    @staticmethod
+    def _is_violation_list(obj) -> bool:
+        return (isinstance(obj, list) and obj
+                and isinstance(obj[0], dict)
+                and ("rule" in obj[0] or "severity" in obj[0]))
+
+    def _extract_all_violations(self, payload) -> list:
+        results = []
         if payload is None:
-            return None
+            return results
         if isinstance(payload, list):
-            return payload
+            if self._is_violation_list(payload):
+                return list(payload)
+            return results
         if isinstance(payload, str):
             try:
                 parsed = json.loads(payload)
-            except json.JSONDecodeError:
-                return None
-            return self._extract_violations_payload(parsed)
+            except (json.JSONDecodeError, ValueError):
+                return results
+            return self._extract_all_violations(parsed)
         if isinstance(payload, dict):
-            violations = payload.get("violations")
-            if isinstance(violations, list):
-                return violations
-            if isinstance(violations, dict):
-                nested = self._extract_violations_payload(violations)
-                if nested:
-                    return nested
-            if isinstance(payload.get("p118_validator"), list):
-                return payload.get("p118_validator")
-            if isinstance(payload.get("tool_results"), dict):
-                tool_data = payload["tool_results"].get("p118_validator")
-                return self._extract_violations_payload(tool_data)
-        return None
+            for value in payload.values():
+                if isinstance(value, list) and self._is_violation_list(value):
+                    results.extend(value)
+                elif isinstance(value, str):
+                    results.extend(self._extract_all_violations(value))
+                elif isinstance(value, dict):
+                    results.extend(self._extract_all_violations(value))
+        return results
 
     def _parse_violations(self, *payloads) -> list[Violation]:
         parsed = []
+        seen_ids: set[str] = set()
         for payload in payloads:
-            raw = self._extract_violations_payload(payload)
-            if not raw:
-                continue
-            for v in raw:
+            for v in self._extract_all_violations(payload):
                 if isinstance(v, dict):
+                    vid = v.get("id", "")
+                    if vid and vid in seen_ids:
+                        continue
+                    if vid:
+                        seen_ids.add(vid)
                     parsed.append(Violation.from_dict(v))
         return parsed
 

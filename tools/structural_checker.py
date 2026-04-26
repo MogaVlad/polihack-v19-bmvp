@@ -266,6 +266,28 @@ def detect_anomalies(inputs: Dict) -> List[dict]:
                     ),
                 ))
 
+    # Check for rooms with no doors (sealed / inaccessible)
+    door_connected_nodes = set()
+    for door in plan_data.get("doors", []):
+        for node_id in door.get("connects", []):
+            door_connected_nodes.add(node_id)
+
+    for room in plan_data.get("rooms", []):
+        rid = room["id"]
+        rname = room.get("name", rid)
+        occupancy = room.get("occupancy", 0)
+        if rid not in door_connected_nodes:
+            violations.append(_make_violation(
+                rule="anomaly_no_doors",
+                article="P118 Art. 3.6.1",
+                severity="critical",
+                location=rid,
+                description=(
+                    f"Room '{rname}' (occupancy: {occupancy}) has no doors — "
+                    f"occupants cannot enter or exit the room."
+                ),
+            ))
+
     # Check doors referencing nonexistent rooms/corridors
     all_node_ids = set()
     for r in plan_data.get("rooms", []):

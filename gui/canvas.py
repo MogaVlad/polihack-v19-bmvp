@@ -8,7 +8,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QPointF, QTimer, QRectF, QSize, pyqtProperty, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QPolygonF, QPen, QBrush, QColor, QFont, QPainterPath, QPainter, QPalette, QFontMetricsF
 
-from typing import Optional, List
+import re
+from typing import Optional, List, Dict, Tuple
 import config
 from models.floor_plan import FloorPlan
 from models.violations import Violation
@@ -119,6 +120,28 @@ class CenteredTextItem(QGraphicsItem):
         painter.setFont(self._font)
         painter.setPen(self._color)
         painter.drawText(self._rect, Qt.AlignmentFlag.AlignCenter, self._text)
+
+
+_SEV_ORDER: Dict[str, int] = {"critical": 3, "major": 2, "minor": 1, "info": 0}
+
+_SEV_MARKER_COLORS: Dict[str, str] = {
+    "critical": "#e05555",
+    "major": "#d4943a",
+    "minor": "#c0a040",
+    "info": "#8b81a2",
+}
+
+_ROOM_TINTS_DARK: Dict[str, str] = {
+    "critical": "#2a1818",
+    "major": "#2a2218",
+}
+
+_ROOM_TINTS_LIGHT: Dict[str, str] = {
+    "critical": "#fff0f0",
+    "major": "#fff5e6",
+}
+
+_LOCATION_ID_RE = re.compile(r'\b([RCDE]\d+)\b')
 
 
 class CanvasPanel(QWidget):
@@ -269,6 +292,77 @@ class CanvasPanel(QWidget):
             self.view.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
             self.view.centerOn(rect.center())
 
+    @staticmethod
+    def _poly_centroid(polygon) -> Tuple[float, float]:
+        xs = [p[0] for p in polygon]
+        ys = [p[1] for p in polygon]
+        return (sum(xs) / len(xs), sum(ys) / len(ys))
+
+    def _violation_location_ids(self, location: str) -> List[str]:
+        plan = self.floor_plan
+        if not plan:
+            return []
+        if plan.get_room(location):
+            return [location]
+        if plan.get_corridor(location):
+            return [location]
+
+        result = []
+        ids = _LOCATION_ID_RE.findall(location)
+        for id_ in ids:
+            if plan.get_room(id_) or plan.get_corridor(id_):
+                result.append(id_)
+
+        if not result:
+            for door in plan.doors:
+                if door.id in ids or location.startswith(door.id):
+                    result.extend(c for c in door.connects
+                                  if plan.get_room(c) or plan.get_corridor(c))
+                    break
+
+        if not result:
+            for exit_ in plan.exits:
+                if exit_.id in ids:
+                    rid = exit_.room_id
+                    if rid and (plan.get_room(rid) or plan.get_corridor(rid)):
+                        result.append(rid)
+                    break
+
+        return result
+
+    def _resolve_violation_pos(self, location: str) -> Optional[Tuple[float, float]]:
+        plan = self.floor_plan
+        if not plan:
+            return None
+
+        target = plan.get_room(location) or plan.get_corridor(location)
+        if target and target.polygon:
+            return self._poly_centroid(target.polygon)
+
+        if location == "building":
+            all_pts = [p for r in plan.rooms if r.polygon for p in r.polygon]
+            if all_pts:
+                return (sum(p[0] for p in all_pts) / len(all_pts),
+                        sum(p[1] for p in all_pts) / len(all_pts))
+            return None
+
+        ids = _LOCATION_ID_RE.findall(location)
+        for id_ in ids:
+            room = plan.get_room(id_)
+            if room and room.polygon:
+                return self._poly_centroid(room.polygon)
+            corr = plan.get_corridor(id_)
+            if corr and corr.polygon:
+                return self._poly_centroid(corr.polygon)
+            for door in plan.doors:
+                if door.id == id_:
+                    return (door.position[0], door.position[1])
+            for exit_ in plan.exits:
+                if exit_.id == id_:
+                    return (exit_.position[0], exit_.position[1])
+
+        return None
+
     def _redraw(self):
         self.scene.clear()
         if not self.floor_plan:
@@ -285,47 +379,101 @@ class CanvasPanel(QWidget):
             else:
                 self._plan_rect = self._plan_rect.united(rect)
 
-        room_fill = QColor(self._theme_colors.get("room_fill", "#181c1f"))
-        room_border = QColor(self._theme_colors.get("room_border", "#b3c0c7"))
+        room_fill_base = QColor(self._theme_colors.get("room_fill", "#181c1f"))
+        room_border_base = QColor(self._theme_colors.get("room_border", "#b3c0c7"))
         corridor_border = QColor(self._theme_colors.get("corridor_border", "#4f4c67"))
         exit_fill = QColor(self._theme_colors.get("exit_fill", "#8b81a2"))
         door_color = QColor(self._theme_colors.get("door_color", "#b3c0c7"))
         label_color = QColor(self._theme_colors.get("label_color", "#b3c0c7"))
         label_font = QFont("Segoe UI", 8)
 
+        room_worst: Dict[str, str] = {}
+        if self.show_violations_var and self.violations:
+            for v in self.violations:
+                sev = (v.severity or "").lower()
+                sev_rank = _SEV_ORDER.get(sev, -1)
+                for lid in self._violation_location_ids(v.location):
+                    if sev_rank > _SEV_ORDER.get(room_worst.get(lid, ""), -1):
+                        room_worst[lid] = sev
+
+        tint_map = _ROOM_TINTS_DARK if self._dark_mode else _ROOM_TINTS_LIGHT
+
         for room in plan.rooms:
-            if room.polygon:
-                poly = QPolygonF([QPointF(p[0], p[1]) for p in room.polygon])
-                self.scene.addPolygon(poly, QPen(room_border, 0.2), QBrush(room_fill))
-                expand_rect(poly.boundingRect())
+            if not room.polygon:
+                continue
+            poly = QPolygonF([QPointF(p[0], p[1]) for p in room.polygon])
 
-                if self.show_labels_var or self.show_occupancy_var:
-                    cx = sum(p[0] for p in room.polygon) / len(room.polygon)
-                    cy = sum(p[1] for p in room.polygon) / len(room.polygon)
+            fill = QColor(room_fill_base)
+            border = QColor(room_border_base)
+            border_w = 0.2
 
-                    parts = []
-                    if self.show_labels_var:
-                        parts.append(room.name)
-                    if self.show_occupancy_var and room.occupancy > 0:
-                        parts.append(f"Occ: {room.occupancy}")
+            sev = room_worst.get(room.id)
+            if sev and sev in tint_map:
+                fill = QColor(tint_map[sev])
+            if sev in ("critical", "major"):
+                border = QColor(_SEV_MARKER_COLORS[sev])
+                border_w = 0.4
 
-                    if parts:
-                        text_item = CenteredTextItem("\n".join(parts), label_font, label_color)
-                        text_item.setPos(cx, cy)
-                        self.scene.addItem(text_item)
+            self.scene.addPolygon(poly, QPen(border, border_w), QBrush(fill))
+            expand_rect(poly.boundingRect())
+
+            if self.show_labels_var or self.show_occupancy_var:
+                cx = sum(p[0] for p in room.polygon) / len(room.polygon)
+                cy = sum(p[1] for p in room.polygon) / len(room.polygon)
+
+                parts = []
+                if self.show_labels_var:
+                    parts.append(room.name)
+                if self.show_occupancy_var and room.occupancy > 0:
+                    parts.append(f"Occ: {room.occupancy}")
+
+                if parts:
+                    text_item = CenteredTextItem("\n".join(parts), label_font, label_color)
+                    text_item.setPos(cx, cy)
+                    self.scene.addItem(text_item)
 
         for corridor in plan.corridors:
-            if corridor.polygon:
-                poly = QPolygonF([QPointF(p[0], p[1]) for p in corridor.polygon])
-                pen = QPen(corridor_border, 0.1)
-                pen.setStyle(Qt.PenStyle.DashLine)
-                self.scene.addPolygon(poly, pen, QBrush(room_fill))
-                expand_rect(poly.boundingRect())
+            if not corridor.polygon:
+                continue
+            poly = QPolygonF([QPointF(p[0], p[1]) for p in corridor.polygon])
+
+            corr_fill = QColor(room_fill_base)
+            corr_border = QColor(corridor_border)
+            border_w = 0.1
+
+            sev = room_worst.get(corridor.id)
+            if sev and sev in tint_map:
+                corr_fill = QColor(tint_map[sev])
+            if sev in ("critical", "major"):
+                corr_border = QColor(_SEV_MARKER_COLORS[sev])
+                border_w = 0.3
+
+            pen = QPen(corr_border, border_w)
+            pen.setStyle(Qt.PenStyle.DashLine)
+            self.scene.addPolygon(poly, pen, QBrush(corr_fill))
+            expand_rect(poly.boundingRect())
+
+        wall_color = QColor(room_border_base)
+        wall_color.setAlpha(180)
+        for wall in plan.walls:
+            sx, sy = wall.start[0], wall.start[1]
+            ex_w, ey_w = wall.end[0], wall.end[1]
+            self.scene.addLine(sx, sy, ex_w, ey_w, QPen(wall_color, 0.3))
+            expand_rect(QRectF(
+                QPointF(min(sx, ex_w), min(sy, ey_w)),
+                QPointF(max(sx, ex_w), max(sy, ey_w)),
+            ))
 
         for exit_ in plan.exits:
             ex, ey = exit_.position[0], exit_.position[1]
-            self.scene.addEllipse(ex - 0.8, ey - 0.8, 1.6, 1.6, QPen(room_border, 0.2), QBrush(exit_fill))
+            self.scene.addEllipse(ex - 0.8, ey - 0.8, 1.6, 1.6, QPen(room_border_base, 0.2), QBrush(exit_fill))
             expand_rect(QRectF(ex - 0.8, ey - 0.8, 1.6, 1.6))
+
+            arrow = QPainterPath()
+            arrow.moveTo(ex - 0.5, ey + 1.4)
+            arrow.lineTo(ex, ey + 2.4)
+            arrow.lineTo(ex + 0.5, ey + 1.4)
+            self.scene.addPath(arrow, QPen(exit_fill, 0.15), QBrush(exit_fill))
 
             if self.show_labels_var:
                 exit_font = QFont(label_font)
@@ -346,38 +494,40 @@ class CanvasPanel(QWidget):
             expand_rect(QRectF(dx - r, dy - r, r * 2, r * 2))
 
         if self.show_violations_var and self.violations:
-            loc_counts = {}
-            for idx, v in enumerate(self.violations):
-                target = plan.get_room(v.location) or plan.get_corridor(v.location)
+            loc_counts: Dict[str, int] = {}
+            unresolved_idx = 0
 
-                if target and target.polygon:
-                    wx = sum(p[0] for p in target.polygon) / len(target.polygon)
-                    wy = sum(p[1] for p in target.polygon) / len(target.polygon)
-                    
-                    loc_counts[v.location] = loc_counts.get(v.location, 0) + 1
-                    count = loc_counts[v.location] - 1
-                    
-                    col = count % 3
-                    row = count // 3
-                    
-                    wx += (col - 1) * 2.2
-                    wy += (row + 1) * 2.2
+            for v in self.violations:
+                pos = self._resolve_violation_pos(v.location)
+                if pos:
+                    wx, wy = pos
+                    key = f"{wx:.0f},{wy:.0f}"
+                    loc_counts[key] = loc_counts.get(key, 0) + 1
+                    count = loc_counts[key] - 1
+                    col = count % 4
+                    row = count // 4
+                    wx += (col - 1.5) * 2.8
+                    wy += 3.0 + row * 2.8
                 else:
-                    wx = idx * 2
-                    wy = 0
+                    if self._plan_rect:
+                        wx = self._plan_rect.left() + unresolved_idx * 3.5
+                        wy = self._plan_rect.bottom() + 5
+                    else:
+                        wx = unresolved_idx * 3.5
+                        wy = 30
+                    unresolved_idx += 1
 
-                sev = v.severity.lower() if v.severity else ""
-                if sev == "critical":
-                    color = QColor("#e05555")
-                elif sev == "major":
-                    color = QColor("#c4883a")
-                else:
-                    color = QColor("#8b81a2")
+                sev = (v.severity or "").lower()
+                color = QColor(_SEV_MARKER_COLORS.get(sev, "#8b81a2"))
 
-                item = QGraphicsEllipseItem(wx - 0.9, wy - 0.9, 1.8, 1.8)
-                item.setPen(QPen(QColor("#e8ecee"), 0.2))
+                r = 1.1
+                item = QGraphicsEllipseItem(wx - r, wy - r, r * 2, r * 2)
+                item.setPen(QPen(QColor("#e8ecee"), 0.15))
                 item.setBrush(QBrush(color))
-                item.setToolTip(f"<b>{v.rule} | {v.severity.upper()}</b><br>{v.description}")
+                item.setToolTip(
+                    f"<b style='color:{_SEV_MARKER_COLORS.get(sev, '#8b81a2')}'>"
+                    f"{v.severity.upper()}</b> — {v.rule}<br>{v.description}"
+                )
                 item.setZValue(100)
                 item.setAcceptHoverEvents(True)
                 self.scene.addItem(item)
@@ -391,18 +541,19 @@ class CanvasPanel(QWidget):
         if not self.visible:
             self.toggle()
 
-        target = self.floor_plan.get_room(location_id) or self.floor_plan.get_corridor(location_id)
-        if not target or not target.polygon:
+        pos = self._resolve_violation_pos(location_id)
+        if not pos:
             return
+        cx, cy = pos
 
-        cx = sum(p[0] for p in target.polygon) / len(target.polygon)
-        cy = sum(p[1] for p in target.polygon) / len(target.polygon)
-
-        ring = QGraphicsEllipseItem(cx - 2.2, cy - 2.2, 4.4, 4.4)
-        pen = QPen(QColor("#e05555"), 0.3)
+        ring = QGraphicsEllipseItem(cx - 3.0, cy - 3.0, 6.0, 6.0)
+        pen = QPen(QColor("#e05555"), 0.35)
         pen.setStyle(Qt.PenStyle.DashLine)
         ring.setPen(pen)
+        ring.setZValue(200)
         self.scene.addItem(ring)
+
+        self.view.centerOn(cx, cy)
 
         self._flash_count = 0
 
