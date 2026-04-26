@@ -16,6 +16,8 @@ from tools.p118_validator import validate_p118
 from tools.pathfinding import find_shortest_exit_path, find_all_travel_distances
 from tools.structural_checker import detect_blocked_rooms, detect_dead_ends, detect_anomalies
 from tools.metrics import compute_metrics
+from tools.dxf_parser import extract_entities
+from tools.dxf_to_floorplan import build_floor_plan
 
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "floor_plans")
@@ -36,6 +38,7 @@ def test_registry():
     assert "pathfinding" in names
     assert "structural_checker" in names
     assert "metrics" in names
+    assert "dxf_parser" in names
 
     tool_fn = registry.get_tool("p118_validator")
     assert tool_fn is not None
@@ -288,6 +291,122 @@ def test_metrics_severity_weights():
     print(f"PASS: test_metrics_severity_weights — {report}")
 
 
+# ── DXF Parser Tests ────────────────────────────────────────────
+
+DXF_TEST_FILE = os.path.join(DATA_DIR, "test_simple.dxf")
+
+
+def test_dxf_extract_entities():
+    """Extract entities from test DXF — should find polylines, arcs, texts."""
+    entities = extract_entities(DXF_TEST_FILE)
+
+    assert len(entities["polylines"]) >= 4, f"Expected >=4 polylines, got {len(entities['polylines'])}"
+    assert len(entities["arcs"]) >= 4, f"Expected >=4 arcs (doors), got {len(entities['arcs'])}"
+    assert len(entities["texts"]) >= 4, f"Expected >=4 text labels, got {len(entities['texts'])}"
+    assert len(entities["lines"]) >= 4, f"Expected >=4 wall lines, got {len(entities['lines'])}"
+    assert "A-WALL" in entities["layers"]
+    assert "A-ROOM" in entities["layers"]
+    assert "A-DOOR" in entities["layers"]
+    assert "A-TEXT" in entities["layers"]
+
+    print(f"PASS: test_dxf_extract_entities — "
+          f"{len(entities['polylines'])} polys, {len(entities['arcs'])} arcs, "
+          f"{len(entities['texts'])} texts, {len(entities['lines'])} lines")
+
+
+def test_dxf_build_floor_plan():
+    """Build FloorPlan from DXF — verify rooms, corridors, doors, exits."""
+    entities = extract_entities(DXF_TEST_FILE)
+    fp, issues = build_floor_plan(entities)
+
+    # Rooms
+    assert len(fp.rooms) == 3, f"Expected 3 rooms, got {len(fp.rooms)}"
+    room_names = {r.name for r in fp.rooms}
+    assert "Office 101" in room_names, f"Missing 'Office 101' in {room_names}"
+    assert "Conference Room" in room_names, f"Missing 'Conference Room' in {room_names}"
+    assert "WC" in room_names, f"Missing 'WC' in {room_names}"
+
+    # Room types
+    room_types = {r.name: r.type for r in fp.rooms}
+    assert room_types["Office 101"] == "office"
+    assert room_types["Conference Room"] == "conference"
+    assert room_types["WC"] == "wc"
+
+    # Room areas (computed from polygon, should match geometry)
+    office = next(r for r in fp.rooms if r.name == "Office 101")
+    assert office.area == 30.0, f"Office area should be 30.0, got {office.area}"
+
+    conf = next(r for r in fp.rooms if r.name == "Conference Room")
+    assert conf.area == 30.0, f"Conference area should be 30.0, got {conf.area}"
+
+    wc = next(r for r in fp.rooms if r.name == "WC")
+    assert wc.area == 6.0, f"WC area should be 6.0, got {wc.area}"
+
+    # Occupancy estimates
+    assert office.occupancy > 0, "Office should have occupancy > 0"
+    assert conf.occupancy > office.occupancy, "Conference should have higher density"
+    assert wc.occupancy == 0, "WC should have 0 occupancy"
+
+    # Corridors
+    assert len(fp.corridors) == 1, f"Expected 1 corridor, got {len(fp.corridors)}"
+    corr = fp.corridors[0]
+    assert corr.name == "Main Corridor", f"Corridor should be 'Main Corridor', got '{corr.name}'"
+
+    # Doors
+    assert len(fp.doors) >= 4, f"Expected >=4 doors, got {len(fp.doors)}"
+
+    # Exits
+    assert len(fp.exits) >= 1, f"Expected >=1 exit, got {len(fp.exits)}"
+
+    # Walls
+    assert len(fp.walls) > 0, "Should have wall segments"
+
+    print(f"PASS: test_dxf_build_floor_plan — "
+          f"{len(fp.rooms)} rooms, {len(fp.corridors)} corridors, "
+          f"{len(fp.doors)} doors, {len(fp.exits)} exits, {len(fp.walls)} walls")
+
+
+def test_dxf_floor_plan_schema():
+    """Verify the parsed FloorPlan can be serialized to dict and back."""
+    entities = extract_entities(DXF_TEST_FILE)
+    fp, issues = build_floor_plan(entities)
+
+    # Serialize to dict
+    d = fp.to_dict()
+    assert "rooms" in d
+    assert "corridors" in d
+    assert "doors" in d
+    assert "exits" in d
+    assert "walls" in d
+
+    # Round-trip through JSON
+    json_str = json.dumps(d)
+    d2 = json.loads(json_str)
+    from models.floor_plan import FloorPlan
+    fp2 = FloorPlan.from_dict(d2)
+    assert len(fp2.rooms) == len(fp.rooms)
+    assert len(fp2.doors) == len(fp.doors)
+
+    print("PASS: test_dxf_floor_plan_schema — round-trip OK")
+
+
+def test_dxf_parser_registered_tool():
+    """Test the registered dxf_parser tool end-to-end."""
+    registry = ToolRegistry()
+    parse_fn = registry.get_tool("dxf_parser")
+    assert parse_fn is not None, "dxf_parser tool not registered"
+
+    result = parse_fn({"floor_plan": DXF_TEST_FILE})
+    assert "error" not in result, f"Tool returned error: {result.get('error')}"
+    assert "parsed_plan" in result
+    assert "flagged_issues" in result
+    assert len(result["parsed_plan"]["rooms"]) == 3
+
+    print(f"PASS: test_dxf_parser_registered_tool — "
+          f"{len(result['parsed_plan']['rooms'])} rooms, "
+          f"{len(result['flagged_issues'])} issues")
+
+
 # ── Run All Tests ───────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -326,6 +445,16 @@ if __name__ == "__main__":
     test_metrics_office()
     test_metrics_empty()
     test_metrics_severity_weights()
+
+    # DXF Parser
+    print("\n-- DXF Parser --")
+    if os.path.isfile(DXF_TEST_FILE):
+        test_dxf_extract_entities()
+        test_dxf_build_floor_plan()
+        test_dxf_floor_plan_schema()
+        test_dxf_parser_registered_tool()
+    else:
+        print(f"SKIP: DXF test file not found ({DXF_TEST_FILE})")
 
     print("\n" + "=" * 60)
     print("ALL TOOL TESTS PASSED!")

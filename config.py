@@ -47,6 +47,12 @@ TOOL_CONFIG = {
         "input_type": "List[Violation]",
         "output_type": "MetricsReport",
     },
+    "dxf_parser": {
+        "name": "DXF/DWG Parser",
+        "description": "Parses DXF/DWG floor plans into structured room, corridor, door, exit, and wall data",
+        "input_type": "DXF/DWG file path",
+        "output_type": "FloorPlan + flagged issues",
+    },
 }
 
 APP_TITLE = "AgentArchitect — Engineering Agent Platform"
@@ -54,3 +60,27 @@ AGENTS_DIR = "data/agents"
 USER_AGENTS_DIR = "user_agents"
 FLOOR_PLANS_DIR = "data/floor_plans"
 PROMPTS_DIR = "prompts"
+
+# ODA File Converter path for DWG → DXF conversion (optional external tool)
+ODA_CONVERTER_PATH = os.getenv(
+    "ODA_CONVERTER_PATH",
+    r"C:\Program Files\ODA\ODAFileConverter\ODAFileConverter.exe",
+)
+
+# P118 occupancy density tables: room_type → m² per person
+P118_OCCUPANCY_DENSITY = {
+    "office": 10.0,
+    "open_office": 7.0,
+    "conference": 1.5,
+    "meeting": 2.0,
+    "corridor": 0,       # corridors don't contribute occupancy
+    "stairwell": 0,
+    "lobby": 3.0,
+    "reception": 5.0,
+    "storage": 30.0,
+    "wc": 0,
+    "toilet": 0,
+    "kitchen": 5.0,
+    "server_room": 20.0,
+    "default": 10.0,
+}

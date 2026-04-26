@@ -2,15 +2,17 @@
   "id": "floor_plan_parser",
   "name": "Floor Plan Parser",
   "category": "Fire Safety",
-  "goal": "Parse a floor plan image into structured room, corridor, and exit data",
+  "goal": "Parse a floor plan image or DXF/DWG file into structured room, corridor, and exit data",
   "inputs": [
     {
       "name": "floor_plan",
       "type": "image",
-      "description": "Floor plan image or PDF to parse"
+      "description": "Floor plan image, DXF, or DWG file to parse"
     }
   ],
   "constraints": [
+    "For DXF/DWG files, use the dxf_parser tool for precise geometric extraction",
+    "For images, fall back to gemini_vision for AI-based analysis",
     "Identify all rooms, corridors, doors, exits, and stairs",
     "Classify rooms by type (office, corridor, stairwell, etc.)",
     "Estimate occupancy based on room type and area (P118 density tables)",
@@ -28,7 +30,7 @@
       "description": "List of ambiguities or unusual features found during parsing"
     }
   ],
-  "tools": ["gemini_vision"],
+  "tools": ["gemini_vision", "dxf_parser"],
   "conversational": true,
   "conversation_guidelines": "After parsing, proactively flag unusual room shapes, ambiguous door placements, or features you are uncertain about. Answer follow-up questions about the parse. Stay within scope: redirect validation or compliance questions to the Egress Validator agent."
 }

@@ -103,6 +103,40 @@ class ToolRegistry:
             compute_metrics,
         )
 
+        # ── DXF/DWG parser tool ──────────────────────────────────
+        def parse_dxf(input_data):
+            """Parse a DXF/DWG floor plan into structured FloorPlan JSON."""
+            import os
+            from tools.dwg_converter import convert_dwg_to_dxf
+            from tools.dxf_parser import extract_entities
+            from tools.dxf_to_floorplan import build_floor_plan
+
+            file_path = input_data.get("floor_plan", "")
+            if not file_path or not os.path.isfile(file_path):
+                return {"error": f"File not found: {file_path}"}
+
+            if file_path.lower().endswith(".dwg"):
+                try:
+                    file_path = convert_dwg_to_dxf(file_path)
+                except (RuntimeError, FileNotFoundError) as e:
+                    return {"error": str(e)}
+
+            entities = extract_entities(file_path)
+            floor_plan, issues = build_floor_plan(entities)
+            return {
+                "parsed_plan": floor_plan.to_dict(),
+                "flagged_issues": issues,
+            }
+
+        self.register_tool(
+            "dxf_parser",
+            "DXF/DWG Parser",
+            "Parses DXF/DWG floor plans into structured room, corridor, door, exit, and wall data with precise geometry",
+            "DXF/DWG file path",
+            "FloorPlan + flagged issues",
+            parse_dxf,
+        )
+
     def register_tool(
         self,
         key: str,

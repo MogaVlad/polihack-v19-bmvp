@@ -16,7 +16,7 @@ pip install ezdxf
 
 Add `ezdxf` to `requirements.txt`.
 
-For DWG support, download the free [ODA File Converter](https://www.opendesign.com/guestfiles/oda_file_converter) and install it. It converts DWG → DXF via command line. This is an optional external tool — the core parser works on DXF directly.
+For DWG support, the app bundles the free LibreDWG command-line tool `dwg2dxf`. It converts DWG → DXF silently in the background. If a `.dxf` file is provided directly, this conversion step is skipped.
 
 ---
 
@@ -25,11 +25,10 @@ For DWG support, download the free [ODA File Converter](https://www.opendesign.c
 Create `tools/dwg_converter.py`:
 
 1. Accept a `.dwg` file path as input.
-2. Shell out to ODA File Converter to produce a `.dxf` in a temp directory.
-   - Command: `ODAFileConverter <input_dir> <output_dir> ACAD2018 DXF 0 1 <filename>`
-   - The ODA path should be configurable in `config.py` (e.g. `ODA_CONVERTER_PATH`).
+2. Shell out to the bundled LibreDWG `dwg2dxf.exe` to produce a `.dxf` in a temp directory.
+   - Command: `dwg2dxf -y -o <output_path> <input_path>`
 3. Return the path to the generated `.dxf` file.
-4. If ODA is not installed, raise a clear error: "DWG files require ODA File Converter. Please provide a DXF file or install ODA."
+4. If `dwg2dxf.exe` is missing, raise a clear error.
 
 This step is a thin wrapper — keep it under 40 lines.
 

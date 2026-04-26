@@ -377,7 +377,8 @@ class AgentRunnerTab(QWidget):
             self.status_bar.set_status(f"Loaded: {agent_def.name}")
 
     def _browse_file(self, input_name: str):
-        path, _ = QFileDialog.getOpenFileName(self, "Select File", "", "All files (*.*)")
+        file_filter = "Floor plans (*.json *.dxf *.dwg *.png *.jpg *.jpeg *.bmp *.pdf);;All files (*.*)"
+        path, _ = QFileDialog.getOpenFileName(self, "Select File", "", file_filter)
         if path and input_name in self.input_widgets:
             self.input_widgets[input_name].setText(path)
 
@@ -436,7 +437,12 @@ class AgentRunnerTab(QWidget):
     def _collect_inputs(self) -> dict:
         inputs = {}
         for name, widget in self.input_widgets.items():
-            inputs[name] = widget.text().strip()
+            value = widget.text().strip()
+            # DXF/DWG files are passed as file paths directly (not read as JSON)
+            if value.lower().endswith(('.dxf', '.dwg')):
+                inputs[name] = value
+            else:
+                inputs[name] = value
         return inputs
 
     # Run
