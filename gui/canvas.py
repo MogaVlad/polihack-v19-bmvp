@@ -2,7 +2,7 @@ import os
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton,
     QCheckBox, QGraphicsView, QGraphicsScene, QGraphicsPolygonItem,
-    QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsLineItem
+    QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsLineItem, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QPointF, QTimer, QRectF
 from PyQt6.QtGui import QPolygonF, QPen, QBrush, QColor, QFont, QPainterPath, QPainter
@@ -47,6 +47,7 @@ class CanvasPanel(QWidget):
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
+        self._main_layout = main_layout
 
         self.toggle_frame = QFrame()
         self.toggle_frame.setFixedHeight(36)
@@ -91,6 +92,20 @@ class CanvasPanel(QWidget):
 
         main_layout.addWidget(self.panel_frame, 1)
         self.panel_frame.hide()
+        self._set_collapsed(True)
+
+    def _set_collapsed(self, collapsed: bool):
+        if collapsed:
+            header_height = self.toggle_frame.sizeHint().height()
+            margins = self._main_layout.contentsMargins()
+            total_height = header_height + margins.top() + margins.bottom()
+            self.setMinimumHeight(total_height)
+            self.setMaximumHeight(total_height)
+            self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        else:
+            self.setMinimumHeight(0)
+            self.setMaximumHeight(16777215)
+            self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
 
     def _on_layer_toggle(self):
         self.show_labels_var = self.labels_cb.isChecked()
@@ -103,10 +118,12 @@ class CanvasPanel(QWidget):
             self.panel_frame.hide()
             self.toggle_btn.setText("Show Canvas")
             self.visible = False
+            self._set_collapsed(True)
         else:
             self.panel_frame.show()
             self.toggle_btn.setText("Hide Canvas")
             self.visible = True
+            self._set_collapsed(False)
             self._redraw()
 
     def load_plan(self, plan: FloorPlan):
