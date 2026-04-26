@@ -79,6 +79,11 @@ class L2ConsoleTab(QWidget):
         view_btn.clicked.connect(self._view_template)
         controls_layout.addWidget(view_btn)
 
+        browse_btn = QPushButton("Browse...")
+        browse_btn.setProperty("class", "L2PlainBtn")
+        browse_btn.clicked.connect(self._browse_template)
+        controls_layout.addWidget(browse_btn)
+
         controls_layout.addStretch()
         wrapper_layout.addWidget(controls)
 
@@ -129,12 +134,36 @@ class L2ConsoleTab(QWidget):
             return []
         return [f for f in sorted(os.listdir(config.PROMPTS_DIR)) if f.endswith(".md")]
 
+    def _browse_template(self):
+        filepath, _ = QFileDialog.getOpenFileName(
+            self, "Open Prompt Template", "", "Prompt files (*.md *.txt);;All files (*.*)"
+        )
+        if not filepath:
+            return
+        name = os.path.basename(filepath)
+        idx = self.template_combo.findText(name)
+        if idx == -1:
+            self.template_combo.addItem(name, filepath)
+            self.template_combo.setCurrentIndex(self.template_combo.count() - 1)
+        else:
+            self.template_combo.setItemData(idx, filepath)
+            self.template_combo.setCurrentIndex(idx)
+
+    def _resolve_template_path(self) -> str:
+        custom = self.template_combo.currentData()
+        if custom and os.path.isfile(custom):
+            return custom
+        name = self.template_combo.currentText()
+        if name:
+            return os.path.join(config.PROMPTS_DIR, name)
+        return ""
+
     def _view_template(self):
         template_name = self.template_combo.currentText()
         if not template_name:
             return
 
-        filepath = os.path.join(config.PROMPTS_DIR, template_name)
+        filepath = self._resolve_template_path()
         if not os.path.isfile(filepath):
             return
 
@@ -165,7 +194,7 @@ class L2ConsoleTab(QWidget):
         if not template_name:
             return
 
-        template_path = os.path.join(config.PROMPTS_DIR, template_name)
+        template_path = self._resolve_template_path()
         data = self.data_input.toPlainText().strip()
         if not data:
             return
