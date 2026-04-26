@@ -52,11 +52,11 @@ class AdoptionPanel(QWidget):
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         main_layout.addWidget(scroll_area)
-        
+
         wrapper = QWidget()
         scroll_area.setWidget(wrapper)
         wrapper_layout = QVBoxLayout(wrapper)
@@ -64,15 +64,31 @@ class AdoptionPanel(QWidget):
         wrapper_layout.setSpacing(12)
 
         # ── Title ───────────────────────────────────────────────
-        title_lbl = QLabel("📊  Legacy vs Agent — Side-by-Side Comparison")
+        title_row = QHBoxLayout()
+        title_row.setSpacing(8)
+        title_row.setContentsMargins(0, 0, 0, 0)
+
+        _here = os.path.dirname(os.path.abspath(__file__))
+        _icon_path = os.path.join(_here, "assets", "icons", "increase.png")
+        if os.path.isfile(_icon_path):
+            from PyQt6.QtGui import QPixmap
+            from PyQt6.QtCore import Qt as _Qt
+            icon_lbl = QLabel()
+            icon_lbl.setPixmap(QPixmap(_icon_path).scaled(24, 24, _Qt.AspectRatioMode.KeepAspectRatio,
+                                                          _Qt.TransformationMode.SmoothTransformation))
+            title_row.addWidget(icon_lbl)
+
+        title_lbl = QLabel("Legacy vs Agent — Side-by-Side Comparison")
         title_lbl.setProperty("class", "Title")
-        wrapper_layout.addWidget(title_lbl)
+        title_row.addWidget(title_lbl)
+        title_row.addStretch()
+        wrapper_layout.addLayout(title_row)
 
         # ── Summary banner ──────────────────────────────────────
         banner = QFrame()
         banner.setProperty("class", "Card")
         banner_layout = QVBoxLayout(banner)
-        
+
         summary_lbl = QLabel(
             "Same task. Legacy = copy-paste + raw text. Agent = structured agents with tools and conversation."
         )
@@ -84,23 +100,23 @@ class AdoptionPanel(QWidget):
         selector = QFrame()
         selector_layout = QHBoxLayout(selector)
         selector_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         selector_layout.addWidget(QLabel("Select pair:"))
-        
+
         self.pair_combo = QComboBox()
         pair_names = [p[0].replace(".json", "").replace("_", " ").title() for p in AGENT_PROMPT_PAIRS]
         self.pair_combo.addItems(pair_names)
         self.pair_combo.currentTextChanged.connect(self._on_pair_selected)
         selector_layout.addWidget(self.pair_combo)
         selector_layout.addStretch()
-        
+
         wrapper_layout.addWidget(selector)
 
         # ── Two-column comparison ───────────────────────────────
         columns = QFrame()
         columns_layout = QHBoxLayout(columns)
         columns_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Legacy side
         left_card = QFrame()
         left_card.setProperty("class", "Card")
@@ -108,13 +124,13 @@ class AdoptionPanel(QWidget):
         left_title = QLabel("Legacy — Prompt Template")
         left_title.setProperty("class", "Subtitle")
         left_layout.addWidget(left_title)
-        
+
         self.l2_text = QTextEdit()
         self.l2_text.setReadOnly(True)
         self.l2_text.setMinimumHeight(200)
         left_layout.addWidget(self.l2_text)
         columns_layout.addWidget(left_card, 5)
-        
+
         # Arrow column
         arrow_frame = QFrame()
         arrow_layout = QVBoxLayout(arrow_frame)
@@ -131,7 +147,7 @@ class AdoptionPanel(QWidget):
         right_title = QLabel("Agent — Agent Definition")
         right_title.setProperty("class", "Subtitle")
         right_layout.addWidget(right_title)
-        
+
         self.l3_text = QTextEdit()
         self.l3_text.setReadOnly(True)
         self.l3_text.setMinimumHeight(200)
@@ -144,16 +160,16 @@ class AdoptionPanel(QWidget):
         self.ann_card = QFrame()
         self.ann_card.setProperty("class", "Card")
         self.ann_layout = QVBoxLayout(self.ann_card)
-        
+
         ann_title = QLabel("What Changed: Legacy → Agent")
         ann_title.setProperty("class", "Title")
         self.ann_layout.addWidget(ann_title)
-        
+
         self.ann_container = QFrame()
         self.ann_container_layout = QVBoxLayout(self.ann_container)
         self.ann_container_layout.setContentsMargins(0, 0, 0, 0)
         self.ann_layout.addWidget(self.ann_container)
-        
+
         wrapper_layout.addWidget(self.ann_card)
 
         # Load initial pair
