@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QFrame, QHBoxLayout, QVBoxLayout, QLabel,
     QPushButton, QStackedWidget, QApplication
 )
-from PyQt6.QtCore import QPropertyAnimation, QEasingCurve, Qt, QSize
+from PyQt6.QtCore import QPropertyAnimation, QParallelAnimationGroup, QEasingCurve, Qt, QSize
 from PyQt6.QtGui import QKeySequence, QShortcut, QIcon, QPixmap
 
 import config
@@ -175,6 +175,8 @@ class App(QMainWindow):
         
         # Create and show Splash Screen on top
         self.splash = SplashOverlay(self.central_widget, self.logo_label)
+        self.splash.finished.connect(self._on_splash_finished)
+        self.splash.destroyed.connect(self._on_splash_destroyed)
         self.splash.show()
     # Icon helpers
     def _icon_path(self, name: str) -> str:
@@ -213,25 +215,29 @@ class App(QMainWindow):
         self._apply_icons()
 
     def _toggle_sidebar(self):
-        if self.sidebar_expanded:
-            start, end = SIDEBAR_WIDTH, SIDEBAR_COLLAPSED
-        else:
-            start, end = SIDEBAR_COLLAPSED, SIDEBAR_WIDTH
+        if hasattr(self, "_sidebar_anim") and self._sidebar_anim:
+            self._sidebar_anim.stop()
 
-        self._anim = QPropertyAnimation(self.sidebar_frame, b"maximumWidth")
-        self._anim.setDuration(200)
-        self._anim.setStartValue(start)
-        self._anim.setEndValue(end)
-        self._anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
-        self.sidebar_frame.setMinimumWidth(0)
+        start = self.sidebar_frame.width()
+        target_expanded = not self.sidebar_expanded
+        end = SIDEBAR_WIDTH if target_expanded else SIDEBAR_COLLAPSED
+
+        self._sidebar_anim = QParallelAnimationGroup(self)
+        for prop in (b"minimumWidth", b"maximumWidth"):
+            anim = QPropertyAnimation(self.sidebar_frame, prop)
+            anim.setDuration(200)
+            anim.setStartValue(start)
+            anim.setEndValue(end)
+            anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
+            self._sidebar_anim.addAnimation(anim)
 
         def _on_finished():
             self.sidebar_frame.setMinimumWidth(end)
             self.sidebar_frame.setMaximumWidth(end)
 
-        self._anim.finished.connect(_on_finished)
-        self._anim.start()
-        self.sidebar_expanded = not self.sidebar_expanded
+        self._sidebar_anim.finished.connect(_on_finished)
+        self._sidebar_anim.start()
+        self.sidebar_expanded = target_expanded
 
     def _set_active_view(self, view_name: str):
         tab_map = {
@@ -281,6 +287,15 @@ class App(QMainWindow):
                 self.canvas_panel.load_plan(plan)
             except Exception:
                 pass
+
+    def _on_splash_finished(self):
+        self._clear_splash()
+
+    def _on_splash_destroyed(self, _=None):
+        self._clear_splash()
+
+    def _clear_splash(self):
+        self.splash = None
                 
     def resizeEvent(self, event):
         super().resizeEvent(event)
