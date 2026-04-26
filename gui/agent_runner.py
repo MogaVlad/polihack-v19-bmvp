@@ -1,5 +1,6 @@
 import json
 import os
+
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton,
     QTextEdit, QLineEdit, QScrollArea, QFileDialog, QDialog, QSplitter, QProgressBar, QMessageBox
@@ -98,6 +99,7 @@ class AgentRunnerTab(QWidget):
         self._engine = AgentRunner()
         self._violation_locations = set()
         self._followup_can_retry = False
+        self._last_inputs = {}
 
         self.input_widgets = {}
         self._build_ui()
@@ -442,6 +444,52 @@ class AgentRunnerTab(QWidget):
             inputs[name] = widget.text().strip()
         return inputs
 
+    def _extract_plan_dict(self, payload):
+        if not isinstance(payload, dict):
+            return None
+        if isinstance(payload.get("rooms"), list):
+            return payload
+        for key in ("parsed_plan", "floor_plan", "plan", "layout"):
+            candidate = payload.get(key)
+            if isinstance(candidate, dict) and isinstance(candidate.get("rooms"), list):
+                return candidate
+        for value in payload.values():
+            if isinstance(value, dict) and isinstance(value.get("rooms"), list):
+                return value
+        return None
+
+    def _plan_from_inputs(self) -> dict | None:
+        for value in self._last_inputs.values():
+            if not value:
+                continue
+            if isinstance(value, dict):
+                plan = self._extract_plan_dict(value)
+                if plan:
+                    return plan
+                continue
+            if not isinstance(value, str):
+                continue
+            candidate = value.strip()
+            if not candidate:
+                continue
+            if os.path.isfile(candidate) and candidate.lower().endswith(".json"):
+                try:
+                    with open(candidate, "r", encoding="utf-8") as f:
+                        parsed = json.load(f)
+                    plan = self._extract_plan_dict(parsed)
+                    if plan:
+                        return plan
+                except (OSError, json.JSONDecodeError):
+                    continue
+            try:
+                parsed = json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+            plan = self._extract_plan_dict(parsed)
+            if plan:
+                return plan
+        return None
+
     # Run
 
     def _run_agent(self):
@@ -451,6 +499,7 @@ class AgentRunnerTab(QWidget):
         self._ensure_canvas_loaded()
 
         inputs = self._collect_inputs()
+        self._last_inputs = inputs
         for inp in self.current_agent.inputs:
             if getattr(inp, "required", True) and not inputs.get(inp.name):
                 self._set_status(f"Missing: {inp.name}")
@@ -586,15 +635,17 @@ class AgentRunnerTab(QWidget):
         if not self.canvas_panel or not self._last_result or not self._last_result.success:
             return
 
-        data = self._last_result.outputs
-        if not data:
+        data = self._last_result.outputs or {}
+        plan_payload = self._extract_plan_dict(data) if data else None
+        if not plan_payload:
+            plan_payload = self._plan_from_inputs()
+        if not data and not plan_payload:
             return
-
-        if isinstance(data, dict) and "rooms" in data:
+        if plan_payload:
             try:
-                plan = FloorPlan.from_dict(data)
+                plan = FloorPlan.from_dict(plan_payload)
                 self.canvas_panel.load_plan(plan)
-            except Exception:
+            except (KeyError, TypeError):
                 pass
 
         violations_raw = None

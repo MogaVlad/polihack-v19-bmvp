@@ -127,6 +127,8 @@ class App(QMainWindow):
         self.pages.addWidget(self.builder_tab)
         self.pages.addWidget(self.l2_tab)
         self.pages.addWidget(self.adoption_tab)
+        self.pages.currentChanged.connect(self._on_page_changed)
+        self._on_page_changed(self.pages.currentIndex())
 
         # Agent library sidebar
         self.agent_library = AgentLibrary(
@@ -247,6 +249,13 @@ class App(QMainWindow):
         widget = tab_map.get(view_name)
         if widget:
             self.pages.setCurrentWidget(widget)
+
+    def _on_page_changed(self, index: int):
+        current = self.pages.widget(index)
+        if current is self.runner_tab:
+            self.canvas_panel.show()
+        else:
+            self.canvas_panel.hide()
 
     def _on_agent_selected(self, agent_def):
         self.runner_tab.load_agent(agent_def)
