@@ -50,13 +50,13 @@ class L2ConsoleTab(QWidget):
         banner.setProperty("class", "L2Plain")
         banner_layout = QVBoxLayout(banner)
 
-        banner_title = QLabel("LEGACY PROMPTING (L2)")
+        banner_title = QLabel("LEGACY PROMPTING")
         banner_title.setProperty("class", "SectionHeader")
         banner_layout.addWidget(banner_title)
 
         banner_lbl = QLabel(
             "Versioned prompts, manual data flow, raw text output.\n"
-            "Switch to Agent Library for structured L3 workflow."
+            "Switch to Agent Library for structured agent assisted workflow."
         )
         banner_lbl.setWordWrap(True)
         banner_layout.addWidget(banner_lbl)

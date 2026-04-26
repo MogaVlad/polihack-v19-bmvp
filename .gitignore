@@ -9,3 +9,4 @@ __pycache__/
 .vs/
 user_agents/*.json
 !user_agents/.gitkeep
+*.dxf

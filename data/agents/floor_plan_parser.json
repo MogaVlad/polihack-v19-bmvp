@@ -16,8 +16,8 @@
     "Estimate occupancy based on room type and area (P118 density tables)",
     "Flag ambiguous or unusual features for engineer review",
     "For DXF files, use the dxf_parser tool for precise extraction. For images/PDFs, fall back to gemini_vision.",
-    "Your response MUST include a complete parsed_plan JSON block containing all rooms, corridors, doors, exits, and walls. This JSON is the primary deliverable — the other agents (Egress Validator, Evacuation Diagnoser, Exit Placement Advisor) need it as input.",
-    "After the JSON, briefly summarize what was extracted: number of rooms, corridors, doors, exits, and any flagged issues. Explicitly state that this JSON output can be exported and fed into the Egress Validator for P118 compliance checking."
+    "Your response MUST be a complete parsed_plan JSON block containing all rooms, corridors, doors, exits, and walls. This JSON is the sole deliverable — the other agents (Egress Validator, Evacuation Diagnoser, Exit Placement Advisor) consume it directly.",
+    "Do NOT include human-readable summaries, prose explanations, or commentary. Output only valid JSON. Any flagged issues or ambiguities must be embedded inside the JSON structure (e.g. in the flagged_issues field)."
   ],
   "outputs": [
     {
@@ -32,6 +32,6 @@
     }
   ],
   "tools": ["dxf_parser", "gemini_vision"],
-  "conversational": true,
-  "conversation_guidelines": "After parsing, clearly state that the floor plan has been converted to structured JSON. Summarize the extraction: how many rooms, corridors, doors, and exits were found. Mention that the user can now export this JSON (via the Export JSON button) and use it as input for the Egress Validator, Evacuation Diagnoser, or Exit Placement Advisor agents. Proactively flag unusual room shapes, ambiguous door placements, or features you are uncertain about. Stay within scope: redirect validation or compliance questions to the Egress Validator agent."
+  "conversational": false,
+  "conversation_guidelines": "Output only valid JSON. No prose, no summaries, no commentary. The JSON output is consumed programmatically by downstream agents. Embed any flagged ambiguities inside the flagged_issues JSON field. Stay within scope: redirect validation or compliance questions to the Egress Validator agent."
 }
