@@ -148,6 +148,8 @@ class ConversationManager:
         )
         try:
             response = self.client.send_prompt(prompt, timeout_seconds=10)
+            if response.startswith("[Error"):
+                return True
             first_word = response.strip().split()[0].upper().rstrip(".,!;:")
             return first_word == "YES"
         except Exception:

@@ -14,9 +14,11 @@ class GeminiClient:
     MAX_RETRIES = 3
     RETRY_BASE_DELAY = 2
     REQUEST_TIMEOUT_SECONDS = 30
+    VISION_TIMEOUT_SECONDS = 90
     MODEL = "gemma-3-27b-it"
     #MODEL = "gemini-2.5-flash-lite"
     #MODEL = "gemini-2.5-flash"
+    VISION_MODEL = "gemini-2.5-flash"
 
     def __init__(self):
         self._client = None
@@ -230,11 +232,14 @@ class GeminiClient:
             from PIL import Image
 
             img = Image.open(image_path)
+            if img.mode not in ("RGB", "RGBA"):
+                img = img.convert("RGB")
+            model = self.VISION_MODEL or self.MODEL
             return self._call_with_retry(
                 self._client.models.generate_content,
-                model=self.MODEL,
+                model=model,
                 contents=[prompt, img],
-                timeout_seconds=timeout_seconds,
+                timeout_seconds=timeout_seconds or self.VISION_TIMEOUT_SECONDS,
                 status_callback=status_callback,
                 config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=4096),
             )

@@ -1,11 +1,13 @@
 import json
 import os
-
+import re
+import html
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton,
     QTextEdit, QLineEdit, QScrollArea, QFileDialog, QDialog, QSplitter, QProgressBar, QMessageBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QTextCursor
 
 from models.agent_definition import AgentDefinition
 from models.chat import AgentResult
@@ -282,16 +284,171 @@ class AgentRunnerTab(QWidget):
             self.progress_bar.hide()
 
     def _append_agent_message(self, text: str):
-        self.chat_display.append(f"<b>Agent:</b> {text}<br>")
+        formatted = self._format_agent_message(text)
+        self.chat_display.moveCursor(QTextCursor.MoveOperation.End)
+        self.chat_display.insertHtml(f"<b>Agent:</b> {formatted}")
+        self.chat_display.insertHtml("<br>")
         self._auto_scroll()
 
     def _append_user_message(self, text: str):
-        self.chat_display.append(f"<b>You:</b> {text}<br>")
+        safe = html.escape(text)
+        self.chat_display.moveCursor(QTextCursor.MoveOperation.End)
+        self.chat_display.insertHtml(f"<b>You:</b> {safe}")
+        self.chat_display.insertHtml("<br>")
         self._auto_scroll()
 
     def _auto_scroll(self):
         sb = self.chat_display.verticalScrollBar()
         sb.setValue(sb.maximum())
+
+    def _format_agent_message(self, text: str) -> str:
+        if not text:
+            return ""
+
+        message = text.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n")
+
+        # Preserve simple emphasis tags in status messages.
+        placeholders = {
+            "__TAG_I_OPEN__": "<i>",
+            "__TAG_I_CLOSE__": "</i>",
+            "__TAG_B_OPEN__": "<b>",
+            "__TAG_B_CLOSE__": "</b>",
+            "__TAG_U_OPEN__": "<u>",
+            "__TAG_U_CLOSE__": "</u>",
+        }
+        for token, tag in placeholders.items():
+            message = message.replace(tag, token)
+
+        html_blocks = {}
+        block_idx = 0
+
+        # Replace fenced JSON blocks with human-readable reports.
+        def replace_json_block(match: re.Match) -> str:
+            nonlocal block_idx
+            block = match.group(1)
+            data = self._try_parse_json(block)
+            if data is None:
+                return match.group(0)
+            report = self._json_to_report(data)
+            pid = f"__HTML_BLOCK_{block_idx}__"
+            html_blocks[pid] = self._report_to_html(report)
+            block_idx += 1
+            return pid
+
+        # Replace fenced TEXT blocks with readable key/value lines.
+        def replace_text_block(match: re.Match) -> str:
+            nonlocal block_idx
+            block = match.group(1).strip()
+            lines = []
+            for raw_line in block.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                if ":" in line:
+                    key, value = line.split(":", 1)
+                    lines.append(f"{self._humanize_key(key)}: {value.strip()}")
+                else:
+                    lines.append(line)
+            if not lines:
+                return match.group(0)
+            pid = f"__HTML_BLOCK_{block_idx}__"
+            html_blocks[pid] = self._report_to_html(lines)
+            block_idx += 1
+            return pid
+
+        message = re.sub(r"```json\s*([\s\S]*?)\s*```", replace_json_block, message, flags=re.IGNORECASE)
+        message = re.sub(r"```text\s*([\s\S]*?)\s*```", replace_text_block, message, flags=re.IGNORECASE)
+
+        # If the entire message is raw JSON, render it as a report.
+        if message.strip().startswith("{") or message.strip().startswith("["):
+            data = self._try_parse_json(message)
+            if data is not None:
+                return self._report_to_html(self._json_to_report(data))
+
+        # Default: escape and keep line breaks.
+        safe = html.escape(message).replace("\n", "<br>")
+        for token, tag in placeholders.items():
+            safe = safe.replace(token, tag)
+            
+        for pid, html_str in html_blocks.items():
+            safe = safe.replace(pid, html_str)
+            
+        return safe
+
+    @staticmethod
+    def _try_parse_json(text: str):
+        try:
+            return json.loads(html.unescape(text))
+        except Exception:
+            return None
+
+    def _json_to_report(self, data, indent: int = 0, skip_keys: set | None = None) -> list:
+        lines = []
+        pad = "  " * indent
+        skip_keys = skip_keys or set()
+
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if key in skip_keys:
+                    continue
+                label = self._humanize_key(key)
+                if isinstance(value, (dict, list)):
+                    lines.append(f"{pad}{label}:")
+                    lines.extend(self._json_to_report(value, indent + 1))
+                else:
+                    lines.append(f"{pad}{label}: {self._format_value(value)}")
+        elif isinstance(data, list):
+            if not data:
+                lines.append(f"{pad}No items.")
+            for idx, item in enumerate(data, start=1):
+                if isinstance(item, dict):
+                    title, used_keys = self._summarize_dict_item(item, idx)
+                    lines.append(f"{pad}• {title}")
+                    lines.extend(self._json_to_report(item, indent + 1, used_keys))
+                elif isinstance(item, list):
+                    lines.append(f"{pad}• Item {idx}:")
+                    lines.extend(self._json_to_report(item, indent + 1))
+                else:
+                    lines.append(f"{pad}• {self._format_value(item)}")
+        else:
+            lines.append(f"{pad}{self._format_value(data)}")
+
+        return lines
+
+    @staticmethod
+    def _report_to_html(lines: list) -> str:
+        safe_lines = [html.escape(line) for line in lines]
+        return "<br>".join(safe_lines)
+
+    @staticmethod
+    def _format_value(value) -> str:
+        if value is None:
+            return "—"
+        if isinstance(value, bool):
+            return "Yes" if value else "No"
+        return str(value)
+
+    @staticmethod
+    def _humanize_key(key: str) -> str:
+        return str(key).replace("_", " ").strip().title()
+
+    @staticmethod
+    def _summarize_dict_item(item: dict, idx: int) -> tuple[str, set]:
+        parts = []
+        used = set()
+        for k in ("rule", "name", "title", "id"):
+            if k in item and item[k]:
+                parts.append(str(item[k]))
+                used.add(k)
+                break
+        if "severity" in item and item["severity"]:
+            parts.append(f"Severity: {item['severity']}")
+            used.add("severity")
+        if "location" in item and item["location"]:
+            parts.append(f"Location: {item['location']}")
+            used.add("location")
+        header = " — ".join(parts) if parts else f"Item {idx}"
+        return f"{header}:", used
 
     def _set_chat_enabled(self, enabled: bool):
         self.chat_input.setEnabled(enabled)
@@ -530,7 +687,7 @@ class AgentRunnerTab(QWidget):
 
         if not result.success:
             self._set_status("Failed")
-            self._append_agent_message(f"<b>Execution Failed:</b><br>{result.error}")
+            self._append_agent_message(f"<b>Execution Failed:</b>\n{result.error}")
             self._set_running_ui(False)
             return
 
@@ -542,7 +699,7 @@ class AgentRunnerTab(QWidget):
             self.output_text.setPlainText(str(result.outputs))
 
         explanation = result.explanation or "Execution completed successfully."
-        self._append_agent_message(explanation.replace("\n", "<br>"))
+        self._append_agent_message(explanation)
 
         if not self._conversation:
             self._conversation = ConversationManager(self.current_agent)
@@ -588,13 +745,19 @@ class AgentRunnerTab(QWidget):
             self._on_followup_complete("[Error: Conversation not initialized. Run the agent first.]")
 
     def _on_followup_complete(self, response: str):
-        self._append_agent_message(response.replace("\n", "<br>"))
-        timed_out = "timed out" in response.lower() and "retry" in response.lower()
-        self._set_retry_enabled(timed_out)
+        self._append_agent_message(response)
+        resp_lower = response.lower()
+        can_retry = (
+            response.startswith("[Error")
+            or "timed out" in resp_lower
+            or "unavailable" in resp_lower
+            or "retry" in resp_lower
+        )
+        self._set_retry_enabled(can_retry)
         self._set_status("Done")
         self._set_running_ui(False)
 
-    def _retry_followup(self):
+    def _retry_followup(self, *args):
         if self._is_running:
             return
 
@@ -605,6 +768,9 @@ class AgentRunnerTab(QWidget):
         self._set_retry_enabled(False)
         self._set_status("Retrying…")
         self._set_running_ui(True)
+        
+        if self._conversation.last_user_message:
+            self._append_user_message(f"[Retrying] {self._conversation.last_user_message}")
 
         self.rt_worker = AgentRetryWorker(self._conversation)
 
