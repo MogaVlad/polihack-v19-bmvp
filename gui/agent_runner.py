@@ -331,7 +331,7 @@ class AgentRunnerTab(QWidget):
         self._clear_chat()
         self._set_chat_enabled(False)
         
-        if agent_def.category and agent_def.category.lower() == "custom":
+        if self._find_user_agent_file(agent_def.id):
             self.delete_btn.show()
         else:
             self.delete_btn.hide()
@@ -394,10 +394,30 @@ class AgentRunnerTab(QWidget):
         layout.addWidget(text)
         dlg.exec()
 
+    def _find_user_agent_file(self, agent_id: str) -> str | None:
+        if not agent_id or not os.path.isdir(config.USER_AGENTS_DIR):
+            return None
+        for filename in os.listdir(config.USER_AGENTS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            filepath = os.path.join(config.USER_AGENTS_DIR, filename)
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if data.get("id") == agent_id:
+                    return filepath
+            except Exception:
+                continue
+        return None
+
     def _delete_agent(self):
-        if not self.current_agent or self.current_agent.category.lower() != "custom":
+        if not self.current_agent:
             return
-            
+
+        agent_path = self._find_user_agent_file(self.current_agent.id)
+        if not agent_path:
+            return
+
         confirm = QMessageBox.question(
             self,
             "Delete Agent",
@@ -407,31 +427,14 @@ class AgentRunnerTab(QWidget):
         )
         
         if confirm == QMessageBox.StandardButton.Yes:
-            agent_id = self.current_agent.id
-            file_found = False
-            
-            # Find and delete the file
-            if os.path.isdir(config.USER_AGENTS_DIR):
-                for filename in os.listdir(config.USER_AGENTS_DIR):
-                    if filename.endswith(".json"):
-                        filepath = os.path.join(config.USER_AGENTS_DIR, filename)
-                        try:
-                            with open(filepath, "r", encoding="utf-8") as f:
-                                data = json.load(f)
-                            if data.get("id") == agent_id:
-                                os.remove(filepath)
-                                file_found = True
-                                break
-                        except Exception:
-                            continue
-                            
-            if file_found:
+            try:
+                os.remove(agent_path)
                 if self.status_bar:
                     self.status_bar.set_status(f"Deleted agent: {self.current_agent.name}")
                 if self.on_agent_deleted:
                     self.on_agent_deleted()
-            else:
-                QMessageBox.warning(self, "Error", "Could not locate the agent file on disk to delete.")
+            except Exception:
+                QMessageBox.warning(self, "Error", "Could not delete the agent file from disk.")
 
     def _collect_inputs(self) -> dict:
         inputs = {}
