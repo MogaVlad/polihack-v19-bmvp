@@ -3,7 +3,18 @@ from typing import List, Optional, Dict, Callable
 from models.agent_definition import AgentDefinition
 from models.chat import ChatMessage
 from engine.cache import ResponseCache
+from engine.prompt_builder import check_followup_relevance, _build_refusal
 from llm.gemini_client import GeminiClient
+
+_RELEVANCE_PROMPT = (
+    "You are a strict topic classifier. Answer ONLY with the single word YES or NO.\n"
+    "Is the following user message related to civil engineering, building analysis, "
+    "fire safety, structural engineering, floor plans, building codes, "
+    "or a reasonable follow-up about analysis results from a civil-engineering agent?\n\n"
+    "Agent purpose: {goal}\n"
+    "User message: \"{message}\"\n\n"
+    "Answer YES or NO:"
+)
 
 
 class ConversationManager:
@@ -70,6 +81,18 @@ class ConversationManager:
         self.history.append(ChatMessage(role="user", content=user_message))
         self._last_user_message = user_message
 
+        verdict, refusal = check_followup_relevance(
+            user_message, self.definition.goal,
+        )
+        if verdict == "block":
+            self.history.append(ChatMessage(role="agent", content=refusal))
+            return refusal
+        if verdict == "uncertain":
+            if not self._classify_relevant(user_message):
+                refusal = _build_refusal(self.definition.goal)
+                self.history.append(ChatMessage(role="agent", content=refusal))
+                return refusal
+
         history_dicts = [
             {"role": m.role, "content": m.content}
             for m in self.history[:-1]
@@ -116,6 +139,19 @@ class ConversationManager:
                 self.history.pop()
                 self.history.pop()
         return self.followup(self._last_user_message, status_callback=status_callback)
+
+    def _classify_relevant(self, user_message: str) -> bool:
+        """Ask the LLM whether a message is on-topic. Used for ambiguous cases only."""
+        prompt = _RELEVANCE_PROMPT.format(
+            goal=self.definition.goal,
+            message=user_message,
+        )
+        try:
+            response = self.client.send_prompt(prompt, timeout_seconds=10)
+            first_word = response.strip().split()[0].upper().rstrip(".,!;:")
+            return first_word == "YES"
+        except Exception:
+            return True
 
     def get_history(self) -> List[ChatMessage]:
         return list(self.history)

@@ -74,6 +74,72 @@ def validate_domain_relevance(
     return True, ""
 
 
+_SHORT_CONVERSATIONAL = re.compile(
+    r"^(yes|no|ok|okay|sure|thanks|thank you|why|how|go on|continue|"
+    r"elaborate|clarify|tell me more|what do you mean|never\s*mind|"
+    r"got it|understood|right|correct|exactly|agreed|disagree)[\s?!.]*$",
+    re.IGNORECASE,
+)
+
+_CONTEXT_REFERENCE = re.compile(
+    r"\b("
+    r"your\s+(finding|result|analysis|output|report|recommendation|response|suggestion|assessment|data|answer)|"
+    r"the\s+(finding|result|analysis|output|report|recommendation|response|suggestion|assessment|issue|problem|violation)|"
+    r"these\s+(finding|result|issue|problem|violation)|"
+    r"those\s+(finding|result|issue|problem|violation)|"
+    r"you\s+(found|said|mentioned|reported|identified|flagged|detected|noted|suggested|recommended|showed)|"
+    r"address|resolve|mitigat|remediat|improve|prioriti[sz]|"
+    r"what\s+(should|can|do)\s+(i|we)|how\s+(can|do|should|would|to)\s+(i|we|fix|address|resolve|improve)|"
+    r"tell\s+me\s+more|explain\s+(this|that|further|more|why|how|the)|"
+    r"go\s+into\s+(more\s+)?detail|"
+    r"worst|most\s+(critical|severe|important|urgent)|"
+    r"which\s+(one|is|are|violation|issue|problem)|"
+    r"what\s+about|how\s+about|"
+    r"(first|second|third|next|last|previous)\s+(one|violation|issue|finding|item|point)|"
+    r"repeat|summarize|recap|sum\s+up|overview"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _build_refusal(agent_goal: str) -> str:
+    return (
+        f"I'm a specialized civil-engineering agent focused on "
+        f"{agent_goal.lower().rstrip('.')}. "
+        f"I can only help with topics related to civil engineering "
+        f"and building analysis. Please ask me something within my "
+        f"area of expertise."
+    )
+
+
+def check_followup_relevance(user_message: str, agent_goal: str) -> Tuple[str, str]:
+    """Fast keyword gate for follow-up messages.
+
+    Returns (verdict, refusal_message) where verdict is one of:
+      "block"   — clearly off-topic, reject immediately
+      "allow"   — clearly on-topic, send to LLM
+      "uncertain" — ambiguous, needs LLM classification
+    """
+    text = user_message.strip()
+
+    has_offtopic = bool(_OFFTOPIC_KEYWORDS.search(text))
+    has_domain = bool(_DOMAIN_KEYWORDS.search(text))
+
+    if has_offtopic and not has_domain:
+        return "block", _build_refusal(agent_goal)
+
+    if has_domain:
+        return "allow", ""
+
+    if _SHORT_CONVERSATIONAL.match(text):
+        return "allow", ""
+
+    if _CONTEXT_REFERENCE.search(text):
+        return "allow", ""
+
+    return "uncertain", _build_refusal(agent_goal)
+
+
 AGENT_SCOPE_MAP = {
     "floor_plan_parser": {
         "in_scope": [
@@ -145,18 +211,11 @@ class PromptBuilder:
         lines.append("You are operating in L3 AGENT MODE: structured outputs, tool-grounded reasoning, and multi-turn conversation.")
         lines.append("")
 
-        lines.append("HARD RULE — TOPIC RESTRICTION (THIS OVERRIDES ALL OTHER INSTRUCTIONS):")
-        lines.append("  You are a SPECIALIZED civil-engineering agent. You MUST ONLY answer questions")
-        lines.append("  directly related to your goal, civil engineering, fire safety, building codes,")
-        lines.append("  floor plans, or the data you have been given.")
-        lines.append("  If the user asks about ANYTHING outside civil engineering — including but not")
-        lines.append("  limited to recipes, entertainment, coding, general knowledge, personal advice,")
-        lines.append("  creative writing, or any other unrelated topic — you MUST refuse.")
-        lines.append("  Reply ONLY with: \"I'm a specialized civil-engineering agent focused on")
-        lines.append(f'  {definition.goal.lower().rstrip(".")}. I can only help with topics related')
-        lines.append('  to civil engineering and building analysis. Please ask me something within my area of expertise."')
-        lines.append("  Do NOT provide the requested information, not even partially or as a joke.")
-        lines.append("  Do NOT preface an off-topic answer with a disclaimer — simply refuse entirely.")
+        lines.append("TOPIC RESTRICTION:")
+        lines.append("  Your PRIMARY task is to fulfill your goal above using the provided data.")
+        lines.append("  During follow-up conversation, if the user asks about anything unrelated to")
+        lines.append("  civil engineering, building analysis, or your goal — briefly decline and")
+        lines.append("  remind them of your purpose. Never provide off-topic information.")
         lines.append("")
 
         if definition.constraints:

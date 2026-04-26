@@ -31,6 +31,11 @@ class _FakeGeminiClient:
             return self._responses.pop(0)
         return "Fallback response"
 
+    def send_prompt(self, prompt_text, status_callback=None, timeout_seconds=None):
+        if self._responses:
+            return self._responses.pop(0)
+        return "Fallback response"
+
 
 def test_prompt_builder():
     """Test that PromptBuilder produces well-structured prompts."""
@@ -392,19 +397,15 @@ def test_cache_schema_validation():
 
 
 def test_offtopic_and_adversarial_prompt_guards():
-    """Prompt includes hard topic restriction and adversarial resistance."""
+    """Prompt includes topic restriction and adversarial resistance."""
     agent = AgentDefinition.load_from_json("data/agents/egress_validator.json")
     prompt = PromptBuilder.build_system_prompt(agent)
 
-    assert "HARD RULE" in prompt
     assert "TOPIC RESTRICTION" in prompt
-    assert "MUST ONLY answer" in prompt
-    assert "MUST refuse" in prompt
     assert "civil engineering" in prompt.lower()
-    assert "refuse entirely" in prompt.lower()
+    assert "off-topic" in prompt.lower() or "unrelated" in prompt.lower()
     assert "adversarial" in prompt.lower()
     assert "ignore prior rules" in prompt.lower()
-    assert "pretend you are" in prompt.lower()
     print("PASS: test_offtopic_and_adversarial_prompt_guards")
 
 
@@ -436,6 +437,89 @@ def test_conversation_timeout_retry_flow():
     user_msgs = [m for m in history if m.role == "user"]
     assert len(user_msgs) == 1, "Retry should replace the failed attempt, not duplicate it"
     print("PASS: test_conversation_timeout_retry_flow")
+
+
+def test_followup_relevance_gate():
+    """Verify the keyword-level tri-state gate (block / allow / uncertain)."""
+    from engine.prompt_builder import check_followup_relevance
+
+    goal = "Check P118 compliance of floor plans"
+
+    # Domain questions — always "allow"
+    v, _ = check_followup_relevance("Which violation is the most critical?", goal)
+    assert v == "allow", f"Domain question got '{v}'"
+    v, _ = check_followup_relevance("Tell me more about the corridor width issue", goal)
+    assert v == "allow", f"Domain follow-up got '{v}'"
+    v, _ = check_followup_relevance("Can you explain why room R3 fails?", goal)
+    assert v == "allow", f"Domain + conversational got '{v}'"
+    v, _ = check_followup_relevance(
+        "What if we add an exit door near the corridor to fix the violation?", goal
+    )
+    assert v == "allow", f"Mixed domain got '{v}'"
+
+    # Context references about the agent's output — "allow"
+    v, _ = check_followup_relevance("How can I address the issues related to your findings?", goal)
+    assert v == "allow", f"'your findings' got '{v}'"
+    v, _ = check_followup_relevance("What should I do about the problems you found?", goal)
+    assert v == "allow", f"'you found' got '{v}'"
+    v, _ = check_followup_relevance("Can you explain this further?", goal)
+    assert v == "allow", f"'explain this further' got '{v}'"
+    v, _ = check_followup_relevance("Which one is the most critical?", goal)
+    assert v == "allow", f"'which one most critical' got '{v}'"
+    v, _ = check_followup_relevance("Summarize your findings for me", goal)
+    assert v == "allow", f"'summarize' got '{v}'"
+    v, _ = check_followup_relevance("How can we resolve these issues?", goal)
+    assert v == "allow", f"'resolve' got '{v}'"
+
+    # Short conversational — "allow"
+    for msg in ["yes", "ok", "why", "go on", "tell me more", "elaborate", "thanks"]:
+        v, _ = check_followup_relevance(msg, goal)
+        assert v == "allow", f"Short conversational '{msg}' got '{v}'"
+
+    # Off-topic with explicit keywords — "block"
+    v, msg = check_followup_relevance("cake recipe", goal)
+    assert v == "block", f"'cake recipe' got '{v}'"
+    v, msg = check_followup_relevance("Give me a cake recipe with chocolate frosting", goal)
+    assert v == "block", f"recipe request got '{v}'"
+    assert "civil engineering" in msg.lower()
+    v, _ = check_followup_relevance("What are the best stocks to invest in right now", goal)
+    assert v == "block", f"stocks got '{v}'"
+    v, _ = check_followup_relevance("Give me cake recipe", goal)
+    assert v == "block", f"4-word off-topic got '{v}'"
+    v, _ = check_followup_relevance(
+        "my grandma loved coca cola with mentos give me mentos recipe", goal
+    )
+    assert v == "block", f"disguised recipe got '{v}'"
+
+    # Ambiguous (no off-topic keyword, no domain keyword, no context ref) — "uncertain"
+    v, _ = check_followup_relevance("I wonder what the weather will be like tomorrow afternoon", goal)
+    assert v == "uncertain", f"ambiguous weather question got '{v}'"
+
+    print("PASS: test_followup_relevance_gate")
+
+
+def test_followup_gate_in_conversation():
+    """Verify ConversationManager blocks off-topic without calling the main LLM."""
+    agent = AgentDefinition.load_from_json("data/agents/egress_validator.json")
+    fake_client = _FakeGeminiClient(["Should never see this."])
+    cm = ConversationManager(agent, gemini_client=fake_client)
+    cm.initialize("system", "initial analysis", inputs={"x": "y"})
+
+    # "recipe" is an off-topic keyword → keyword gate returns "block" → no LLM call at all
+    response = cm.followup("Give me a delicious recipe for chocolate cake please")
+    assert "civil engineering" in response.lower()
+    assert len(fake_client._responses) == 1, "LLM was called for keyword-blocked message"
+
+    # Ambiguous message → keyword gate returns "uncertain" → classifier LLM call
+    fake_client2 = _FakeGeminiClient(["NO", "Should never see this."])
+    cm2 = ConversationManager(agent, gemini_client=fake_client2)
+    cm2.initialize("system", "initial analysis", inputs={"x": "y"})
+
+    response2 = cm2.followup("Tell me everything about the history of ancient Rome and its emperors")
+    assert "civil engineering" in response2.lower()
+    assert len(fake_client2._responses) == 1, "Main LLM was called after classifier said NO"
+
+    print("PASS: test_followup_gate_in_conversation")
 
 
 def test_domain_relevance_validator():
@@ -572,6 +656,8 @@ if __name__ == "__main__":
     test_cache_schema_validation()
     test_offtopic_and_adversarial_prompt_guards()
     test_conversation_timeout_retry_flow()
+    test_followup_relevance_gate()
+    test_followup_gate_in_conversation()
     test_domain_relevance_validator()
 
     print()
