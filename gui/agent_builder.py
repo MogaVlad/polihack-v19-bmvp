@@ -61,9 +61,25 @@ class AgentBuilderTab(QWidget):
         self.wrapper_layout.setSpacing(12)
 
         # Title
-        title_lbl = QLabel("🔧  Create New Agent")
+        title_row = QHBoxLayout()
+        title_row.setSpacing(8)
+        title_row.setContentsMargins(0, 0, 0, 0)
+
+        _icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "icons",
+                                  "under-construction.png")
+        if os.path.isfile(_icon_path):
+            from PyQt6.QtGui import QPixmap
+            from PyQt6.QtCore import Qt as _Qt
+            icon_lbl = QLabel()
+            icon_lbl.setPixmap(QPixmap(_icon_path).scaled(24, 24, _Qt.AspectRatioMode.KeepAspectRatio,
+                                                          _Qt.TransformationMode.SmoothTransformation))
+            title_row.addWidget(icon_lbl)
+
+        title_lbl = QLabel("Create New Agent")
         title_lbl.setProperty("class", "Title")
-        self.wrapper_layout.addWidget(title_lbl)
+        title_row.addWidget(title_lbl)
+        title_row.addStretch()
+        self.wrapper_layout.addLayout(title_row)
 
         # Error label
         self.error_label = QLabel("")
