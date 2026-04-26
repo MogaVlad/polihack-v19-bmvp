@@ -102,7 +102,6 @@ class App(QMainWindow):
 
         # Canvas panel
         self.canvas_panel = CanvasPanel(self.right_frame)
-        self.canvas_panel.hide()
         right_layout.addWidget(self.canvas_panel, 2)
 
         # Status bar with theme toggle callback
