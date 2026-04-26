@@ -29,10 +29,12 @@ class App(QMainWindow):
 
         self._dark_mode = True
         self._icons_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "icons")
+
         self._build_layout()
 
     def _build_layout(self):
         self.central_widget = QWidget()
+        self.central_widget.setObjectName("AppRoot")
         self.setCentralWidget(self.central_widget)
 
         main_layout = QVBoxLayout(self.central_widget)
@@ -82,11 +84,11 @@ class App(QMainWindow):
         sidebar_layout = QVBoxLayout(self.sidebar_frame)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
-
         body_layout.addWidget(self.sidebar_frame)
 
         # Right content area
         self.right_frame = QFrame()
+        self.right_frame.setObjectName("ContentRoot")
         right_layout = QVBoxLayout(self.right_frame)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(0)
@@ -94,6 +96,7 @@ class App(QMainWindow):
 
         # Stacked pages
         self.pages = QStackedWidget()
+        self.pages.setObjectName("ContentPages")
         right_layout.addWidget(self.pages, 1)
 
         # Canvas panel
@@ -101,7 +104,7 @@ class App(QMainWindow):
         self.canvas_panel.hide()
         right_layout.addWidget(self.canvas_panel, 2)
 
-        # Status bar
+        # Status bar with theme toggle callback
         self.status_bar = StatusBar(on_theme_change=self.apply_theme)
         main_layout.addWidget(self.status_bar)
 
@@ -145,7 +148,7 @@ class App(QMainWindow):
         self._btn_legacy.clicked.connect(lambda: self._set_active_view("Legacy Prompting"))
         nav_layout.addWidget(self._btn_legacy)
 
-        self._btn_showcase = QPushButton("  Legacy → Agent")
+        self._btn_showcase = QPushButton("  Legacy -> Agent")
         self._btn_showcase.setProperty("class", "SidebarBtn")
         self._btn_showcase.setIconSize(QSize(18, 18))
         self._btn_showcase.clicked.connect(lambda: self._set_active_view("Legacy to Agent Showcase"))
@@ -165,7 +168,7 @@ class App(QMainWindow):
         self._apply_icons()
         self._preload_example_plan()
 
-    # ── Icon helpers ────────────────────────────────────────────
+    # Icon helpers
     def _icon_path(self, name: str) -> str:
         suffix = "dark" if self._dark_mode else "light"
         return os.path.join(self._icons_dir, f"{name}_{suffix}.png")
@@ -174,21 +177,27 @@ class App(QMainWindow):
         return QIcon(self._icon_path(name))
 
     def _make_pixmap(self, name: str, size: int) -> QPixmap:
-        p = self._icon_path(name)
-        if os.path.isfile(p):
-            return QPixmap(p).scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        path = self._icon_path(name)
+        if os.path.isfile(path):
+            return QPixmap(path).scaled(
+                size,
+                size,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
         return QPixmap()
 
     def _apply_icons(self):
-        p = os.path.join(self._icons_dir, "appicon_light.png")
-        if os.path.isfile(p):
-            self.setWindowIcon(QIcon(p))
+        app_icon = os.path.join(self._icons_dir, "appicon_light.png")
+        if os.path.isfile(app_icon):
+            self.setWindowIcon(QIcon(app_icon))
         self._title_icon_lbl.setPixmap(self._make_pixmap("nexttotitle", 24))
         self._btn_legacy.setIcon(self._make_icon("legacy"))
         self._btn_showcase.setIcon(self._make_icon("l2tol3"))
 
     def apply_theme(self, dark_mode: bool):
         from gui.theme import get_stylesheet
+
         self._dark_mode = dark_mode
         app = QApplication.instance()
         if app:
@@ -215,14 +224,6 @@ class App(QMainWindow):
         self._anim.finished.connect(_on_finished)
         self._anim.start()
         self.sidebar_expanded = not self.sidebar_expanded
-
-    def apply_theme(self, dark_mode: bool):
-        from gui.theme import get_stylesheet
-        self._dark_mode = dark_mode
-        app = QApplication.instance()
-        if app:
-            app.setStyleSheet(get_stylesheet(dark_mode=dark_mode))
-        self._apply_icons()
 
     def _set_active_view(self, view_name: str):
         tab_map = {
