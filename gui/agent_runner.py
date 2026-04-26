@@ -559,7 +559,7 @@ class AgentRunnerTab(QWidget):
             lbl = QLabel(f"{inp.name}:" + (" *" if required else ""))
             layout.addWidget(lbl)
 
-            if inp.type == "image":
+            if inp.type in ("image", "file"):
                 entry = QLineEdit()
                 layout.addWidget(entry, 1)
                 btn = QPushButton("Browse")
