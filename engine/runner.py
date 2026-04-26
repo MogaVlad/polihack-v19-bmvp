@@ -152,19 +152,46 @@ class AgentRunner:
         """Extract structured JSON from LLM response."""
         outputs = {"response": response}
 
-        json_blocks = re.findall(r'```json\s*([\s\S]*?)\s*```', response)
+        # Find all markdown blocks, or just use the response if no blocks exist
+        blocks = re.findall(r'```(?:json)?\s*([\s\S]*?)\s*```', response, re.IGNORECASE)
+        if not blocks:
+            blocks = [response]
 
-        if json_blocks:
-            json_output_names = [o.name for o in definition.outputs if o.type == "json"]
-            for i, block in enumerate(json_blocks):
+        parsed_objects = []
+        for block in blocks:
+            b = block.strip()
+            # If it looks like JSON, try to parse it
+            if b.startswith("{") or b.startswith("["):
                 try:
-                    parsed = json.loads(block)
-                    if i < len(json_output_names):
-                        outputs[json_output_names[i]] = parsed
-                    else:
-                        outputs[f"json_output_{i}"] = parsed
+                    parsed_objects.append(json.loads(b))
                 except json.JSONDecodeError:
                     continue
+
+        json_output_names = [o.name for o in definition.outputs if o.type == "json"]
+        used_objects = set()
+
+        # 1. Look for overarching dictionaries that contain the requested keys
+        for i, obj in enumerate(parsed_objects):
+            if isinstance(obj, dict):
+                matched = False
+                for name in json_output_names:
+                    if name in obj and name not in outputs:
+                        outputs[name] = obj[name]
+                        matched = True
+                if matched:
+                    used_objects.add(i)
+
+        # 2. Assign any remaining requested outputs in order from unused objects
+        remaining_names = [n for n in json_output_names if n not in outputs]
+        unused_objects = [obj for i, obj in enumerate(parsed_objects) if i not in used_objects]
+
+        for name, obj in zip(remaining_names, unused_objects):
+            outputs[name] = obj
+
+        # 3. Put any leftover unused objects into generic keys
+        leftovers = unused_objects[len(remaining_names):]
+        for i, obj in enumerate(leftovers):
+            outputs[f"json_output_{i}"] = obj
 
         return outputs
 
