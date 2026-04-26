@@ -14,9 +14,9 @@ class GeminiClient:
     MAX_RETRIES = 3
     RETRY_BASE_DELAY = 2
     REQUEST_TIMEOUT_SECONDS = 30
-    #MODEL = "gemma-3-27b-it"
+    MODEL = "gemma-3-27b-it"
     #MODEL = "gemini-2.5-flash-lite"
-    MODEL = "gemini-2.5-flash"
+    #MODEL = "gemini-2.5-flash"
 
     def __init__(self):
         self._client = None
