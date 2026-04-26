@@ -2,7 +2,7 @@ import json
 import os
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton,
-    QTextEdit, QLineEdit, QScrollArea, QFileDialog, QDialog, QSplitter, QProgressBar
+    QTextEdit, QLineEdit, QScrollArea, QFileDialog, QDialog, QSplitter, QProgressBar, QMessageBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -13,6 +13,7 @@ from models.violations import Violation
 from engine.runner import AgentRunner
 from engine.conversation import ConversationManager
 from engine.prompt_builder import PromptBuilder
+import config
 
 
 class AgentRunnerWorker(QThread):
@@ -84,10 +85,11 @@ class AgentRetryWorker(QThread):
 
 
 class AgentRunnerTab(QWidget):
-    def __init__(self, parent=None, status_bar=None, canvas_panel=None):
+    def __init__(self, parent=None, status_bar=None, canvas_panel=None, on_agent_deleted=None):
         super().__init__(parent)
         self.status_bar = status_bar
         self.canvas_panel = canvas_panel
+        self.on_agent_deleted = on_agent_deleted
         self.current_agent = None
         self._has_run = False
         self._is_running = False
@@ -139,6 +141,13 @@ class AgentRunnerTab(QWidget):
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
+        
+        self.delete_btn = QPushButton("Delete Agent")
+        self.delete_btn.setProperty("class", "DangerBtn")
+        self.delete_btn.clicked.connect(self._delete_agent)
+        self.delete_btn.hide()
+        btn_row.addWidget(self.delete_btn)
+        
         self.view_def_btn = QPushButton("View Definition")
         self.view_def_btn.clicked.connect(self._view_definition)
         btn_row.addWidget(self.view_def_btn)
@@ -321,6 +330,11 @@ class AgentRunnerTab(QWidget):
         self.output_text.clear()
         self._clear_chat()
         self._set_chat_enabled(False)
+        
+        if agent_def.category and agent_def.category.lower() == "custom":
+            self.delete_btn.show()
+        else:
+            self.delete_btn.hide()
 
         if agent_def.constraints:
             self.constraints_label.setText(" • " + "\n • ".join(agent_def.constraints))
@@ -379,6 +393,45 @@ class AgentRunnerTab(QWidget):
         text.setPlainText(json.dumps(self.current_agent.to_dict(), indent=2))
         layout.addWidget(text)
         dlg.exec()
+
+    def _delete_agent(self):
+        if not self.current_agent or self.current_agent.category.lower() != "custom":
+            return
+            
+        confirm = QMessageBox.question(
+            self,
+            "Delete Agent",
+            f"Are you sure you want to permanently delete '{self.current_agent.name}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if confirm == QMessageBox.StandardButton.Yes:
+            agent_id = self.current_agent.id
+            file_found = False
+            
+            # Find and delete the file
+            if os.path.isdir(config.USER_AGENTS_DIR):
+                for filename in os.listdir(config.USER_AGENTS_DIR):
+                    if filename.endswith(".json"):
+                        filepath = os.path.join(config.USER_AGENTS_DIR, filename)
+                        try:
+                            with open(filepath, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                            if data.get("id") == agent_id:
+                                os.remove(filepath)
+                                file_found = True
+                                break
+                        except Exception:
+                            continue
+                            
+            if file_found:
+                if self.status_bar:
+                    self.status_bar.set_status(f"Deleted agent: {self.current_agent.name}")
+                if self.on_agent_deleted:
+                    self.on_agent_deleted()
+            else:
+                QMessageBox.warning(self, "Error", "Could not locate the agent file on disk to delete.")
 
     def _collect_inputs(self) -> dict:
         inputs = {}

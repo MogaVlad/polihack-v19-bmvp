@@ -206,6 +206,19 @@ def get_stylesheet(dark_mode: bool = True) -> str:
         background-color: {border};
         color: {muted};
     }}
+    
+    QPushButton[class="DangerBtn"] {{
+        background-color: transparent;
+        color: {danger};
+        border: 1px solid {danger};
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-weight: 700;
+    }}
+    QPushButton[class="DangerBtn"]:hover {{
+        background-color: {danger};
+        color: #ffffff;
+    }}
 
     QLineEdit, QTextEdit, QPlainTextEdit {{
         background-color: {input_bg};

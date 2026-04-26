@@ -109,7 +109,12 @@ class App(QMainWindow):
         main_layout.addWidget(self.status_bar)
 
         # Page contents
-        self.runner_tab = AgentRunnerTab(self.pages, status_bar=self.status_bar, canvas_panel=self.canvas_panel)
+        self.runner_tab = AgentRunnerTab(
+            self.pages, 
+            status_bar=self.status_bar, 
+            canvas_panel=self.canvas_panel,
+            on_agent_deleted=self._on_agent_deleted
+        )
         self.builder_tab = AgentBuilderTab(
             self.pages,
             on_agent_saved=self._on_agent_saved,
@@ -253,6 +258,12 @@ class App(QMainWindow):
         self._on_agent_saved()
         self._on_agent_selected(agent_def)
         self.status_bar.set_status(f"Agent '{agent_def.name}' saved and loaded", "#b3c7c1")
+        
+    def _on_agent_deleted(self):
+        self.agent_library.refresh()
+        self.status_bar.set_agent_count(len(self.agent_library.agents))
+        self.pages.setCurrentWidget(self.l2_tab) # Switch to a neutral tab or empty view
+        self.status_bar.set_status("Agent deleted", "#b3c7c1")
 
     def _refresh_library(self):
         self.agent_library.refresh()
