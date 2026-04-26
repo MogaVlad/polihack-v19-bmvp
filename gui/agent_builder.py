@@ -219,12 +219,13 @@ class AgentBuilderTab(QWidget):
         desc_entry.setPlaceholderText("Description")
         layout.addWidget(desc_entry, 3)
         
-        req_cb = QCheckBox("Req")
+        req_cb = QCheckBox("Required")
         req_cb.setChecked(True)
         layout.addWidget(req_cb)
-        
-        del_btn = QPushButton("X")
+
+        del_btn = QPushButton("🗑")
         del_btn.setFixedWidth(30)
+        del_btn.setToolTip("Remove this input")
         del_btn.clicked.connect(lambda: self._remove_row(row, self.input_rows, self.inputs_container))
         layout.addWidget(del_btn)
         
@@ -244,8 +245,9 @@ class AgentBuilderTab(QWidget):
         entry.setPlaceholderText("e.g. 'Must use metric units' or 'Never guess missing dimensions'")
         layout.addWidget(entry, 1)
         
-        del_btn = QPushButton("X")
+        del_btn = QPushButton("🗑")
         del_btn.setFixedWidth(30)
+        del_btn.setToolTip("Remove this constraint")
         del_btn.clicked.connect(lambda: self._remove_row(row, self.constraint_rows, self.cons_container))
         layout.addWidget(del_btn)
         
@@ -267,8 +269,9 @@ class AgentBuilderTab(QWidget):
         desc_entry.setPlaceholderText("Description")
         layout.addWidget(desc_entry, 3)
         
-        del_btn = QPushButton("X")
+        del_btn = QPushButton("🗑")
         del_btn.setFixedWidth(30)
+        del_btn.setToolTip("Remove this output")
         del_btn.clicked.connect(lambda: self._remove_row(row, self.output_rows, self.outs_container))
         layout.addWidget(del_btn)
         

@@ -288,8 +288,10 @@ class CanvasPanel(QWidget):
         if not rect.isNull():
             self._update_scene_rect(rect)
             self.view.resetTransform()
-            rect.adjust(-10, -10, 10, 10)
-            self.view.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
+            margin = max(rect.width(), rect.height()) * 0.08
+            padded = QRectF(rect).adjusted(-margin, -margin, margin, margin)
+            self.view.fitInView(padded, Qt.AspectRatioMode.KeepAspectRatio)
+            self.view.scale(1.2, 1.2)
             self.view.centerOn(rect.center())
 
     @staticmethod
@@ -575,6 +577,6 @@ class CanvasPanel(QWidget):
 
     def _update_scene_rect(self, rect: QRectF):
         padded = QRectF(rect)
-        pad = max(40.0, max(padded.width(), padded.height()) * 0.75)
+        pad = max(10.0, max(padded.width(), padded.height()) * 0.3)
         padded.adjust(-pad, -pad, pad, pad)
         self.scene.setSceneRect(padded)

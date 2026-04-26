@@ -1,4 +1,11 @@
+import os as _os
+
+_ASSETS_DIR = _os.path.join(_os.path.dirname(__file__), "assets")
+
+
 def get_stylesheet(dark_mode: bool = True) -> str:
+    checkmark_path = _os.path.join(_ASSETS_DIR, "checkmark.svg").replace("\\", "/")
+
     if dark_mode:
         text = "#e8edf0"
         bg = "#171d22"              # app shell
@@ -315,10 +322,12 @@ def get_stylesheet(dark_mode: bool = True) -> str:
         height: 18px;
         border: 2px solid {border};
         border-radius: 4px;
+        background-color: {input_bg};
     }}
     QCheckBox::indicator:checked {{
         background-color: {accent};
         border: 2px solid {accent};
+        image: url("{checkmark_path}");
     }}
 
     QProgressBar {{

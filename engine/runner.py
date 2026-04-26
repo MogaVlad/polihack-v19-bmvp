@@ -63,6 +63,10 @@ class AgentRunner:
             if cached:
                 _status("Loaded cached response")
                 cached.tool_results = tool_results
+                if not cached.outputs or cached.outputs == {}:
+                    cached.outputs = self._parse_outputs(
+                        cached.explanation, definition,
+                    )
                 return cached
             if "timeout" in response.lower():
                 _status("Timeout — no cached fallback available")

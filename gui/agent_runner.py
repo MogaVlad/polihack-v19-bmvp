@@ -736,6 +736,13 @@ class AgentRunnerTab(QWidget):
             try:
                 parsed = json.loads(payload)
             except (json.JSONDecodeError, ValueError):
+                blocks = re.findall(
+                    r'```(?:json)?\s*([\s\S]*?)\s*```',
+                    payload,
+                    re.IGNORECASE,
+                )
+                for block in blocks:
+                    results.extend(self._extract_all_violations(block.strip()))
                 return results
             return self._extract_all_violations(parsed)
         if isinstance(payload, dict):
@@ -816,6 +823,9 @@ class AgentRunnerTab(QWidget):
         explanation = result.explanation or "Execution completed successfully."
         self._append_agent_message(explanation)
 
+        if self.current_agent and self.current_agent.id == "floor_plan_parser":
+            self._show_conversion_banner(result)
+
         if not self._conversation:
             self._conversation = ConversationManager(self.current_agent)
             system_prompt = PromptBuilder.build_system_prompt(self.current_agent, result.tool_results)
@@ -829,6 +839,53 @@ class AgentRunnerTab(QWidget):
 
         self._show_on_canvas()
         self._set_running_ui(False)
+
+    def _show_conversion_banner(self, result: AgentResult):
+        outputs = result.outputs or {}
+        plan = self._extract_plan_dict(outputs)
+        if not plan:
+            return
+
+        rooms = plan.get("rooms", [])
+        corridors = plan.get("corridors", [])
+        doors = plan.get("doors", [])
+        exits = plan.get("exits", [])
+        walls = plan.get("walls", [])
+
+        input_file = ""
+        for v in self._last_inputs.values():
+            if isinstance(v, str) and v.strip():
+                input_file = os.path.basename(v.strip())
+                break
+
+        ext = os.path.splitext(input_file)[1].lower() if input_file else ""
+        if ext in (".dxf",):
+            source = f"DXF file <b>{input_file}</b>"
+        elif ext in (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff"):
+            source = f"image <b>{input_file}</b>"
+        elif ext in (".pdf",):
+            source = f"PDF <b>{input_file}</b>"
+        elif ext in (".json",):
+            source = f"JSON file <b>{input_file}</b>"
+        else:
+            source = f"<b>{input_file or 'input'}</b>"
+
+        summary = (
+            f"<div style='background:#1a2e2a; border:1px solid #2d4a40; border-radius:6px; "
+            f"padding:10px; margin:6px 0;'>"
+            f"<b style='color:#5bc49e;'>Floor Plan Converted to JSON</b><br>"
+            f"Source: {source}<br>"
+            f"Extracted: <b>{len(rooms)}</b> rooms, "
+            f"<b>{len(corridors)}</b> corridors, "
+            f"<b>{len(doors)}</b> doors, "
+            f"<b>{len(exits)}</b> exits, "
+            f"<b>{len(walls)}</b> walls<br><br>"
+            f"<span style='color:#8b9faf;'>Use <b>Export JSON</b> to save, then load into "
+            f"<b>Egress Validator</b>, <b>Evacuation Diagnoser</b>, or "
+            f"<b>Exit Placement Advisor</b>.</span>"
+            f"</div>"
+        )
+        self._append_agent_message(summary)
 
     # Conversation
 
@@ -930,7 +987,8 @@ class AgentRunnerTab(QWidget):
             except (KeyError, TypeError):
                 pass
 
-        parsed = self._parse_violations(data, tool_results)
+        explanation = self._last_result.explanation or ""
+        parsed = self._parse_violations(data, tool_results, explanation)
         if parsed:
             self.canvas_panel.show_violations(parsed)
 

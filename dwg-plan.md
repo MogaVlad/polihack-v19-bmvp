@@ -1,203 +1,196 @@
-# Plan B — Direct DWG/DXF Parsing to FloorPlan JSON
+# Floor Plan Parsing — Implementation Status
 
 ## Overview
 
-Parse AutoCAD floor plans directly into the existing `FloorPlan` schema using `ezdxf`, extracting real coordinates, dimensions, and labels. The P118 tools then work with precise measurements instead of LLM-guessed values.
+The Floor Plan Parser agent accepts three input formats and converts them into the `FloorPlan` JSON schema (rooms, corridors, doors, exits, walls with real coordinates). The P118 tools then work with precise measurements.
 
-**Scope**: DXF files natively. DWG files via a one-time conversion step (ODA File Converter).
+**Supported formats**:
+- **DXF** — parsed directly via `ezdxf` into exact geometry (primary path)
+- **Images** (PNG, JPG, JPEG, BMP, TIFF, GIF) — parsed via Gemini Vision AI
+- **PDF** — accepted in the file picker; handled through Gemini Vision
+- **JSON** — hand-authored or previously-parsed `FloorPlan` JSON files (in `data/floor_plans/`)
+
+DWG support is **not implemented** — DXF only for now.
 
 ---
 
-## Step 1 — Install dependencies
+## Step 1 — Dependencies ✅
+
+`ezdxf` added to `requirements.txt`. Installed via:
 
 ```bash
 pip install ezdxf
 ```
 
-Add `ezdxf` to `requirements.txt`.
-
-For DWG support, download the free [ODA File Converter](https://www.opendesign.com/guestfiles/oda_file_converter) and install it. It converts DWG → DXF via command line. This is an optional external tool — the core parser works on DXF directly.
-
----
-
-## Step 2 — DWG-to-DXF conversion utility
-
-Create `tools/dwg_converter.py`:
-
-1. Accept a `.dwg` file path as input.
-2. Shell out to ODA File Converter to produce a `.dxf` in a temp directory.
-   - Command: `ODAFileConverter <input_dir> <output_dir> ACAD2018 DXF 0 1 <filename>`
-   - The ODA path should be configurable in `config.py` (e.g. `ODA_CONVERTER_PATH`).
-3. Return the path to the generated `.dxf` file.
-4. If ODA is not installed, raise a clear error: "DWG files require ODA File Converter. Please provide a DXF file or install ODA."
-
-This step is a thin wrapper — keep it under 40 lines.
-
----
-
-## Step 3 — DXF entity extraction
-
-Create `tools/dxf_parser.py` with a function `extract_entities(dxf_path) -> dict`:
-
-1. Open the DXF with `ezdxf.readfile(dxf_path)`.
-2. Get the modelspace: `msp = doc.modelspace()`.
-3. Iterate entities and collect them by type:
-   - **LWPOLYLINE / POLYLINE** → closed polylines are room/corridor boundaries. Extract vertices as `[[x, y], ...]`. Record whether the polyline is closed.
-   - **LINE** → wall segments. Extract `start [x, y]` and `end [x, y]`.
-   - **CIRCLE / ARC** → door swings. Extract center, radius, start/end angles.
-   - **TEXT / MTEXT** → room labels, dimensions, annotations. Extract insertion point and text content.
-   - **INSERT** (block references) → door/window/exit symbols. Extract block name and insertion point.
-4. Group entities by layer name (AutoCAD convention: layers like `A-WALL`, `A-DOOR`, `A-ROOM`, `A-TEXT` etc.).
-5. Return a dict:
-   ```python
-   {
-       "polylines": [...],    # each: {vertices, layer, is_closed}
-       "lines": [...],        # each: {start, end, layer}
-       "arcs": [...],         # each: {center, radius, start_angle, end_angle, layer}
-       "texts": [...],        # each: {content, position, layer}
-       "blocks": [...],       # each: {name, position, layer}
-       "layers": [...]        # list of layer names found
-   }
-   ```
-
----
-
-## Step 4 — Entity-to-FloorPlan mapping
-
-Add a function `build_floor_plan(entities: dict) -> FloorPlan` in the same file (or a new `tools/dxf_to_floorplan.py`):
-
-### 4a — Identify rooms
-- Take all closed polylines from wall/room layers.
-- Each closed polyline becomes a `Room`:
-  - `polygon`: the polyline vertices.
-  - `area`: compute via the shoelace formula (`ezdxf` has `ezdxf.math.area()`).
-  - `name` / `type`: match nearby TEXT/MTEXT entities (find text whose insertion point falls inside or near the polygon). Use the text content as the room name. Classify type by keyword matching ("office", "corridor", "stair", "WC", "conference", etc.).
-  - `occupancy`: estimate from area using P118 density tables in `config.py`.
-  - `id`: generate as `R1`, `R2`, ... in discovery order.
-
-### 4b — Identify corridors
-- Long narrow closed polylines (aspect ratio > 3:1) or polylines on a corridor-specific layer.
-- Each becomes a `Corridor`:
-  - `width`: the shorter dimension of the bounding box.
-  - `length`: the longer dimension.
-  - `connects`: find which rooms share a wall segment or are adjacent (within a tolerance).
-
-### 4c — Identify doors
-- ARC entities (door swings) or INSERT references to door blocks.
-- Each becomes a `Door`:
-  - `position`: the arc center or block insertion point.
-  - `width`: arc radius × 2 (standard door swing = door width), or from block attributes.
-  - `connects`: find the two rooms/corridors on either side of the door position (nearest polygons).
-  - `is_exit`: True if one side leads outside (no enclosing polygon) or if the block name contains "exit".
-
-### 4d — Identify exits
-- INSERTs referencing exit blocks, or doors flagged as `is_exit`.
-- Each becomes an `Exit`:
-  - `position`, `width` from the door.
-  - `room_id`: the room/corridor it connects to.
-  - `leads_outside`: True.
-
-### 4e — Identify walls
-- LINE entities on wall layers, or the segments of room/corridor polylines.
-- Each becomes a `Wall` with `start`, `end`, and optional `room_id`.
-
-### 4f — Flag ambiguities
-- Unclosed polylines on room layers → "Possible incomplete room boundary"
-- Rooms with no detected door → "Room X has no door connection"
-- Overlapping room polygons → "Rooms X and Y overlap"
-- Text labels that couldn't be matched to a room → "Unmatched label: ..."
-- Return these as a list of flagged issues alongside the FloorPlan.
-
----
-
-## Step 5 — Register the tool
-
-In `tools/registry.py`, register a new tool:
-
-```python
-def parse_dxf(input_data: dict) -> dict:
-    """Parse a DXF/DWG floor plan into structured FloorPlan JSON."""
-    file_path = input_data.get("floor_plan", "")
-    if file_path.endswith(".dwg"):
-        file_path = convert_dwg_to_dxf(file_path)
-    entities = extract_entities(file_path)
-    floor_plan, issues = build_floor_plan(entities)
-    return {
-        "parsed_plan": floor_plan.to_dict(),
-        "flagged_issues": issues,
-    }
-
-registry.register_tool("dxf_parser", parse_dxf, description="Parse DXF/DWG floor plans into structured data")
+Full `requirements.txt`:
+```
+google-genai
+Pillow
+python-dotenv
+PyQt6
+ezdxf
 ```
 
 ---
 
-## Step 6 — Update the Floor Plan Parser agent
+## Step 2 — DWG-to-DXF conversion ❌ Deferred
 
-Edit `data/agents/floor_plan_parser.json`:
+Originally planned to use libredwg or ODA File Converter for DWG → DXF conversion. **Not implemented.** The parser only accepts `.dxf` files natively.
 
-1. Add `"dxf_parser"` to the `tools` list (alongside `gemini_vision`).
-2. Update the input type to accept `"json"`, `"image"`, or `"dxf"`.
-3. Update constraints to note: "For DXF/DWG files, use the dxf_parser tool for precise extraction. For images, fall back to gemini_vision."
-
-The engine's `runner.py` already runs all tools in the agent's tool list and injects results. The LLM will receive exact geometry from the DXF parser and can use it to produce the structured output.
+If DWG support is needed later, create `tools/dwg_converter.py` that shells out to `dwg2dxf` (from libredwg) or ODA File Converter.
 
 ---
 
-## Step 7 — Input handling in the Agent Runner UI
+## Step 3 — DXF entity extraction ✅
 
-In `gui/agent_runner.py`, update the file picker for the Floor Plan Parser:
+Implemented in **`tools/dxf_parser.py`** → `extract_entities(dxf_path) -> dict`.
 
-1. Add `.dxf` and `.dwg` to the file dialog filter:
-   ```python
-   filetypes=[("Floor plans", "*.json *.dxf *.dwg"), ("All files", "*.*")]
-   ```
-2. In `_collect_inputs()`, if the file is `.dxf` or `.dwg`, pass the file path directly (don't try to read it as JSON text).
+Handles these entity types:
+- **LWPOLYLINE / POLYLINE** → room/corridor boundaries (vertices + closed flag)
+- **SPLINE** → flattened to polyline points
+- **LINE** → wall segments (start, end)
+- **CIRCLE / ARC** → door swings (center, radius, angles)
+- **TEXT / MTEXT** → room labels (content, position)
+- **HATCH** → boundary paths extracted as closed polylines
+- **INSERT** (block references) → door/window/exit symbols; virtual entities recursively processed
+
+Entities grouped by layer. Also scans non-model layouts.
+
+Returns:
+```python
+{
+    "polylines": [...],    # {vertices, layer, is_closed}
+    "lines": [...],        # {start, end, layer}
+    "arcs": [...],         # {center, radius, start_angle, end_angle, layer}
+    "texts": [...],        # {content, position, layer}
+    "blocks": [...],       # {name, position, layer}
+    "layers": [...]        # sorted list of layer names found
+}
+```
 
 ---
 
-## Step 8 — Test with a sample DXF
+## Step 4 — Entity-to-FloorPlan mapping ✅
 
-1. Find or create a simple test DXF with a few rooms, a corridor, doors, and an exit.
-2. Run the Floor Plan Parser agent with the DXF file.
-3. Verify:
-   - Room polygons match the DXF geometry.
-   - Areas are correct (compare with AutoCAD's measured area).
-   - Doors are detected and connected to the right rooms.
-   - The output feeds correctly into the Egress Validator (run the full pipeline).
-4. Add a unit test in `tests/test_tools.py` that parses a known DXF and checks the output schema.
+Implemented in **`tools/dxf_parser.py`** → `build_floor_plan(entities) -> Tuple[FloorPlan, List[str]]`.
+
+### 4a — Rooms
+- All closed polylines → candidate rooms.
+- Area computed via shoelace formula (`_polygon_area`).
+- Nearest TEXT label matched via point-in-polygon test (`_nearest_label`).
+- Room type classified by keyword matching (`_classify_room_type`): office, corridor, stairwell, WC, conference, server.
+- Occupancy estimated from area ÷ P118 density table (`_estimate_occupancy` using `config.P118_OCCUPANCY_DENSITY`).
+- IDs: `R1`, `R2`, ... in discovery order.
+
+### 4b — Corridors
+- Closed polylines with aspect ratio ≥ 3:1 or on corridor layers (`A-CORRIDOR`, `CORRIDOR`, `HALL`, etc.).
+- Width = shorter bbox dimension, length = longer.
+- IDs: `C1`, `C2`, ...
+
+### 4c — Doors
+- ARC entities → door width = radius × 2, position = arc center.
+- INSERT blocks on door layers or with "door" in the block name.
+- `connects` = two nearest rooms/corridors by centroid distance.
+- `is_exit` = True if fewer than 2 adjacent spaces (leads outside) or block name contains "exit".
+
+### 4d — Exits
+- Every door with `is_exit=True` generates a corresponding `Exit` entry.
+
+### 4e — Walls
+- All LINE entities → `Wall` with start/end coordinates.
+
+### 4f — Flagged issues
+- Unclosed polylines on room layers → "Possible incomplete room boundary"
+- Rooms with no door connection → "Room X has no door connection"
+- Overlapping room polygons → "Rooms X and Y overlap"
+- Unmatched text labels → "Unmatched label: ..."
+- No geometry at all → "No rooms, corridors, or walls detected in DXF."
+
+---
+
+## Step 5 — Tool registration ✅
+
+In **`tools/registry.py`**, two tools registered for the Floor Plan Parser:
+
+1. **`dxf_parser`** — calls `extract_entities` → `build_floor_plan`, returns `{parsed_plan, flagged_issues}`. Only runs on `.dxf` files; skips otherwise.
+
+2. **`gemini_vision`** — sends the image to `GeminiClient.parse_image()` with a structured prompt asking for rooms, corridors, doors, exits, stairs, and ambiguities. Only runs on image files (PNG/JPG/BMP/TIFF/GIF); skips for non-image input.
+
+Both tools are in the agent's tool list. The engine runs all tools and injects their results into the LLM prompt. For a DXF file, `dxf_parser` produces exact geometry and `gemini_vision` returns `{"skipped": ...}`. For an image, the reverse.
+
+---
+
+## Step 6 — Agent definition ✅
+
+**`data/agents/floor_plan_parser.json`** updated:
+
+- **Input**: `floor_plan` with type `file` — accepts `.json`, `.dxf`, or image files.
+- **Tools**: `["dxf_parser", "gemini_vision"]`
+- **Constraints** include: "For DXF files, use the dxf_parser tool for precise extraction. For images, fall back to gemini_vision."
+- **Outputs**: `parsed_plan` (json), `flagged_issues` (json)
+- **Conversational**: true, with guidelines for proactive flagging and scope boundaries.
+
+---
+
+## Step 7 — UI file picker ✅
+
+In **`gui/agent_runner.py`**:
+
+- File dialog filter for `floor_plan` input:
+  ```
+  Floor plans (*.json *.dxf *.png *.jpg *.jpeg *.pdf);;All files (*.*)
+  ```
+- `_collect_inputs()`:
+  - `.json` → file contents read as text and passed to the engine.
+  - `.dxf` → file **path** passed directly (not read as text).
+  - Images/PDF → file path passed directly for Gemini Vision.
+
+---
+
+## Step 8 — Sample data ✅
+
+Five example floor plans in `data/floor_plans/`:
+
+| File | Description |
+|------|-------------|
+| `example_office.json` | Office ground floor with rooms, corridors, doors, exits |
+| `example_hospital.json` | Hospital layout |
+| `example_school.json` | School layout |
+| `example_borderline.json` | Edge-case plan for testing |
+| `agent_output.json` | Sample agent output |
+
+These are hand-authored JSON files in the `FloorPlan` schema. No sample DXF file exists yet — testing DXF parsing requires a real AutoCAD file.
 
 ---
 
 ## Layer name conventions
 
-AutoCAD files vary wildly in layer naming. Support these common patterns:
+AutoCAD files vary in layer naming. The parser recognizes these patterns and falls back to entity-type heuristics when layers don't match:
 
-| Entity | Common layer names |
-|--------|--------------------|
+| Entity | Recognized layer names |
+|--------|----------------------|
 | Walls | `A-WALL`, `WALL`, `WALLS`, `S-WALL`, `AR-WALL` |
 | Doors | `A-DOOR`, `DOOR`, `DOORS`, `AR-DOOR` |
 | Rooms | `A-ROOM`, `ROOM`, `ROOMS`, `A-AREA`, `SPACE` |
+| Corridors | `A-CORRIDOR`, `CORRIDOR`, `CORRIDORS`, `HALL`, `HALLWAY` |
 | Text | `A-TEXT`, `TEXT`, `ANNO`, `A-ANNO`, `LABEL` |
-| Furniture | `A-FURN`, `FURN`, `FURNITURE` (ignore for floor plan) |
-| Windows | `A-GLAZ`, `WINDOW`, `WIN` (useful for exit detection) |
+| Windows | `A-GLAZ`, `WINDOW`, `WIN` |
 
-If layer names don't match known patterns, fall back to entity-type heuristics (closed polyline = room, arc = door, etc.).
+Unrecognized layers: closed polylines treated as rooms/corridors (by aspect ratio), arcs as doors, lines as walls, text as labels.
 
 ---
 
-## Estimated effort
+## What's left to do
 
-| Step | Time |
-|------|------|
-| 1. Dependencies | 5 min |
-| 2. DWG converter | 20 min |
-| 3. Entity extraction | 45 min |
-| 4. Entity-to-FloorPlan mapping | 60 min |
-| 5. Tool registration | 10 min |
-| 6. Agent definition update | 10 min |
-| 7. UI file picker update | 10 min |
-| 8. Testing | 30 min |
-| **Total** | **~3 hours** |
-
-Steps 3 and 4 are the core work. Everything else is wiring.
+| Item | Status |
+|------|--------|
+| DXF parsing (extract + build) | ✅ Done |
+| Image parsing (Gemini Vision) | ✅ Done |
+| PDF in file picker | ✅ Accepted (handled via Gemini Vision) |
+| JSON floor plan loading | ✅ Done |
+| Tool registration | ✅ Done |
+| Agent definition | ✅ Done |
+| UI file picker | ✅ Done |
+| DWG → DXF conversion | ❌ Deferred |
+| Sample DXF test file | ❌ Not created |
+| Unit test for DXF parser | ❌ Not created |
