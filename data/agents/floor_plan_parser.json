@@ -6,15 +6,16 @@
   "inputs": [
     {
       "name": "floor_plan",
-      "type": "image",
-      "description": "Floor plan image or PDF to parse"
+      "type": "file",
+      "description": "Floor plan file (.json, .dxf, or image)"
     }
   ],
   "constraints": [
     "Identify all rooms, corridors, doors, exits, and stairs",
     "Classify rooms by type (office, corridor, stairwell, etc.)",
     "Estimate occupancy based on room type and area (P118 density tables)",
-    "Flag ambiguous or unusual features for engineer review"
+    "Flag ambiguous or unusual features for engineer review",
+    "For DXF files, use the dxf_parser tool for precise extraction. For images, fall back to gemini_vision."
   ],
   "outputs": [
     {
@@ -28,7 +29,7 @@
       "description": "List of ambiguities or unusual features found during parsing"
     }
   ],
-  "tools": ["gemini_vision"],
+  "tools": ["dxf_parser", "gemini_vision"],
   "conversational": true,
   "conversation_guidelines": "After parsing, proactively flag unusual room shapes, ambiguous door placements, or features you are uncertain about. Answer follow-up questions about the parse. Stay within scope: redirect validation or compliance questions to the Egress Validator agent."
 }

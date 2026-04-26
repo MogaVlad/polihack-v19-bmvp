@@ -22,7 +22,22 @@ P118_EMERGENCY_LIGHTING_CORRIDOR_MIN_LENGTH = 10.0
 
 P118_BORDERLINE_TOLERANCE = 0.10
 
+P118_OCCUPANCY_DENSITY = {
+    "office": 10.0,
+    "conference": 2.0,
+    "corridor": 999.0,
+    "stairwell": 999.0,
+    "wc": 20.0,
+    "server": 20.0,
+}
+
 TOOL_CONFIG = {
+    "dxf_parser": {
+        "name": "DXF Parser",
+        "description": "Parses DXF floor plans into structured spatial data",
+        "input_type": "DXF path",
+        "output_type": "FloorPlan JSON",
+    },
     "p118_validator": {
         "name": "P118 Validator",
         "description": "Validates floor plans against Romanian P118 fire safety regulations",

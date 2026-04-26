@@ -27,6 +27,7 @@ class ToolRegistry:
         from tools.pathfinding import find_shortest_exit_path, find_all_travel_distances
         from tools.structural_checker import detect_blocked_rooms, detect_dead_ends, detect_anomalies
         from tools.metrics import compute_metrics
+        from tools.dxf_parser import extract_entities, build_floor_plan
 
         def structural_check_all(inputs):
             """Combined structural checker — runs all three sub-checks."""
@@ -47,6 +48,9 @@ class ToolRegistry:
             image_path = inputs.get("floor_plan", "")
             if not image_path or not os.path.isfile(image_path):
                 return {"error": f"Image not found: {image_path}"}
+            lower = image_path.lower()
+            if not lower.endswith((".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".gif")):
+                return {"skipped": "Non-image input provided; gemini_vision not applicable."}
 
             client = GeminiClient()
             prompt = (
@@ -61,6 +65,24 @@ class ToolRegistry:
             )
             result = client.parse_image(image_path, prompt)
             return {"vision_analysis": result}
+
+        def parse_dxf(inputs):
+            """Parse a DXF floor plan into structured FloorPlan JSON."""
+            import os
+
+            file_path = inputs.get("floor_plan", "")
+            if not file_path:
+                return {"error": "No floor_plan input provided."}
+
+            if not os.path.isfile(file_path):
+                return {"error": f"File not found: {file_path}"}
+
+            entities = extract_entities(file_path)
+            floor_plan, issues = build_floor_plan(entities)
+            return {
+                "parsed_plan": floor_plan.to_dict(),
+                "flagged_issues": issues,
+            }
 
         self.register_tool(
             "gemini_vision",
@@ -101,6 +123,14 @@ class ToolRegistry:
             "List[Violation]",
             "MetricsReport",
             compute_metrics,
+        )
+        self.register_tool(
+            "dxf_parser",
+            "DXF Parser",
+            "Parses DXF floor plans into structured spatial data",
+            "DXF path",
+            "FloorPlan JSON",
+            parse_dxf,
         )
 
     def register_tool(

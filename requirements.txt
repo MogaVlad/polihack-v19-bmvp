@@ -2,3 +2,4 @@ google-genai
 Pillow
 python-dotenv
 PyQt6
+ezdxf

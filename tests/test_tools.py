@@ -8,6 +8,7 @@ and the tool registry with known-good and known-bad floor plans.
 import sys
 import os
 import json
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -16,6 +17,7 @@ from tools.p118_validator import validate_p118
 from tools.pathfinding import find_shortest_exit_path, find_all_travel_distances
 from tools.structural_checker import detect_blocked_rooms, detect_dead_ends, detect_anomalies
 from tools.metrics import compute_metrics
+from tools.dxf_parser import extract_entities, build_floor_plan
 
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "floor_plans")
@@ -36,6 +38,7 @@ def test_registry():
     assert "pathfinding" in names
     assert "structural_checker" in names
     assert "metrics" in names
+    assert "dxf_parser" in names
 
     tool_fn = registry.get_tool("p118_validator")
     assert tool_fn is not None
@@ -168,6 +171,10 @@ def test_p118_empty_plan():
     assert isinstance(violations, list)
     print(f"PASS: test_p118_empty_plan — {len(violations)} violations")
 
+
+    print(f"PASS: test_metrics_empty — {report}")
+
+# ── DXF Parser Test ─────────────────────────────────────────────
 
 # ── Structural Checker Tests ────────────────────────────────────
 
