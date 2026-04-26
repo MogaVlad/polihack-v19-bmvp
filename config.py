@@ -1,7 +1,10 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Ensure .env is loaded from the directory containing config.py
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+_env_path = os.path.join(_base_dir, ".env")
+load_dotenv(dotenv_path=_env_path)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 

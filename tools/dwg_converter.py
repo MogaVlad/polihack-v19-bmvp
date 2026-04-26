@@ -20,6 +20,42 @@ def _get_libredwg_path() -> str | None:
         return exe_path
     return None
 
+def _sanitize_libredwg_dxf(dxf_path: str):
+    """Strip SORTENTSTABLE blocks from LibreDWG output.
+    
+    LibreDWG often writes invalid sort handles (code 331 instead of 5)
+    in the SORTENTSTABLE, which crashes ezdxf. Since we only need geometry,
+    we can safely strip these blocks.
+    """
+    try:
+        with open(dxf_path, "r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+            
+        cleaned = []
+        in_sortents = False
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            if line == "0" and i + 1 < len(lines) and lines[i+1].strip() == "SORTENTSTABLE":
+                in_sortents = True
+                i += 2
+                continue
+            
+            if in_sortents:
+                if line == "0":
+                    in_sortents = False
+                else:
+                    i += 1
+                    continue
+            
+            cleaned.append(lines[i])
+            i += 1
+            
+        with open(dxf_path, "w", encoding="utf-8") as f:
+            f.writelines(cleaned)
+    except Exception as e:
+        logger.warning(f"Failed to sanitize DXF: {e}")
+
 def convert_dwg_to_dxf(dwg_path: str) -> str:
     """Convert a .dwg file to .dxf using bundled LibreDWG.
 
@@ -54,6 +90,7 @@ def convert_dwg_to_dxf(dwg_path: str) -> str:
 
         if os.path.isfile(dxf_path):
             logger.info(f"LibreDWG conversion succeeded: {dxf_path}")
+            _sanitize_libredwg_dxf(dxf_path)
             return dxf_path
         else:
             error_msg = result.stderr or result.stdout or "Unknown error"

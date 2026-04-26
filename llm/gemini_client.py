@@ -5,6 +5,10 @@ from typing import List, Optional, Dict, Callable, Any
 from google import genai
 from google.genai import types
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import config
 
 
