@@ -346,19 +346,30 @@ class CanvasPanel(QWidget):
             expand_rect(QRectF(dx - r, dy - r, r * 2, r * 2))
 
         if self.show_violations_var and self.violations:
+            loc_counts = {}
             for idx, v in enumerate(self.violations):
                 target = plan.get_room(v.location) or plan.get_corridor(v.location)
 
                 if target and target.polygon:
                     wx = sum(p[0] for p in target.polygon) / len(target.polygon)
                     wy = sum(p[1] for p in target.polygon) / len(target.polygon)
+                    
+                    loc_counts[v.location] = loc_counts.get(v.location, 0) + 1
+                    count = loc_counts[v.location] - 1
+                    
+                    col = count % 3
+                    row = count // 3
+                    
+                    wx += (col - 1) * 2.2
+                    wy += (row + 1) * 2.2
                 else:
                     wx = idx * 2
                     wy = 0
 
-                if v.severity == "critical":
+                sev = v.severity.lower() if v.severity else ""
+                if sev == "critical":
                     color = QColor("#e05555")
-                elif v.severity == "major":
+                elif sev == "major":
                     color = QColor("#c4883a")
                 else:
                     color = QColor("#8b81a2")
@@ -367,6 +378,8 @@ class CanvasPanel(QWidget):
                 item.setPen(QPen(QColor("#e8ecee"), 0.2))
                 item.setBrush(QBrush(color))
                 item.setToolTip(f"<b>{v.rule} | {v.severity.upper()}</b><br>{v.description}")
+                item.setZValue(100)
+                item.setAcceptHoverEvents(True)
                 self.scene.addItem(item)
 
         if self._plan_rect:
