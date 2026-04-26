@@ -31,10 +31,10 @@ class AgentCard(QPushButton):
         top_row = QHBoxLayout()
         top_row.setContentsMargins(0, 0, 0, 0)
 
-        name = QLabel(agent.name)
-        name.setProperty("class", "AgentCardTitle")
-        name.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        top_row.addWidget(name, 1)
+        self._name_lbl = QLabel(agent.name)
+        self._name_lbl.setProperty("class", "AgentCardTitle")
+        self._name_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        top_row.addWidget(self._name_lbl, 1)
 
         status = QLabel("●")
         if agent.category and agent.category.lower() == "custom":
@@ -51,12 +51,22 @@ class AgentCard(QPushButton):
 
         layout.addLayout(top_row)
 
-        subtitle = QLabel(_elide(agent.goal, 72))
-        subtitle.setProperty("class", "AgentCardSubtitle")
-        subtitle.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        layout.addWidget(subtitle)
+        self._subtitle_lbl = QLabel(_elide(agent.goal, 72))
+        self._subtitle_lbl.setProperty("class", "AgentCardSubtitle")
+        self._subtitle_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        layout.addWidget(self._subtitle_lbl)
 
         self.clicked.connect(lambda: on_click(agent))
+
+    def enterEvent(self, event):
+        super().enterEvent(event)
+        self._name_lbl.setStyleSheet("color: #000000;")
+        self._subtitle_lbl.setStyleSheet("color: #000000;")
+
+    def leaveEvent(self, event):
+        super().leaveEvent(event)
+        self._name_lbl.setStyleSheet("")
+        self._subtitle_lbl.setStyleSheet("")
 
 
 class AgentLibrary(QFrame):
@@ -92,6 +102,7 @@ class AgentLibrary(QFrame):
         self.scroll_area.setWidgetResizable(True)
 
         self.scroll_content = QWidget()
+        self.scroll_content.setObjectName("AgentLibraryScrollContent")
         self.scroll_layout = QVBoxLayout(self.scroll_content)
         self.scroll_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.scroll_layout.setContentsMargins(0, 0, 0, 0)

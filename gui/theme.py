@@ -29,6 +29,9 @@ def get_stylesheet(dark_mode: bool = True) -> str:
     hover = "#2a333a" if dark_mode else "#e6edf2"
     muted = primary
     subtle = "#9aa7ae" if dark_mode else "#5f6f78"
+    sidebar_text = "#ffffff" if dark_mode else "#12171a"
+    agent_hover_bg = "#ffffff"
+    agent_hover_text = "#000000"
 
     qss = f"""
     QMainWindow {{
@@ -65,18 +68,22 @@ def get_stylesheet(dark_mode: bool = True) -> str:
         background-color: {sidebar_bg};
         border-right: 1px solid {border};
     }}
+    
+    #AgentLibrary, #AgentLibraryScrollContent {{
+        background-color: transparent;
+    }}
 
     QLabel[class="SidebarTitle"] {{
         font-size: 11px;
         font-weight: 700;
-        color: {muted};
+        color: {sidebar_text};
         letter-spacing: 1px;
     }}
 
     QLabel[class="CategoryLabel"] {{
         font-size: 10px;
         font-weight: 700;
-        color: {subtle};
+        color: {sidebar_text};
         letter-spacing: 1px;
         padding-left: 2px;
     }}
@@ -127,20 +134,20 @@ def get_stylesheet(dark_mode: bool = True) -> str:
         padding: 0;
     }}
     QPushButton[class="AgentCard"]:hover {{
-        background-color: {hover};
-        border: 1px solid {border};
+        background-color: {agent_hover_bg};
+        border: 1px solid {agent_hover_bg};
     }}
 
     QLabel[class="AgentCardTitle"] {{
         font-size: 13px;
         font-weight: 600;
-        color: {text};
+        color: {sidebar_text};
         background: transparent;
     }}
 
     QLabel[class="AgentCardSubtitle"] {{
         font-size: 11px;
-        color: {subtle};
+        color: {sidebar_text};
         background: transparent;
     }}
 
@@ -226,7 +233,7 @@ def get_stylesheet(dark_mode: bool = True) -> str:
         border: 1px solid {border};
     }}
 
-    QScrollArea {{
+    QScrollArea, QScrollArea > QWidget, QScrollArea > QWidget > QWidget {{
         border: none;
         background-color: transparent;
     }}
