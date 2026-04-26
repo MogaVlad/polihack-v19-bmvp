@@ -114,6 +114,7 @@ class AgentRunnerTab(QWidget):
         self._last_inputs = {}
 
         self.input_widgets = {}
+        self.browse_buttons = []
         self._build_ui()
 
     def _section_header(self, text: str) -> QLabel:
@@ -279,6 +280,8 @@ class AgentRunnerTab(QWidget):
         # Input fields
         for widget in self.input_widgets.values():
             widget.setEnabled(not running)
+        for btn in self.browse_buttons:
+            btn.setEnabled(not running)
 
         # Output actions
         can_use_outputs = (not running) and self._has_run and self._last_result and self._last_result.success
@@ -549,6 +552,7 @@ class AgentRunnerTab(QWidget):
             if child.widget():
                 child.widget().deleteLater()
         self.input_widgets.clear()
+        self.browse_buttons.clear()
 
         for inp in agent_def.inputs:
             row = QWidget()
@@ -559,12 +563,14 @@ class AgentRunnerTab(QWidget):
             lbl = QLabel(f"{inp.name}:" + (" *" if required else ""))
             layout.addWidget(lbl)
 
-            if inp.type in ("image", "file"):
+            if inp.type in ("image", "file", "json"):
                 entry = QLineEdit()
+                entry.setPlaceholderText(inp.description)
                 layout.addWidget(entry, 1)
                 btn = QPushButton("Browse")
-                btn.clicked.connect(lambda checked, n=inp.name: self._browse_file(n))
+                btn.clicked.connect(lambda checked, n=inp.name, t=inp.type: self._browse_file(n, t))
                 layout.addWidget(btn)
+                self.browse_buttons.append(btn)
                 self.input_widgets[inp.name] = entry
             else:
                 entry = QLineEdit()
@@ -579,9 +585,13 @@ class AgentRunnerTab(QWidget):
         if self.status_bar:
             self.status_bar.set_status(f"Loaded: {agent_def.name}")
 
-    def _browse_file(self, input_name: str):
+    def _browse_file(self, input_name: str, input_type: str = "file"):
         if input_name == "floor_plan":
             filter_str = "Floor plans (*.json *.dxf *.png *.jpg *.jpeg *.pdf);;All files (*.*)"
+        elif input_type == "json":
+            filter_str = "JSON files (*.json);;All files (*.*)"
+        elif input_type == "image":
+            filter_str = "Images (*.png *.jpg *.jpeg *.bmp *.gif);;All files (*.*)"
         else:
             filter_str = "All files (*.*)"
         path, _ = QFileDialog.getOpenFileName(self, "Select File", "", filter_str)

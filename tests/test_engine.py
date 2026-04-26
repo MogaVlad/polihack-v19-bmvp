@@ -180,9 +180,8 @@ def test_cache_system():
     print("PASS: test_cache_system (missing cache returns None)")
 
     # Clean up test file
-    import hashlib
-    h = hashlib.md5(json.dumps(test_inputs, sort_keys=True).encode()).hexdigest()[:12]
-    test_path = os.path.join(cache.cache_dir, f"test_agent_{h}.json")
+    test_hash = cache._input_hash(test_inputs)
+    test_path = os.path.join(cache.cache_dir, f"test_agent_{test_hash}.json")
     if os.path.exists(test_path):
         os.remove(test_path)
 

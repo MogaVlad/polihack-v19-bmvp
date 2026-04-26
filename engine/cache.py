@@ -20,7 +20,18 @@ class ResponseCache:
         os.makedirs(self.cache_dir, exist_ok=True)
 
     def _input_hash(self, inputs: Dict[str, str]) -> str:
-        serialized = json.dumps(inputs, sort_keys=True)
+        normalized = []
+        for value in inputs.values():
+            if isinstance(value, str):
+                try:
+                    parsed = json.loads(value)
+                    normalized.append(json.dumps(parsed, sort_keys=True, separators=(",", ":")))
+                except (json.JSONDecodeError, TypeError):
+                    normalized.append(value)
+            else:
+                normalized.append(str(value))
+        normalized.sort()
+        serialized = "\0".join(normalized)
         return hashlib.md5(serialized.encode()).hexdigest()[:12]
 
     def _cache_path(self, agent_id: str, input_hash: str) -> str:
@@ -31,9 +42,7 @@ class ResponseCache:
         path = self._cache_path(agent_id, input_hash)
 
         if not os.path.isfile(path):
-            path = self._find_by_agent_id(agent_id)
-            if not path:
-                return None
+            return None
 
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -56,9 +65,7 @@ class ResponseCache:
         path = self._cache_path(agent_id, input_hash)
 
         if not os.path.isfile(path):
-            path = self._find_by_agent_id(agent_id)
-            if not path:
-                return None
+            return None
 
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -95,15 +102,6 @@ class ResponseCache:
 
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False, default=str)
-
-    def _find_by_agent_id(self, agent_id: str) -> Optional[str]:
-        """Find any cached file for this agent (fallback when exact hash doesn't match)."""
-        if not os.path.isdir(self.cache_dir):
-            return None
-        for fname in os.listdir(self.cache_dir):
-            if fname.startswith(agent_id) and fname.endswith(".json"):
-                return os.path.join(self.cache_dir, fname)
-        return None
 
     @staticmethod
     def validate_cached_result_data(data: Dict[str, Any]) -> Tuple[bool, List[str]]:

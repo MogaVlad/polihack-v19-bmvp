@@ -1,6 +1,6 @@
 {
   "agent_id": "exit_placement_advisor",
-  "input_hash": "6f1dc43ee62e",
+  "input_hash": "9bfee7beca1b",
   "initial_response": "## Fix Proposals — Borderline Case\n\n### Proposal 1: Connect Room R4 to Corridor C1 (HIGH PRIORITY)\n**Resolves**: V001 (R4 no reachable exit)\n**What to change**: Add a new door from R4 to C1, width >= 0.9m\n**Effort**: Medium\n\n### Proposal 2: Widen Corridor C2 by 1cm (LOW PRIORITY)\n**Resolves**: V002 (C2 width 1.39m < 1.4m)\n**Effort**: Low\n\n### Proposal 3: Replace Door D3 (LOW PRIORITY)\n**Resolves**: V003 (D3 width 0.89m < 0.9m)\n**Effort**: Low\n\n### Remaining Violations After All Proposals: None\n\n```json\n[\n  {\"proposal_id\": \"P1\", \"resolves\": [\"V001\"], \"change\": \"Add door from R4 to C1\", \"effort\": \"medium\", \"impact\": \"high\"},\n  {\"proposal_id\": \"P2\", \"resolves\": [\"V002\"], \"change\": \"Widen C2 by 1cm\", \"effort\": \"low\", \"impact\": \"low\"},\n  {\"proposal_id\": \"P3\", \"resolves\": [\"V003\"], \"change\": \"Replace D3 door frame\", \"effort\": \"low\", \"impact\": \"low\"}\n]\n```",
   "outputs": {
     "response": "Borderline fix proposals"

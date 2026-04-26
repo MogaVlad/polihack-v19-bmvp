@@ -1,6 +1,6 @@
 {
   "agent_id": "evacuation_diagnoser",
-  "input_hash": "6f1dc43ee62e",
+  "input_hash": "9bfee7beca1b",
   "initial_response": "## Evacuation Risk Diagnosis — Borderline Case\n\nThe Metrics Calculator reports: **1 critical, 2 major violations. Compliance score: 45/100. Status: FAIL.**\n\n### Life-Safety-Critical\n\n**Room R4 is a death trap.** This room has 3 occupants but its door (D4) connects to a corridor that doesn't exist (GHOST_CORRIDOR). In a fire, these 3 people have literally no escape route.\n\n### Code-Compliance (Borderline)\n\n**Corridor C2 is 1mm too narrow.** At 1.39m vs the 1.4m minimum, this barely fails P118.\n\n**Door D3 is 1mm too narrow.** At 0.89m vs the 0.90m minimum.\n\n### Overall Assessment\n\nThis building has one genuine safety hazard (the disconnected Room R4) and two technical violations that are borderline. For fix proposals, consult the **Exit Placement Advisor** agent.\n\n```json\n[\n  {\"violation_id\": \"V001\", \"severity_rank\": 1, \"explanation\": \"Room R4 completely disconnected\", \"impact\": \"3 occupants trapped\", \"category\": \"life-safety-critical\"},\n  {\"violation_id\": \"V002\", \"severity_rank\": 2, \"explanation\": \"Corridor C2 1mm below minimum\", \"impact\": \"Minimal\", \"category\": \"code-compliance\"},\n  {\"violation_id\": \"V003\", \"severity_rank\": 3, \"explanation\": \"Door D3 1mm below minimum\", \"impact\": \"Minimal\", \"category\": \"code-compliance\"}\n]\n```",
   "outputs": {
     "response": "Borderline diagnosis"

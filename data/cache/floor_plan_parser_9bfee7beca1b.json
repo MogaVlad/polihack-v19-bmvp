@@ -1,6 +1,6 @@
 {
   "agent_id": "floor_plan_parser",
-  "input_hash": "6f1dc43ee62e",
+  "input_hash": "9bfee7beca1b",
   "initial_response": "## Floor Plan Parse Results — Borderline Case\n\n### Rooms Identified (5 total)\n\n1. **R1 — Main Office** (96m2, occupancy: 20)\n2. **R2 — Meeting Room** (80m2, occupancy: 16)\n3. **R3 — Workshop** (96m2, occupancy: 15)\n4. **R4 — No-Polygon Room** (0m2, occupancy: 3) — FLAGGED: no polygon data\n5. **R5 — Storage** (48m2, occupancy: 2)\n\n### Flagged Issues\n\n1. Room R4 has no polygon — cannot render on canvas\n2. Door D4 references GHOST_CORRIDOR which does not exist\n3. Several measurements near P118 thresholds\n\nFor validation, I recommend the **Egress Validator** agent.\n\n```json\n[\n  {\"id\": \"FLAG1\", \"type\": \"missing_polygon\", \"location\": \"R4\", \"description\": \"Room has no spatial definition\"},\n  {\"id\": \"FLAG2\", \"type\": \"invalid_reference\", \"location\": \"D4\", \"description\": \"Door connects to nonexistent corridor GHOST_CORRIDOR\"}\n]\n```",
   "outputs": {
     "response": "Borderline parse"
