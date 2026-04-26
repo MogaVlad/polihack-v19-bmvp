@@ -647,6 +647,43 @@ class AgentRunnerTab(QWidget):
                 return plan
         return None
 
+    def _extract_violations_payload(self, payload):
+        if payload is None:
+            return None
+        if isinstance(payload, list):
+            return payload
+        if isinstance(payload, str):
+            try:
+                parsed = json.loads(payload)
+            except json.JSONDecodeError:
+                return None
+            return self._extract_violations_payload(parsed)
+        if isinstance(payload, dict):
+            violations = payload.get("violations")
+            if isinstance(violations, list):
+                return violations
+            if isinstance(violations, dict):
+                nested = self._extract_violations_payload(violations)
+                if nested:
+                    return nested
+            if isinstance(payload.get("p118_validator"), list):
+                return payload.get("p118_validator")
+            if isinstance(payload.get("tool_results"), dict):
+                tool_data = payload["tool_results"].get("p118_validator")
+                return self._extract_violations_payload(tool_data)
+        return None
+
+    def _parse_violations(self, *payloads) -> list[Violation]:
+        parsed = []
+        for payload in payloads:
+            raw = self._extract_violations_payload(payload)
+            if not raw:
+                continue
+            for v in raw:
+                if isinstance(v, dict):
+                    parsed.append(Violation.from_dict(v))
+        return parsed
+
     # Run
 
     def _run_agent(self):
@@ -802,10 +839,11 @@ class AgentRunnerTab(QWidget):
             return
 
         data = self._last_result.outputs or {}
+        tool_results = self._last_result.tool_results or {}
         plan_payload = self._extract_plan_dict(data) if data else None
         if not plan_payload:
             plan_payload = self._plan_from_inputs()
-        if not data and not plan_payload:
+        if not data and not plan_payload and not tool_results:
             return
         if plan_payload:
             try:
@@ -814,35 +852,9 @@ class AgentRunnerTab(QWidget):
             except (KeyError, TypeError):
                 pass
 
-        violations_raw = None
-        if isinstance(data, list):
-            violations_raw = data
-        elif isinstance(data, dict):
-            violations_raw = data.get("violations", data.get("tool_results", {}).get("p118_validator"))
-
-        if violations_raw and isinstance(violations_raw, list):
-            parsed = []
-            for v in violations_raw:
-                if isinstance(v, dict) and "rule" in v:
-                    try:
-                        parsed.append(Violation.from_dict(v))
-                    except Exception:
-                        continue
-            if parsed:
-                self.canvas_panel.show_violations(parsed)
-
-        tool_results = self._last_result.tool_results or {}
-        p118_data = tool_results.get("p118_validator")
-        if p118_data and isinstance(p118_data, list):
-            parsed = []
-            for v in p118_data:
-                if isinstance(v, dict) and "rule" in v:
-                    try:
-                        parsed.append(Violation.from_dict(v))
-                    except Exception:
-                        continue
-            if parsed:
-                self.canvas_panel.show_violations(parsed)
+        parsed = self._parse_violations(data, tool_results)
+        if parsed:
+            self.canvas_panel.show_violations(parsed)
 
         if not self.canvas_panel.visible:
             self.canvas_panel.toggle()

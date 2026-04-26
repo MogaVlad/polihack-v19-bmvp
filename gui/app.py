@@ -214,6 +214,8 @@ class App(QMainWindow):
         app = QApplication.instance()
         if app:
             app.setStyleSheet(get_stylesheet(dark_mode=dark_mode))
+        if self.canvas_panel:
+            self.canvas_panel.apply_theme(dark_mode)
         self._apply_icons()
 
     def _toggle_sidebar(self):

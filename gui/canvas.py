@@ -130,6 +130,8 @@ class CanvasPanel(QWidget):
         self.violations: List[Violation] = []
         self.visible = False
         self._plan_rect: Optional[QRectF] = None
+        self._dark_mode = True
+        self._theme_colors = {}
 
         self.show_labels_var = True
         self.show_occupancy_var = True
@@ -185,6 +187,7 @@ class CanvasPanel(QWidget):
         main_layout.addWidget(self.panel_frame, 1)
         self.panel_frame.hide()
         self._set_collapsed(True)
+        self.apply_theme(True)
 
     def _set_collapsed(self, collapsed: bool):
         if collapsed:
@@ -204,6 +207,32 @@ class CanvasPanel(QWidget):
         self.show_occupancy_var = self.occ_toggle.isChecked()
         self.show_violations_var = self.viol_toggle.isChecked()
         self._redraw()
+
+    def apply_theme(self, dark_mode: bool):
+        self._dark_mode = dark_mode
+        if dark_mode:
+            self._theme_colors = {
+                "view_bg": "#0f1315",
+                "room_fill": "#181c1f",
+                "room_border": "#b3c0c7",
+                "corridor_border": "#4f4c67",
+                "exit_fill": "#8b81a2",
+                "door_color": "#b3c0c7",
+                "label_color": "#b3c0c7",
+            }
+        else:
+            self._theme_colors = {
+                "view_bg": "#f5f7f9",
+                "room_fill": "#ffffff",
+                "room_border": "#3b4a52",
+                "corridor_border": "#8893a4",
+                "exit_fill": "#5f7390",
+                "door_color": "#3b4a52",
+                "label_color": "#3b4a52",
+            }
+        self.view.setStyleSheet(f"background-color: {self._theme_colors['view_bg']}; border: none;")
+        if self.visible:
+            self._redraw()
 
     def toggle(self):
         if self.visible:
@@ -256,12 +285,12 @@ class CanvasPanel(QWidget):
             else:
                 self._plan_rect = self._plan_rect.united(rect)
 
-        room_fill = QColor("#181c1f")
-        room_border = QColor("#b3c0c7")
-        corridor_border = QColor("#4f4c67")
-        exit_fill = QColor("#8b81a2")
-        door_color = QColor("#b3c0c7")
-        label_color = QColor("#b3c0c7")
+        room_fill = QColor(self._theme_colors.get("room_fill", "#181c1f"))
+        room_border = QColor(self._theme_colors.get("room_border", "#b3c0c7"))
+        corridor_border = QColor(self._theme_colors.get("corridor_border", "#4f4c67"))
+        exit_fill = QColor(self._theme_colors.get("exit_fill", "#8b81a2"))
+        door_color = QColor(self._theme_colors.get("door_color", "#b3c0c7"))
+        label_color = QColor(self._theme_colors.get("label_color", "#b3c0c7"))
         label_font = QFont("Segoe UI", 8)
 
         for room in plan.rooms:
