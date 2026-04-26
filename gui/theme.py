@@ -219,6 +219,28 @@ def get_stylesheet(dark_mode: bool = True) -> str:
         background-color: {danger};
         color: #ffffff;
     }}
+    
+    QWidget[class="SplashBg"] {{
+        background-color: {bg};
+    }}
+    QLabel[class="SplashTitle"] {{
+        font-size: 48px;
+        font-weight: 800;
+        color: {text};
+        background-color: transparent;
+    }}
+    QPushButton[class="SplashProceedBtn"] {{
+        background-color: {accent};
+        color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        padding: 16px 32px;
+        font-weight: 700;
+        font-size: 16px;
+    }}
+    QPushButton[class="SplashProceedBtn"]:hover {{
+        background-color: {secondary};
+    }}
 
     QLineEdit, QTextEdit, QPlainTextEdit {{
         background-color: {input_bg};

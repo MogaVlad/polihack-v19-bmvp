@@ -14,6 +14,7 @@ from gui.l2_console import L2ConsoleTab
 from gui.adoption_panel import AdoptionPanel
 from gui.canvas import CanvasPanel
 from gui.controls import StatusBar
+from gui.splash import SplashOverlay
 from models.floor_plan import FloorPlan
 
 SIDEBAR_WIDTH = 280
@@ -58,9 +59,9 @@ class App(QMainWindow):
         self._title_icon_lbl.setFixedSize(26, 26)
         header_layout.addWidget(self._title_icon_lbl)
 
-        logo_label = QLabel("AgentArchitect")
-        logo_label.setProperty("class", "Title")
-        header_layout.addWidget(logo_label)
+        self.logo_label = QLabel("AgentArchitect")
+        self.logo_label.setProperty("class", "Title")
+        header_layout.addWidget(self.logo_label)
 
         subtitle = QLabel("Engineering Agent Platform")
         subtitle.setProperty("class", "Subtitle")
@@ -172,7 +173,10 @@ class App(QMainWindow):
 
         self._apply_icons()
         self._preload_example_plan()
-
+        
+        # Create and show Splash Screen on top
+        self.splash = SplashOverlay(self.central_widget, self.logo_label)
+        self.splash.show()
     # Icon helpers
     def _icon_path(self, name: str) -> str:
         suffix = "dark" if self._dark_mode else "light"
@@ -278,3 +282,8 @@ class App(QMainWindow):
                 self.canvas_panel.load_plan(plan)
             except Exception:
                 pass
+                
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, 'splash') and self.splash:
+            self.splash.resize(self.central_widget.size())
