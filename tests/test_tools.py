@@ -172,8 +172,6 @@ def test_p118_empty_plan():
     print(f"PASS: test_p118_empty_plan — {len(violations)} violations")
 
 
-    print(f"PASS: test_metrics_empty — {report}")
-
 # ── DXF Parser Test ─────────────────────────────────────────────
 
 # ── Structural Checker Tests ────────────────────────────────────

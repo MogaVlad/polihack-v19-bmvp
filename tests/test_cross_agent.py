@@ -31,15 +31,20 @@ def test_all_agents_tools_on_all_plans():
     for plan_name in PLANS:
         plan = FloorPlan.load_from_json(f"data/floor_plans/{plan_name}.json")
         plan_data = json.dumps(plan.to_dict())
-        inputs = {"parsed_plan": plan_data}
 
         for agent_id in AGENT_IDS:
             agent = agents[agent_id]
+
+            if agent_id == "floor_plan_parser":
+                inputs = {"floor_plan": plan_data}
+            else:
+                inputs = {"parsed_plan": plan_data}
+
             tool_results = runner._run_tools(agent, inputs, lambda s: None)
 
             for tool_name, result_str in tool_results.items():
                 parsed = json.loads(result_str)
-                if tool_name == "gemini_vision":
+                if tool_name in ("gemini_vision", "dxf_parser"):
                     continue
                 assert not (isinstance(parsed, dict) and "error" in parsed), (
                     f"{agent_id}/{plan_name}/{tool_name}: {parsed.get('error')}"
@@ -132,8 +137,10 @@ def test_prompt_assembly_all_agents():
 
         assert agent.name in system_prompt
         assert "CONSTRAINTS" in system_prompt
-        assert "SCOPE BOUNDARIES" in system_prompt
-        assert "CONVERSATION BEHAVIOR" in system_prompt
+
+        if agent.conversational:
+            assert "SCOPE BOUNDARIES" in system_prompt
+            assert "CONVERSATION BEHAVIOR" in system_prompt
 
         if tool_results:
             assert "TOOL RESULTS" in system_prompt

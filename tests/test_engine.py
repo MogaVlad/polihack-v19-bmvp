@@ -317,12 +317,18 @@ def test_evacuation_diagnoser_uses_metrics():
 
 
 def test_scope_boundaries():
-    """Verify each agent's prompt contains explicit scope boundaries with redirects."""
+    """Verify each conversational agent's prompt contains explicit scope boundaries with redirects."""
     from engine.prompt_builder import AGENT_SCOPE_MAP
 
     agents = AgentDefinition.load_all_from_directory("data/agents")
     for agent in agents:
         prompt = PromptBuilder.build_system_prompt(agent)
+
+        if not agent.conversational:
+            assert "SCOPE BOUNDARIES" not in prompt, (
+                f"{agent.id} is non-conversational but got SCOPE BOUNDARIES"
+            )
+            continue
 
         assert "SCOPE BOUNDARIES" in prompt, f"{agent.id} missing SCOPE BOUNDARIES"
 
@@ -335,7 +341,7 @@ def test_scope_boundaries():
             assert "OUT OF SCOPE" in prompt
 
     assert len(AGENT_SCOPE_MAP) == 4
-    print(f"PASS: test_scope_boundaries ({len(agents)} agents with explicit scope + redirects)")
+    print(f"PASS: test_scope_boundaries ({len(agents)} agents checked, conversational ones have scope + redirects)")
 
 
 def test_conversation_behavior_instructions():
@@ -370,17 +376,20 @@ def test_conversation_turn_limit():
 
 
 def test_l2_templates_enforce_plain_text():
-    """Verify all L2 templates explicitly forbid JSON/structured output."""
+    """Verify prose-output L2 templates forbid JSON. The parser template is excluded since it deliberately outputs JSON."""
     import glob
     templates = glob.glob("prompts/v1_*.md")
     assert len(templates) >= 4
 
-    for path in templates:
+    prose_templates = [p for p in templates if "parse_floor_plan" not in p]
+    assert len(prose_templates) >= 3
+
+    for path in prose_templates:
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
         assert "do not use json" in content.lower(), f"{path} missing 'no JSON' instruction"
         assert "single-shot" in content.lower() or "cannot" in content.lower(), f"{path} missing L2 limitation"
-    print(f"PASS: test_l2_templates_enforce_plain_text ({len(templates)} templates)")
+    print(f"PASS: test_l2_templates_enforce_plain_text ({len(prose_templates)} prose templates, 1 parser template excluded)")
 
 
 def test_cache_schema_validation():
