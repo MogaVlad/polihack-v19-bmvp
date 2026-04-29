@@ -278,3 +278,11 @@ python main.py
 - **Dijkstra's algorithm** for evacuation pathfinding
 - **ezdxf** for DXF floor plan parsing
 - **Pillow** for image handling
+
+---
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2026 Moga Vlad-Mihai, Matenciuc George-Sebastian, Micle Ana-Maria, Mudure Naomi-Aida [Team: The Bity Ministry of Vibes & Prayers].
